@@ -1,0 +1,9 @@
+[submodule "avrlib"]
+	path = avrlib
+	url = git@github.com:pichenettes/avril.git
+[submodule "stmlib"]
+	path = stmlib
+	url = git@github.com:pichenettes/stmlib.git
+[submodule "avrlibx"]
+	path = avrlibx
+	url = git@github.com:pichenettes/avrilx.git

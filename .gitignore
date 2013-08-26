@@ -1,0 +1,47 @@
+# Precompiled python modules
+*.pyc
+
+# Eagle backups
+*.s#?
+*.b#?
+*.bak
+
+# Gerber files
+*.CUT
+*.GBL
+*.GBO
+*.GBS
+*.GML
+*.GTL
+*.GTO
+*.GTP
+*.GTS
+*.TXT
+*.dri
+*.gpi
+*.pro
+
+# Assembly files
+*assembly.zip
+*top.pdf
+*bottom.pdf
+*.csv
+*partlist.txt
+*.zip
+
+# LaTeX compiled file
+*.pdf
+*.log
+*.aux
+
+# OS X crap
+.DS_Stor?
+
+# Build directory
+build
+
+# BETA Layout variants
+*_beta.sch
+*_BETA.sch
+*_beta.brd
+*_BETA.brd
