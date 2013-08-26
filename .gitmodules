@@ -7,3 +7,6 @@
 [submodule "avrlibx"]
 	path = avrlibx
 	url = git@github.com:pichenettes/avrilx.git
+[submodule "stm_audio_bootloader"]
+	path = stm_audio_bootloader
+	url = git@github.com:pichenettes/stm-audio-bootloader.git
