@@ -829,7 +829,7 @@ static int16_t kDrumPartials[] = {
 };
 
 static int16_t kDrumPartialAmplitude[] = {
-  21233, 3317, 4977, 6636, 4977, 3732
+  16986, 2654, 3981, 5308, 3981, 2985
 };
 
 static uint16_t kDrumPartialDecayLong[] = {
@@ -960,6 +960,12 @@ void DigitalOscillator::RenderStruckDrum(
     int32_t harmonics = 0;
 
     int32_t noise = Random::GetSample();
+    if (noise > 16384) {
+      noise = 16384;
+    }
+    if (noise < -16384) {
+      noise = -16384;
+    }
     lp_state_0 += (noise - lp_state_0) * f >> 15;
     lp_state_1 += (lp_state_0 - lp_state_1) * f >> 15;
     lp_state_2 += (lp_state_1 - lp_state_2) * f >> 15;
@@ -975,16 +981,17 @@ void DigitalOscillator::RenderStruckDrum(
       harmonics += partial;
       partials[i] = partial;
     }
-    int32_t fundamental = partials[0];
+    int32_t sample = partials[0];
     int32_t noise_mode_1 = partials[1] * lp_state_2 >> 8;
     int32_t noise_mode_2 = partials[3] * lp_state_2 >> 9;
-    fundamental += noise_mode_1 * (12288 - noise_mode_gain) >> 14;
-    fundamental += noise_mode_2 * noise_mode_gain >> 14;
-    fundamental += harmonics * harmonics_gain >> 14;
-    CLIP(fundamental)
-    *buffer++ = (fundamental + previous_sample) >> 1;
-    *buffer++ = fundamental; size--;
-    previous_sample = fundamental;
+    sample += noise_mode_1 * (12288 - noise_mode_gain) >> 14;
+    sample += noise_mode_2 * noise_mode_gain >> 14;
+    sample += harmonics * harmonics_gain >> 14;
+    CLIP(sample)
+    //sample = Interpolate88(ws_slight_overdrive, sample + 32768);
+    *buffer++ = (sample + previous_sample) >> 1;
+    *buffer++ = sample; size--;
+    previous_sample = sample;
   }
   state_.add.previous_sample = previous_sample;
   state_.add.lp_noise[0] = lp_state_0;
@@ -1511,6 +1518,86 @@ void DigitalOscillator::RenderWaveMap(
   }
 }
 
+const uint8_t wave_line[] = {
+    187, 179, 154, 155, 135, 134, 137, 19, 24, 3, 8, 66, 79, 25, 180, 174, 64,
+    127, 198, 15, 10, 7, 11, 0, 191, 192, 115, 238, 237, 236, 241, 47, 70, 76,
+    235, 26, 133, 208, 34, 175, 183, 146, 147, 148, 150, 151, 152, 153, 117,
+    138, 32, 33, 35, 125, 199, 201, 30, 31, 193, 27, 29, 21, 18, 182
+};
+
+void DigitalOscillator::RenderWaveLine(
+    const uint8_t* sync,
+    int16_t* buffer,
+    uint8_t size) {
+  
+  uint32_t phase_increment = phase_increment_ >> 1;
+
+  const uint8_t* wave_previous = wt_waves + wave_line[previous_parameter_[0] >> 9] * 129;
+  const uint8_t* wave_current = wt_waves + wave_line[parameter_[0] >> 9] * 129;
+  const uint8_t* wave_1 = wt_waves + wave_line[parameter_[0] >> 9] * 129;
+  const uint8_t* wave_2 = wt_waves + wave_line[(parameter_[0] >> 9) + 1] * 129;
+
+  uint16_t smooth_xfade = parameter_[0] << 7;
+  uint16_t rough_xfade = 0;
+  uint16_t rough_xfade_increment = 65536 / (2 * size);
+  uint32_t phase = phase_;
+  
+  uint16_t balance = parameter_[1];
+  while (size--) {
+    // 2x naive oversampling.
+    if (*sync++) {
+      phase = 0;
+    }
+
+    int16_t sample = 0;
+
+
+    if (balance < 8192) {
+      int16_t rough = Crossfade(wave_previous, wave_current, (phase >> 1) & 0xfe000000, rough_xfade);
+      int16_t smooth = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
+      sample += Mix(rough, smooth, balance << 3) >> 1;
+    } else if (balance < 16384) {
+      int16_t rough = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
+      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      sample += Mix(rough, smooth, balance << 3) >> 1;
+    } else if (balance < 24576) {
+      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance << 3) >> 1;
+    } else {
+      int16_t smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance << 3) >> 1;
+    }
+    phase += phase_increment;
+    rough_xfade += rough_xfade_increment;
+    if (balance < 8192) {
+      int16_t rough = Crossfade(wave_previous, wave_current, (phase >> 1) & 0xfe000000, rough_xfade);
+      int16_t smooth = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
+      sample += Mix(rough, smooth, balance << 3) >> 1;
+    } else if (balance < 16384) {
+      int16_t rough = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
+      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      sample += Mix(rough, smooth, balance << 3) >> 1;
+    } else if (balance < 24576) {
+      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance << 3) >> 1;
+    } else {
+      int16_t smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance << 3) >> 1;
+    }
+    phase += phase_increment;
+    rough_xfade += rough_xfade_increment;
+    
+    *buffer++ = sample;
+  }
+  
+  phase_ = phase;
+  previous_parameter_[0] = parameter_[0];
+}
+
 void DigitalOscillator::RenderFilteredNoise(
     const uint8_t* sync,
     int16_t* buffer,
@@ -2018,6 +2105,7 @@ DigitalOscillator::RenderFn DigitalOscillator::fn_table_[] = {
   &DigitalOscillator::RenderFluted,
   &DigitalOscillator::RenderWavetables,
   &DigitalOscillator::RenderWaveMap,
+  &DigitalOscillator::RenderWaveLine,
   &DigitalOscillator::RenderFilteredNoise,
   &DigitalOscillator::RenderTwinPeaksNoise,
   &DigitalOscillator::RenderClockedNoise,

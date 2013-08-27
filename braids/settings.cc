@@ -38,7 +38,7 @@ namespace braids {
 using namespace stmlib;
 
 const SettingsData kInitSettings = {
-  MACRO_OSC_SHAPE_CSAW,
+  MACRO_OSC_SHAPE_WAVE_LINE,
   
   RESOLUTION_16_BIT,
   SAMPLE_RATE_96K,
@@ -120,6 +120,7 @@ const char* const algo_values[] = {
     "FLUT",
     "WTBL",
     "WMAP",
+    "WLIN",
     "NOIS",
     "TWNQ",
     "CLKN",
@@ -200,7 +201,7 @@ const SettingMetadata Settings::metadata_[] = {
   { 0, 0, "CAL.", NULL },
   { 0, 0, "    ", NULL },  // Placeholder for CV tester
   { 0, 0, "    ", NULL },  // Placeholder for marquee
-  { 0, 0, "v1.3", NULL },  // Placeholder for version string
+  { 0, 0, "v1.4", NULL },  // Placeholder for version string
 };
 
 /* extern */

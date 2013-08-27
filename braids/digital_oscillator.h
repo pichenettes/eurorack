@@ -75,6 +75,7 @@ enum DigitalOscillatorShape {
   
   OSC_SHAPE_WAVETABLES,
   OSC_SHAPE_WAVE_MAP,
+  OSC_SHAPE_WAVE_LINE,
   
   OSC_SHAPE_FILTERED_NOISE,
   OSC_SHAPE_TWIN_PEAKS_NOISE,
@@ -284,6 +285,7 @@ class DigitalOscillator {
 
   void RenderWavetables(const uint8_t*, int16_t*, uint8_t);
   void RenderWaveMap(const uint8_t*, int16_t*, uint8_t);
+  void RenderWaveLine(const uint8_t*, int16_t*, uint8_t);
   
   void RenderTwinPeaksNoise(const uint8_t*, int16_t*, uint8_t);
   void RenderFilteredNoise(const uint8_t*, int16_t*, uint8_t);
