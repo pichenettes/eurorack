@@ -115,6 +115,7 @@ enum PitchRange {
   PITCH_RANGE_EXTERNAL,
   PITCH_RANGE_FREE,
   PITCH_RANGE_EXTENDED,
+  PITCH_RANGE_440,
   PITCH_RANGE_LFO  // This setting is hidden by default!
 };
 
@@ -276,6 +277,8 @@ class Settings {
       pitch_dac_code = (pitch_dac_code - 1638);
       pitch_dac_code = pitch_dac_code * data_.pitch_cv_scale >> 12;
       pitch_dac_code += 60 << 7;
+    } else if (data_.pitch_range == PITCH_RANGE_440) {
+      pitch_dac_code = 69 << 7;
     } else {
       pitch_dac_code = (pitch_dac_code - 1638) * 9 >> 1;
       pitch_dac_code += 60 << 7;
@@ -290,6 +293,9 @@ class Settings {
   inline int32_t dac_to_fm(int32_t fm_dac_code) const {
     fm_dac_code -= data_.fm_cv_offset;
     fm_dac_code = fm_dac_code * 7680 >> 12;
+    if (data_.pitch_range == PITCH_RANGE_440) {
+      fm_dac_code = 0;
+    }
     return fm_dac_code;
   }
 

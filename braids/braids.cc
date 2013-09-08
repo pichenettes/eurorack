@@ -187,10 +187,13 @@ void RenderBlock() {
   if (ui.paques()) {
     osc.set_shape(MACRO_OSC_SHAPE_QUESTION_MARK);
   } else if (settings.meta_modulation()) {
-    int16_t shape = adc.channel(3);
+    int32_t shape = adc.channel(3);
     shape = shape > 2048 ? shape - 2048 : 0;
-    osc.set_shape(static_cast<MacroOscillatorShape>(
-        MACRO_OSC_SHAPE_LAST * shape >> 11));
+    shape = MACRO_OSC_SHAPE_LAST * shape >> 11;
+    if (shape >= MACRO_OSC_SHAPE_DIGITAL_MODULATION) {
+      shape = MACRO_OSC_SHAPE_DIGITAL_MODULATION;
+    }
+    osc.set_shape(static_cast<MacroOscillatorShape>(shape));
   } else {
     osc.set_shape(settings.shape());
   }

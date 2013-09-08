@@ -38,7 +38,7 @@ namespace braids {
 using namespace stmlib;
 
 const SettingsData kInitSettings = {
-  MACRO_OSC_SHAPE_WAVE_LINE,
+  MACRO_OSC_SHAPE_CSAW,
   
   RESOLUTION_16_BIT,
   SAMPLE_RATE_96K,
@@ -152,7 +152,13 @@ const char* const quantization_values[] = { "OFF ", "QRTR", "SEMI" };
 
 const char* const trig_values[] = { "EXT.", "AUTO" };
 
-const char* const pitch_range_values[] = { "EXT.", "FREE", "XTND", "LFO " };
+const char* const pitch_range_values[] = {
+    "EXT.",
+    "FREE",
+    "XTND",
+    "440 ",
+    "LFO "
+};
 
 const char* const octave_values[] = { "-2", "-1", "0", "1", "2" };
 
@@ -191,7 +197,7 @@ const SettingMetadata Settings::metadata_[] = {
   { 0, 1, "TSRC",  trig_values },
   { 0, 6, "TDLY", trig_delay_values },
   { 0, 1, "META", boolean_values },
-  { 0, 2, "RANG", pitch_range_values },
+  { 0, 3, "RANG", pitch_range_values },
   { 0, 4, "OCTV", octave_values },
   { 0, PITCH_QUANTIZATION_LAST - 1, "QNTZ", quantization_values },
   { 0, 1, "FLAT", boolean_values },
