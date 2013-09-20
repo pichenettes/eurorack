@@ -138,10 +138,6 @@ void Init() {
   }
   
   envelope.Init();
-  envelope.SetShapes(
-      ENV_SHAPE_EXPONENTIAL,
-      ENV_SHAPE_EXPONENTIAL,
-      ENV_SHAPE_EXPONENTIAL);
   ws.Init(GetUniqueId(2));
   jitter_source.Init(GetUniqueId(1));
   system.StartTimers();
@@ -225,7 +221,6 @@ void RenderBlock() {
   if (!settings.meta_modulation()) {
     pitch += settings.dac_to_fm(adc.channel(3));
   }
-  pitch += settings.octave();
   
   // Check if the pitch has changed to cause an auto-retrigger
   int32_t pitch_delta = pitch - previous_pitch;

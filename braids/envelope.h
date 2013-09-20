@@ -35,12 +35,6 @@ enum EnvelopeSegment {
   ENV_NUM_SEGMENTS,
 };
 
-enum EnvelopeShape {
-  ENV_SHAPE_LINEAR,
-  ENV_SHAPE_EXPONENTIAL,
-  ENV_SHAPE_QUARTIC
-};
-
 class Envelope {
  public:
   Envelope() { }
@@ -53,8 +47,6 @@ class Envelope {
     
     increment_[ENV_SEGMENT_SUSTAIN] = 0;
     increment_[ENV_SEGMENT_DEAD] = 0;
-    shape_[ENV_SEGMENT_SUSTAIN] = lut_env_expo;
-    shape_[ENV_SEGMENT_DEAD] = lut_env_expo;
   }
 
   inline EnvelopeSegment segment() const {
@@ -67,12 +59,6 @@ class Envelope {
     increment_[ENV_SEGMENT_RELEASE] = lut_env_portamento_increments[r];
     target_[ENV_SEGMENT_DECAY] = s << 9;
     target_[ENV_SEGMENT_SUSTAIN] = target_[ENV_SEGMENT_DECAY];
-  }
-  
-  inline void SetShapes(EnvelopeShape a, EnvelopeShape d, EnvelopeShape r) {
-    shape_[ENV_SEGMENT_ATTACK] = lookup_table_table[LUT_ENV_LINEAR + a];
-    shape_[ENV_SEGMENT_DECAY] = lookup_table_table[LUT_ENV_LINEAR + d];
-    shape_[ENV_SEGMENT_RELEASE] = lookup_table_table[LUT_ENV_LINEAR + r];
   }
   
   inline void Trigger(EnvelopeSegment segment) {
@@ -93,7 +79,7 @@ class Envelope {
       Trigger(static_cast<EnvelopeSegment>(segment_ + 1));
     }
     if (increment_[segment_]) {
-      value_ = Mix(a_, b_, Interpolate824(shape_[segment_], phase_));
+      value_ = Mix(a_, b_, Interpolate824(lut_env_expo, phase_));
     }
     return value_;
   }

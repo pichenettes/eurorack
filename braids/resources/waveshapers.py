@@ -23,8 +23,9 @@ import numpy
 
 waveshapers = []
 
-def scale(x, min=-32766, max=32766):
-  x -= x.mean()
+def scale(x, min=-32766, max=32766, center=True):
+  if center:
+    x -= x.mean()
   mx = numpy.abs(x).max()
   x = (x + mx) / (2 * mx)
   x = x * (max - min) + min
@@ -38,12 +39,16 @@ violent_overdrive = numpy.tanh(8.0 * x)
 overdrive = numpy.tanh(5.0 * x)
 slight_overdrive = numpy.tanh(1.75 * x)
 moderate_overdrive = numpy.tanh(2.5 * x)
-fold = numpy.abs(4.0 * x - numpy.round(4.0 * x)) * numpy.sign(x)
-sine = numpy.sin(5 * numpy.pi * x)
 
-waveshapers.append(('overdrive', scale(overdrive)))
+window = numpy.exp(-x * x * 4) ** 1.5
+sine = numpy.sin(8 * numpy.pi * x)
+sine_fold = sine * window + numpy.arctan(3 * x) * (1 - window)
+sine_fold /= numpy.abs(sine_fold).max()
+
+tri_fold = numpy.sin(numpy.pi * (3 * x + (2 * x) ** 3))
+
 waveshapers.append(('moderate_overdrive', scale(moderate_overdrive)))
 waveshapers.append(('slight_overdrive', scale(slight_overdrive)))
 waveshapers.append(('violent_overdrive', scale(violent_overdrive)))
-waveshapers.append(('sine', scale(sine)))
-waveshapers.append(('fold', scale(fold)))
+waveshapers.append(('sine_fold', scale(sine_fold, center=False)))
+waveshapers.append(('tri_fold', scale(tri_fold)))

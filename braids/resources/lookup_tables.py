@@ -167,11 +167,11 @@ lookup_tables.append(
 Bowing envelope and friction curve
 ----------------------------------------------------------------------------"""
 
-attack = numpy.linspace(0, 1, int(sample_rate * 0.025 / 2)) * 0.2 * 32768
-decay = numpy.linspace(1, 0.8, int(sample_rate * 0.005 / 2)) * 0.2 * 32768
+attack = numpy.linspace(0, 1, int(sample_rate * 0.025 / 4)) * 0.2 * 32768
+decay = numpy.linspace(1, 0.8, int(sample_rate * 0.005 / 4)) * 0.2 * 32768
 bowing_envelope = list(attack) + list(decay)
 # Add a guard to factor the border check out of the sample block loop
-bowing_envelope += [decay[-1]] * 128
+bowing_envelope += [decay[-1]] * 32
 lookup_tables.append(
     ('bowing_envelope', bowing_envelope)
 )
@@ -183,11 +183,11 @@ lookup_tables.append(
     ('bowing_friction', friction * 32768.0)
 )
 
-attack = numpy.linspace(0, 1, int(sample_rate * 0.005)) * 1.3 * 16384
-decay = numpy.linspace(1, 0.8, int(sample_rate * 0.01)) * 1.3 * 16384
+attack = numpy.linspace(0, 1, int(sample_rate * 0.005 / 2)) * 1.3 * 16384
+decay = numpy.linspace(1, 0.8, int(sample_rate * 0.01 / 2)) * 1.3 * 16384
 blowing_envelope = list(attack) + list(decay)
 # Add a guard to factor the border check out of the sample block loop
-blowing_envelope += [decay[-1]] * 128
+blowing_envelope += [decay[-1]] * 32
 lookup_tables.append(
     ('blowing_envelope', blowing_envelope)
 )
@@ -303,10 +303,6 @@ Envelope curves
 -----------------------------------------------------------------------------"""
 
 env_linear = numpy.arange(0, 257.0) / 256.0
-env_linear[-1] = env_linear[-2]
-env_quartic = 1.0 - (1.0 - env_linear) ** 4.0
 env_expo = 1.0 - numpy.exp(-4 * env_linear)
 
-lookup_tables.append(('env_linear', env_linear / env_linear.max() * 65535.0))
 lookup_tables.append(('env_expo', env_expo / env_expo.max() * 65535.0))
-lookup_tables.append(('env_quartic', env_quartic / env_quartic.max() * 65535.0))

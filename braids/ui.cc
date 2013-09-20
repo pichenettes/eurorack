@@ -215,11 +215,12 @@ void Ui::OnClick() {
       break;
       
     case MODE_CALIBRATION_STEP_1:
+      dac_code_c2_ = cv_[2];
       mode_ = MODE_CALIBRATION_STEP_2;
       break;
       
     case MODE_CALIBRATION_STEP_2:
-      settings.Calibrate(dac_code_c2_, dac_code_c4_, dac_code_fm_);
+      settings.Calibrate(dac_code_c2_, cv_[2], cv_[3]);
       mode_ = MODE_MENU;
       break;
       

@@ -88,7 +88,8 @@ class MacroOscillator {
   void RenderBuzz(const uint8_t*, int16_t*, uint8_t);
   void RenderDigital(const uint8_t*, int16_t*, uint8_t);
   void RenderSawComb(const uint8_t*, int16_t*, uint8_t);
-  
+  void RenderTriple(const uint8_t*, int16_t*, uint8_t);
+
   int16_t parameter_[2];
   int16_t previous_parameter_[2];
   int16_t pitch_;
@@ -96,7 +97,7 @@ class MacroOscillator {
   int16_t temp_buffer_[25];
   int32_t lp_state_;
   
-  AnalogOscillator analog_oscillator_[2];
+  AnalogOscillator analog_oscillator_[3];
   DigitalOscillator digital_oscillator_;
   
   MacroOscillatorShape shape_;

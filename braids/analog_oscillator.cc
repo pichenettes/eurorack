@@ -344,7 +344,7 @@ void AnalogOscillator::RenderTriangleFold(
     triangle = (phase_16 << 1) ^ (phase_16 & 0x8000 ? 0xffff : 0x0000);
     triangle += 32768;
     triangle = triangle * gain >> 15;
-    triangle = Interpolate88(ws_fold, triangle + 32768);
+    triangle = Interpolate88(ws_tri_fold, triangle + 32768);
     *buffer = triangle >> 1;
     
     phase += increment;
@@ -352,7 +352,7 @@ void AnalogOscillator::RenderTriangleFold(
     triangle = (phase_16 << 1) ^ (phase_16 & 0x8000 ? 0xffff : 0x0000);
     triangle += 32768;
     triangle = triangle * gain >> 15;
-    triangle = Interpolate88(ws_fold, triangle + 32768);
+    triangle = Interpolate88(ws_tri_fold, triangle + 32768);
     *buffer++ += triangle >> 1;
   }
   
@@ -385,13 +385,13 @@ void AnalogOscillator::RenderSineFold(
     phase += increment;
     sine = Interpolate824(wav_sine, phase);
     sine = sine * gain >> 15;
-    sine = Interpolate88(ws_sine, sine + 32768);
+    sine = Interpolate88(ws_sine_fold, sine + 32768);
     *buffer = sine >> 1;
     
     phase += increment;
     sine = Interpolate824(wav_sine, phase);
     sine = sine * gain >> 15;
-    sine = Interpolate88(ws_sine, sine + 32768);
+    sine = Interpolate88(ws_sine_fold, sine + 32768);
     *buffer++ += sine >> 1;
   }
   

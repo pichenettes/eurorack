@@ -73,9 +73,7 @@ extern const uint16_t lut_fm_frequency_quantizer[];
 extern const uint16_t lut_vco_detune[];
 extern const uint16_t lut_bell[];
 extern const uint16_t lut_fof_envelope[];
-extern const uint16_t lut_env_linear[];
 extern const uint16_t lut_env_expo[];
-extern const uint16_t lut_env_quartic[];
 extern const uint32_t lut_oscillator_increments[];
 extern const uint32_t lut_oscillator_delays[];
 extern const uint32_t lut_env_portamento_increments[];
@@ -99,12 +97,11 @@ extern const int16_t wav_bandlimited_comb_13[];
 extern const int16_t wav_bandlimited_comb_14[];
 extern const int16_t wav_bandlimited_comb_15[];
 extern const int16_t wav_bandlimited_comb_16[];
-extern const int16_t ws_overdrive[];
 extern const int16_t ws_moderate_overdrive[];
 extern const int16_t ws_slight_overdrive[];
 extern const int16_t ws_violent_overdrive[];
-extern const int16_t ws_sine[];
-extern const int16_t ws_fold[];
+extern const int16_t ws_sine_fold[];
+extern const int16_t ws_tri_fold[];
 extern const uint8_t wt_waves[];
 extern const uint8_t wt_map[];
 extern const uint8_t wt_code[];
@@ -127,11 +124,11 @@ extern const uint16_t chr_characters[];
 #define LUT_GRANULAR_ENVELOPE_RATE 7
 #define LUT_GRANULAR_ENVELOPE_RATE_SIZE 257
 #define LUT_BOWING_ENVELOPE 8
-#define LUT_BOWING_ENVELOPE_SIZE 1568
+#define LUT_BOWING_ENVELOPE_SIZE 752
 #define LUT_BOWING_FRICTION 9
 #define LUT_BOWING_FRICTION_SIZE 257
 #define LUT_BLOWING_ENVELOPE 10
-#define LUT_BLOWING_ENVELOPE_SIZE 1568
+#define LUT_BLOWING_ENVELOPE_SIZE 752
 #define LUT_BLOWING_JET 11
 #define LUT_BLOWING_JET_SIZE 257
 #define LUT_FLUTE_BODY_FILTER 12
@@ -144,12 +141,8 @@ extern const uint16_t chr_characters[];
 #define LUT_BELL_SIZE 257
 #define LUT_FOF_ENVELOPE 16
 #define LUT_FOF_ENVELOPE_SIZE 1025
-#define LUT_ENV_LINEAR 17
-#define LUT_ENV_LINEAR_SIZE 257
-#define LUT_ENV_EXPO 18
+#define LUT_ENV_EXPO 17
 #define LUT_ENV_EXPO_SIZE 257
-#define LUT_ENV_QUARTIC 19
-#define LUT_ENV_QUARTIC_SIZE 257
 #define LUT_OSCILLATOR_INCREMENTS 0
 #define LUT_OSCILLATOR_INCREMENTS_SIZE 97
 #define LUT_OSCILLATOR_DELAYS 1
@@ -202,18 +195,16 @@ extern const uint16_t chr_characters[];
 #define WAV_BANDLIMITED_COMB_18_SIZE 257
 #define WAV_BANDLIMITED_COMB_19 22
 #define WAV_BANDLIMITED_COMB_19_SIZE 257
-#define WS_OVERDRIVE 0
-#define WS_OVERDRIVE_SIZE 257
-#define WS_MODERATE_OVERDRIVE 1
+#define WS_MODERATE_OVERDRIVE 0
 #define WS_MODERATE_OVERDRIVE_SIZE 257
-#define WS_SLIGHT_OVERDRIVE 2
+#define WS_SLIGHT_OVERDRIVE 1
 #define WS_SLIGHT_OVERDRIVE_SIZE 257
-#define WS_VIOLENT_OVERDRIVE 3
+#define WS_VIOLENT_OVERDRIVE 2
 #define WS_VIOLENT_OVERDRIVE_SIZE 257
-#define WS_SINE 4
-#define WS_SINE_SIZE 257
-#define WS_FOLD 5
-#define WS_FOLD_SIZE 257
+#define WS_SINE_FOLD 3
+#define WS_SINE_FOLD_SIZE 257
+#define WS_TRI_FOLD 4
+#define WS_TRI_FOLD_SIZE 257
 #define WT_WAVES 0
 #define WT_WAVES_SIZE 33024
 #define WT_MAP 1

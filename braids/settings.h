@@ -41,6 +41,8 @@ enum MacroOscillatorShape {
   MACRO_OSC_SHAPE_SINE_TRIANGLE,
   MACRO_OSC_SHAPE_BUZZ,
   
+  MACRO_OSC_SHAPE_TRIPLE_SAW,
+  MACRO_OSC_SHAPE_TRIPLE_SQUARE,
   MACRO_OSC_SHAPE_TRIPLE_RING_MOD,
   MACRO_OSC_SHAPE_SAW_SWARM,
   MACRO_OSC_SHAPE_SAW_COMB,
@@ -68,6 +70,7 @@ enum MacroOscillatorShape {
   MACRO_OSC_SHAPE_WAVETABLES,
   MACRO_OSC_SHAPE_WAVE_MAP,
   MACRO_OSC_SHAPE_WAVE_LINE,
+  MACRO_OSC_SHAPE_WAVE_PARAPHONIC,
 
   MACRO_OSC_SHAPE_FILTERED_NOISE,
   MACRO_OSC_SHAPE_TWIN_PEAKS_NOISE,
@@ -76,6 +79,7 @@ enum MacroOscillatorShape {
   MACRO_OSC_SHAPE_PARTICLE_NOISE,
   
   MACRO_OSC_SHAPE_DIGITAL_MODULATION,
+
   MACRO_OSC_SHAPE_QUESTION_MARK,
   // MACRO_OSC_SHAPE_YOUR_ALGO
 
@@ -215,10 +219,6 @@ class Settings {
     return static_cast<SampleRate>(data_.sample_rate);
   }
   
-  inline int32_t octave() const {
-    return (static_cast<int32_t>(data_.pitch_octave) - 2) * 12 * 128;
-  }
-  
   inline PitchQuantization pitch_quantization() const {
     return static_cast<PitchQuantization>(data_.pitch_quantization);
   }
@@ -287,7 +287,9 @@ class Settings {
   }
   
   inline int32_t pitch_transposition() const {
-    return data_.pitch_range == PITCH_RANGE_LFO ? -36 << 7 : 0;
+    int32_t t = data_.pitch_range == PITCH_RANGE_LFO ? -36 << 7 : 0;
+    t += (static_cast<int32_t>(data_.pitch_octave) - 2) * 12 * 128;
+    return t;
   }
   
   inline int32_t dac_to_fm(int32_t fm_dac_code) const {

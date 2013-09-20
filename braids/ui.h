@@ -75,12 +75,6 @@ class Ui {
       int16_t cv_color,
       int16_t cv_pitch,
       int16_t cv_fm) {
-    if (mode_ == MODE_CALIBRATION_STEP_1) {
-      dac_code_c2_ = cv_pitch;
-    } else if (mode_ == MODE_CALIBRATION_STEP_2) {
-      dac_code_c4_ = cv_pitch;
-      dac_code_fm_ = cv_fm;
-    }
     cv_[0] = cv_param;
     cv_[1] = cv_color;
     cv_[2] = cv_pitch;
@@ -119,8 +113,6 @@ class Ui {
   Encoder encoder_;
   
   int16_t dac_code_c2_;
-  int16_t dac_code_c4_;
-  int16_t dac_code_fm_;
   int16_t cv_[4];
   
   uint8_t splash_frame_;

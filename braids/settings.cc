@@ -57,7 +57,7 @@ const SettingsData kInitSettings = {
   
   2,
   
-  { 0, 0, 0,  0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0 },
   
   50,
   15401,
@@ -98,6 +98,8 @@ const char* const algo_values[] = {
     "SYNC",
     "FOLD",
     "\x8E\x8E\x8E\x8E",
+    "\x88\x88x3",
+    "\x8C_x3",
     "RING",
     "\x88\x89\x88\x89",
     "\x88\x88\x8E\x8E",
@@ -121,6 +123,7 @@ const char* const algo_values[] = {
     "WTBL",
     "WMAP",
     "WLIN",
+    "WTx4",
     "NOIS",
     "TWNQ",
     "CLKN",
