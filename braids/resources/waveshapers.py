@@ -51,7 +51,7 @@ sine_fold /= numpy.abs(sine_fold).max()
 
 tri_fold = numpy.sin(numpy.pi * (3 * x + (2 * x) ** 3))
 
-# Wavefolder curve sampled from a µFold
+# Wavefolder curve sampled from a uFold
 # sine_fold = numpy.array(
 #       [ -6.18131627e-01,  -6.06226996e-01,  -5.93774647e-01,
 #         -5.80719810e-01,  -5.67966217e-01,  -5.55548101e-01,
