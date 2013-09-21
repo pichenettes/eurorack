@@ -2233,8 +2233,9 @@ DigitalOscillator::RenderFn DigitalOscillator::fn_table_[] = {
   &DigitalOscillator::RenderGranularCloud,
   &DigitalOscillator::RenderParticleNoise,
   &DigitalOscillator::RenderDigitalModulation,
-  &DigitalOscillator::RenderQuestionMark
   // &DigitalOscillator::RenderYourAlgo,
+
+  &DigitalOscillator::RenderQuestionMark
 };
 
 }  // namespace braids
