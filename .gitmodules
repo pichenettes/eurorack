@@ -1,0 +1,12 @@
+[submodule "avrlib"]
+	path = avrlib
+	url = https://github.com/pichenettes/avril.git
+[submodule "avrlibx"]
+	path = avrlibx
+	url = https://github.com/pichenettes/avrilx.git
+[submodule "stmlib"]
+	path = stmlib
+	url = https://github.com/pichenettes/stmlib.git
+[submodule "stm_audio_bootloader"]
+	path = stm_audio_bootloader
+	url = https://github.com/pichenettes/stm-audio-bootloader.git
