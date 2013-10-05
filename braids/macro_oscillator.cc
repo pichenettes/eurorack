@@ -258,8 +258,17 @@ void MacroOscillator::RenderSineTriangle(
     const uint8_t* sync,
     int16_t* buffer,
     uint8_t size) {
-  analog_oscillator_[0].set_parameter(parameter_[0]);
-  analog_oscillator_[1].set_parameter(parameter_[0]);
+  int32_t attenuation_sine = 32767 - 6 * (pitch_ - (92 << 7));
+  int32_t attenuation_tri = 32767 - 7 * (pitch_ - (80 << 7));
+  if (attenuation_tri < 0) attenuation_tri = 0;
+  if (attenuation_sine < 0) attenuation_sine = 0;
+  if (attenuation_tri > 32767) attenuation_tri = 32767;
+  if (attenuation_sine > 32767) attenuation_sine = 32767;
+  
+  int32_t timbre = parameter_[0];
+
+  analog_oscillator_[0].set_parameter(timbre * attenuation_sine >> 15);
+  analog_oscillator_[1].set_parameter(timbre * attenuation_tri >> 15);
   analog_oscillator_[0].set_pitch(pitch_);
   analog_oscillator_[1].set_pitch(pitch_);
   

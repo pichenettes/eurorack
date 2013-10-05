@@ -79,6 +79,8 @@ resources = [
   ('dummy', 'string', 'STR', 'char', str, False),
   (lookup_tables.lookup_tables,
    'lookup_table', 'LUT', 'uint16_t', int, False),
+  (lookup_tables.lookup_tables_signed,
+   'lookup_table_signed', 'LUT', 'int16_t', int, False),
   (lookup_tables.lookup_tables_32,
    'lookup_table_hr', 'LUT', 'uint32_t', int, False),
   (waveforms.waveforms,

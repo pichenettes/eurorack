@@ -29,6 +29,7 @@
 import numpy
 
 lookup_tables = []
+lookup_tables_signed = []
 lookup_tables_32 = []
 
 sample_rate = 96000
@@ -81,7 +82,7 @@ blep_s1_15 = (blep * 32767).round().astype(numpy.int16)
 last_sample = numpy.max(numpy.where(numpy.abs(blep_s1_15) > THRESHOLD)[0])
 blep_s1_15 = blep_s1_15[:last_sample + 1]
 
-lookup_tables.append(
+lookup_tables_signed.append(
     ('blep', blep_s1_15.astype(int))
 )
 
@@ -195,7 +196,7 @@ lookup_tables.append(
 delta = numpy.arange(0, 257) / 128.0
 jet = delta ** 3 - delta
 jet = numpy.minimum(jet, 1.0)
-lookup_tables.append(
+lookup_tables_signed.append(
     ('blowing_jet', jet * 32767.0)
 )
 

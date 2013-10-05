@@ -745,6 +745,12 @@ void DigitalOscillator::RenderFeedbackFm(
     uint8_t size) {
   int16_t previous_sample = state_.ffm.previous_sample;
   uint32_t modulator_phase = state_.ffm.modulator_phase;
+
+  int32_t attenuation = pitch_ - (72 << 7) + ((parameter_[1] - 16384) >> 1);
+  attenuation = 32767 - attenuation * 4;
+  if (attenuation < 0) attenuation = 0;
+  if (attenuation > 32767) attenuation = 32767;
+  
   uint32_t modulator_phase_increment = ComputePhaseIncrement(
       (12 << 7) + pitch_ + ((parameter_[1] - 16384) >> 1)) >> 1;
   
@@ -761,9 +767,10 @@ void DigitalOscillator::RenderFeedbackFm(
     modulator_phase += modulator_phase_increment;
 
     int32_t pm;
-    pm = (previous_sample * 3) << 12;
+    int32_t p = parameter_0 * attenuation >> 15;
+    pm = previous_sample << 14;
     pm = (
-        Interpolate824(wav_sine, modulator_phase + pm) * parameter_0) << 1;
+        Interpolate824(wav_sine, modulator_phase + pm) * p) << 1;
     previous_sample = Interpolate824(wav_sine, phase_ + pm);
     *buffer++ = previous_sample;
   }
@@ -1484,9 +1491,16 @@ void DigitalOscillator::RenderWaveMap(
     uint8_t size) {
   
   // The grid is 16x16; so there are 15 interpolation squares.
-  uint16_t p[2] = { parameter_[0] * 15 >> 4, parameter_[1] * 15 >> 4 };
-  uint16_t wave_xfade[2] = { p[0] << 5, p[1] << 5 };
-  uint16_t wave_coordinate[2] = { p[0] >> 11, p[1] >> 11 };
+  uint16_t p[2];
+  uint16_t wave_xfade[2];
+  uint16_t wave_coordinate[2];
+
+  p[0] = parameter_[0] * 15 >> 4;
+  p[1] = parameter_[1] * 15 >> 4;
+  wave_xfade[0] = p[0] << 5;
+  wave_xfade[1] = p[1] << 5;
+  wave_coordinate[0] = p[0] >> 11;
+  wave_coordinate[1] = p[1] >> 11;
 
   const uint8_t* wave[2][2];
   
