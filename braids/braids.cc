@@ -55,7 +55,7 @@ Dac dac;
 DebugPin debug_pin;
 GateInput gate_input;
 SignatureWaveshaper ws;
-System system;
+System sys;
 VcoJitterSource jitter_source;
 Ui ui;
 
@@ -120,7 +120,7 @@ void TIM1_UP_IRQHandler(void) {
 }
 
 void Init() {
-  system.Init(F_CPU / 96000 - 1, true);
+  sys.Init(F_CPU / 96000 - 1, true);
   settings.Init();
   ui.Init();
   system_clock.Init();
@@ -138,13 +138,9 @@ void Init() {
   }
   
   envelope.Init();
-  envelope.SetShapes(
-      ENV_SHAPE_EXPONENTIAL,
-      ENV_SHAPE_EXPONENTIAL,
-      ENV_SHAPE_EXPONENTIAL);
   ws.Init(GetUniqueId(2));
   jitter_source.Init(GetUniqueId(1));
-  system.StartTimers();
+  sys.StartTimers();
 }
 
 const uint16_t bit_reduction_masks[] = {
@@ -165,11 +161,13 @@ struct TrigStrikeSettings {
 };
 
 const TrigStrikeSettings trig_strike_settings[] = {
-  { 0, 0, 0 },
-  { 0, 32, 30 },
+  { 0, 30, 30 },
   { 0, 40, 60 },
-  { 0, 52, 96 },
-  { 8, 72, 80 },
+  { 0, 50, 90 },
+  { 0, 60, 110 },
+  { 0, 70, 90 },
+  { 0, 90, 80 },
+  { 60, 100, 70 },
   { 40, 72, 60 },
   { 34, 60, 20 },
 };
@@ -177,26 +175,43 @@ const TrigStrikeSettings trig_strike_settings[] = {
 void RenderBlock() {
   static uint16_t previous_pitch_dac_code = 0;
   static int32_t previous_pitch = 0;
+  static int32_t previous_shape = 0;
 
   debug_pin.High();
   
   const TrigStrikeSettings& trig_strike = \
-      trig_strike_settings[settings.GetValue(SETTING_TRIG_ACTION)];
+      trig_strike_settings[settings.GetValue(SETTING_TRIG_AD_SHAPE)];
   envelope.Update(trig_strike.attack, trig_strike.decay, 0, 0);
+  uint16_t ad_value = envelope.Render();
+  uint8_t ad_timbre_amount = settings.GetValue(SETTING_TRIG_DESTINATION) & 1
+      ? trig_strike.amount
+      : 0;
   
   if (ui.paques()) {
     osc.set_shape(MACRO_OSC_SHAPE_QUESTION_MARK);
   } else if (settings.meta_modulation()) {
-    int16_t shape = adc.channel(3);
-    shape = shape > 2048 ? shape - 2048 : 0;
-    osc.set_shape(static_cast<MacroOscillatorShape>(
-        MACRO_OSC_SHAPE_LAST * shape >> 11));
+    int32_t shape = adc.channel(3);
+    shape -= settings.data().fm_cv_offset;
+    if (shape > previous_shape + 2 || shape < previous_shape - 2) {
+      previous_shape = shape;
+    } else {
+      shape = previous_shape;
+    }
+    shape = MACRO_OSC_SHAPE_LAST * shape >> 11;
+    shape += settings.shape();
+    if (shape >= MACRO_OSC_SHAPE_DIGITAL_MODULATION) {
+      shape = MACRO_OSC_SHAPE_DIGITAL_MODULATION;
+    } else if (shape <= 0) {
+      shape = 0;
+    }
+    MacroOscillatorShape osc_shape = static_cast<MacroOscillatorShape>(shape);
+    osc.set_shape(osc_shape);
+    ui.set_meta_shape(osc_shape);
   } else {
     osc.set_shape(settings.shape());
   }
   uint16_t parameter_1 = adc.channel(0) << 3;
-  parameter_1 += static_cast<uint32_t>(envelope.Render()) * \
-      trig_strike.amount >> 9;
+  parameter_1 += static_cast<uint32_t>(ad_value) * ad_timbre_amount >> 9;
   if (parameter_1 > 32767) {
     parameter_1 = 32767;
   }
@@ -222,7 +237,6 @@ void RenderBlock() {
   if (!settings.meta_modulation()) {
     pitch += settings.dac_to_fm(adc.channel(3));
   }
-  pitch += settings.octave();
   
   // Check if the pitch has changed to cause an auto-retrigger
   int32_t pitch_delta = pitch - previous_pitch;
@@ -259,7 +273,7 @@ void RenderBlock() {
     trigger_flag = false;
   }
   
-  if (settings.GetValue(SETTING_TRIG_ACTION) == 0) {
+  if (settings.GetValue(SETTING_TRIG_DESTINATION) == 0) {
     for (size_t i = 0; i < kAudioBlockSize; ++i) {
       sync_buffer[i] = sync_samples.ImmediateRead();
     }
@@ -274,6 +288,8 @@ void RenderBlock() {
   int16_t sample = 0;
   size_t decimation_factor = decimation_factors[settings.data().sample_rate];
   uint16_t bit_mask = bit_reduction_masks[settings.data().resolution];
+  int32_t gain = settings.GetValue(SETTING_TRIG_DESTINATION) & 2
+      ? ad_value : 65535;
   for (size_t i = 0; i < kAudioBlockSize; ++i) {
     if ((i % decimation_factor) == 0) {
       sample = render_buffer[i] & bit_mask;
@@ -281,6 +297,7 @@ void RenderBlock() {
         sample = ws.Transform(sample);
       }
     }
+    sample = static_cast<int32_t>(sample) * gain >> 16;
     audio_samples.Overwrite(sample + 32768);
   }
   debug_pin.Low();

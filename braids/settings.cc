@@ -38,13 +38,13 @@ namespace braids {
 using namespace stmlib;
 
 const SettingsData kInitSettings = {
-  MACRO_OSC_SHAPE_WAVE_LINE,
+  MACRO_OSC_SHAPE_CSAW,
   
   RESOLUTION_16_BIT,
   SAMPLE_RATE_96K,
   
-  0,  // Trig mode
-  false,  // Auto Trig
+  0,  // Trig destination
+  false,  // Trig source
   1,  // Trig delay
   false,  // Meta modulation
   
@@ -56,8 +56,9 @@ const SettingsData kInitSettings = {
   false,
   
   2,
+  0,
   
-  { 0, 0, 0,  0, 0, 0 },
+  { 0, 0, 0, 0, 0 },
   
   50,
   15401,
@@ -98,6 +99,8 @@ const char* const algo_values[] = {
     "SYNC",
     "FOLD",
     "\x8E\x8E\x8E\x8E",
+    "\x88\x88x3",
+    "\x8C_x3",
     "RING",
     "\x88\x89\x88\x89",
     "\x88\x88\x8E\x8E",
@@ -121,6 +124,7 @@ const char* const algo_values[] = {
     "WTBL",
     "WMAP",
     "WLIN",
+    "WTx4",
     "NOIS",
     "TWNQ",
     "CLKN",
@@ -150,9 +154,15 @@ const char* const rates_values[] = {
     
 const char* const quantization_values[] = { "OFF ", "QRTR", "SEMI" };
 
-const char* const trig_values[] = { "EXT.", "AUTO" };
+const char* const trig_source_values[] = { "EXT.", "AUTO" };
 
-const char* const pitch_range_values[] = { "EXT.", "FREE", "XTND", "LFO " };
+const char* const pitch_range_values[] = {
+    "EXT.",
+    "FREE",
+    "XTND",
+    "440 ",
+    "LFO "
+};
 
 const char* const octave_values[] = { "-2", "-1", "0", "1", "2" };
 
@@ -166,14 +176,23 @@ const char* const trig_delay_values[] = {
     "4ms "
 };
 
-const char* const trig_mode_values[] = {
-    "OFF ",
-    "TS  ",
+const char* const ad_shape_values[] = {
+    "TT  ",
     "PIK ",
+    "PING",
     "TONG",
     "BONG",
+    "LONG",
+    "SLOW",
     "WOMP",
     "YIFF"
+};
+
+const char* const trig_destination_values[] = {
+    "SYNC",
+    "TIMB",
+    "LEVL",
+    "BOTH",
 };
 
 const char* const brightness_values[] = {
@@ -187,21 +206,45 @@ const SettingMetadata Settings::metadata_[] = {
   { 0, MACRO_OSC_SHAPE_DIGITAL_MODULATION, "WAVE", algo_values },
   { 0, RESOLUTION_LAST - 1, "BITS", bits_values },
   { 0, SAMPLE_RATE_LAST - 1, "RATE", rates_values },
-  { 0, 6, "TRIG", trig_mode_values },
-  { 0, 1, "TSRC",  trig_values },
+  { 0, 3, "TDST", trig_destination_values },
+  { 0, 1, "TSRC", trig_source_values },
   { 0, 6, "TDLY", trig_delay_values },
   { 0, 1, "META", boolean_values },
-  { 0, 2, "RANG", pitch_range_values },
+  { 0, 3, "RANG", pitch_range_values },
   { 0, 4, "OCTV", octave_values },
   { 0, PITCH_QUANTIZATION_LAST - 1, "QNTZ", quantization_values },
   { 0, 1, "FLAT", boolean_values },
   { 0, 1, "DRFT", boolean_values },
   { 0, 1, "SIGN", boolean_values },
   { 0, 2, "BRIG", brightness_values },
+  { 0, 8, "TENV", ad_shape_values },
   { 0, 0, "CAL.", NULL },
   { 0, 0, "    ", NULL },  // Placeholder for CV tester
   { 0, 0, "    ", NULL },  // Placeholder for marquee
-  { 0, 0, "v1.4", NULL },  // Placeholder for version string
+  { 0, 0, "v1.5", NULL },  // Placeholder for version string
+};
+
+/* static */
+const Setting Settings::settings_order_[] = {
+  SETTING_OSCILLATOR_SHAPE,
+  SETTING_RESOLUTION,
+  SETTING_SAMPLE_RATE,
+  SETTING_TRIG_SOURCE,
+  SETTING_TRIG_DELAY,
+  SETTING_TRIG_DESTINATION,
+  SETTING_TRIG_AD_SHAPE,
+  SETTING_META_MODULATION,
+  SETTING_PITCH_RANGE,
+  SETTING_PITCH_OCTAVE,
+  SETTING_PITCH_QUANTIZER,
+  SETTING_VCO_FLATTEN,
+  SETTING_VCO_DRIFT,
+  SETTING_SIGNATURE,
+  SETTING_BRIGHTNESS,
+  SETTING_CALIBRATION,
+  SETTING_CV_TESTER,
+  SETTING_MARQUEE,
+  SETTING_VERSION,
 };
 
 /* extern */

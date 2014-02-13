@@ -45,7 +45,6 @@ class Adc {
   
   // Inlined and optimized!
   inline bool PipelinedScan() {
-    uint8_t temp;
     switch (acquisition_stage_) {
       case 0:
         rx_word_ |= SPI1->DR;
@@ -58,7 +57,7 @@ class Adc {
         break;
 
       case 1:
-        temp = SPI1->DR;
+        SPI1->DR;
         SPI1->DR = active_channel_ << 6;
         acquisition_stage_ = 2;
         break;

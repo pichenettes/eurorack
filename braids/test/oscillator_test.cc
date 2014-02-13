@@ -60,24 +60,24 @@ void write_wav_header(FILE* fp, int num_samples) {
 int main(void) {
   MacroOscillator osc;
   FILE* fp = fopen("sound.wav", "wb");
-  write_wav_header(fp, kSampleRate * 10);
+  write_wav_header(fp, kSampleRate * 5);
   
   osc.Init();
-  osc.set_shape(MACRO_OSC_SHAPE_STRUCK_DRUM);
+  osc.set_shape(MACRO_OSC_SHAPE_SINE_TRIANGLE);
   osc.set_parameters(16000, 24000);
   
-  for (uint32_t i = 0; i < kSampleRate * 10 / kAudioBlockSize; ++i) {
+  for (uint32_t i = 0; i < kSampleRate * 5 / kAudioBlockSize; ++i) {
     int16_t buffer[kAudioBlockSize];
     uint8_t sync_buffer[kAudioBlockSize];
-    uint16_t tri = i * 2;
+    uint16_t tri = i * 3;
     uint16_t ramp = i * 150;
     tri = tri > 32767 ? 65535 - tri : tri;
-    if ((i % ((kSampleRate / 4) / kAudioBlockSize)) == 0) {
+    /*if ((i % ((kSampleRate / 4) / kAudioBlockSize)) == 0) {
       osc.Strike();
-    }
-    osc.set_parameters(16384, 0);
-    //memset(sync_buffer, 0, sizeof(sync_buffer));
-    osc.set_pitch((0 << 7));
+    }*/
+    osc.set_parameters(tri, 32767);
+    memset(sync_buffer, 0, sizeof(sync_buffer));
+    osc.set_pitch((48 << 7));
     osc.Render(sync_buffer, buffer, kAudioBlockSize);
     fwrite(buffer, sizeof(int16_t), kAudioBlockSize, fp);
   }

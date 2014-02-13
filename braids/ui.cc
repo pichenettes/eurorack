@@ -44,6 +44,7 @@ void Ui::Init() {
   value_ = 0;
   mode_ = MODE_SPLASH;
   setting_ = SETTING_OSCILLATOR_SHAPE;
+  setting_index_ = 0;
 }
 
 void Ui::Poll() {
@@ -91,6 +92,10 @@ void Ui::RefreshDisplay() {
     case MODE_EDIT:
       {
         uint8_t value = settings.GetValue(setting_);
+        if (setting_ == SETTING_OSCILLATOR_SHAPE &&
+            settings.meta_modulation()) {
+          value = meta_shape_;
+        }
         display_.Print(settings.metadata(setting_).strings[value]);
       }
       break;
@@ -215,11 +220,12 @@ void Ui::OnClick() {
       break;
       
     case MODE_CALIBRATION_STEP_1:
+      dac_code_c2_ = cv_[2];
       mode_ = MODE_CALIBRATION_STEP_2;
       break;
       
     case MODE_CALIBRATION_STEP_2:
-      settings.Calibrate(dac_code_c2_, dac_code_c4_, dac_code_fm_);
+      settings.Calibrate(dac_code_c2_, cv_[2], cv_[3]);
       mode_ = MODE_MENU;
       break;
       
@@ -255,14 +261,13 @@ void Ui::OnIncrement(const Event& e) {
       
     case MODE_MENU:
       {
-        int16_t value = static_cast<int16_t>(setting_);
-        value += e.data;
-        if (value < 0) {
-          value = 0;
-        } else if (value >= SETTING_LAST) {
-          value = SETTING_LAST - 1;
+        setting_index_ += e.data;
+        if (setting_index_ < 0) {
+          setting_index_ = 0;
+        } else if (setting_index_ >= SETTING_LAST) {
+          setting_index_ = SETTING_LAST - 1;
         }
-        setting_ = static_cast<Setting>(value);
+        setting_ = settings.setting_at_index(setting_index_);
         marquee_step_ = 0;
       }
       break;
@@ -300,6 +305,12 @@ void Ui::DoEvents() {
   if (queue_.idle_time() >= 50 &&
       (setting_ == SETTING_CV_TESTER ||
       setting_ == SETTING_MARQUEE)) {
+    refresh_display_ = true;
+  }
+  if (queue_.idle_time() >= 50 &&
+      setting_ == SETTING_OSCILLATOR_SHAPE &&
+      mode_ == MODE_EDIT &&
+      settings.meta_modulation()) {
     refresh_display_ = true;
   }
   if (refresh_display_) {

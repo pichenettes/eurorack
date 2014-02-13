@@ -75,12 +75,6 @@ class Ui {
       int16_t cv_color,
       int16_t cv_pitch,
       int16_t cv_fm) {
-    if (mode_ == MODE_CALIBRATION_STEP_1) {
-      dac_code_c2_ = cv_pitch;
-    } else if (mode_ == MODE_CALIBRATION_STEP_2) {
-      dac_code_c4_ = cv_pitch;
-      dac_code_fm_ = cv_fm;
-    }
     cv_[0] = cv_param;
     cv_[1] = cv_color;
     cv_[2] = cv_pitch;
@@ -98,6 +92,11 @@ class Ui {
         settings.paques();
   }
   
+  // Overrides oscillator shape display when in meta mode.
+  inline void set_meta_shape(MacroOscillatorShape shape) {
+    meta_shape_ = shape;
+  }
+  
  private:
   void OnIncrement(const stmlib::Event& event);
   void OnClick();
@@ -113,14 +112,13 @@ class Ui {
   uint8_t sub_clock_;
   
   UiMode mode_;
+  int16_t setting_index_;
   Setting setting_;
   
   Display display_;
   Encoder encoder_;
   
   int16_t dac_code_c2_;
-  int16_t dac_code_c4_;
-  int16_t dac_code_fm_;
   int16_t cv_[4];
   
   uint8_t splash_frame_;
@@ -128,6 +126,8 @@ class Ui {
   uint8_t marquee_character_;
   bool marquee_dirty_character_;
   bool blink_;
+  
+  MacroOscillatorShape meta_shape_;
 
   DISALLOW_COPY_AND_ASSIGN(Ui);
 };

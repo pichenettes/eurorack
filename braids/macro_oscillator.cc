@@ -153,6 +153,77 @@ void MacroOscillator::RenderSawSquare(
   END_INTERPOLATE_PARAMETER_1
 }
 
+#define SEMI * 128
+
+const int16_t intervals[65] = {
+  -24 SEMI, -24 SEMI, -24 SEMI + 4,
+  -23 SEMI, -22 SEMI, -21 SEMI, -20 SEMI, -19 SEMI, -18 SEMI,
+  -17 SEMI - 4, -17 SEMI,
+  -16 SEMI, -15 SEMI, -14 SEMI, -13 SEMI,
+  -12 SEMI - 4, -12 SEMI,
+  -11 SEMI, -10 SEMI, -9 SEMI, -8 SEMI,
+  -7 SEMI - 4, -7 SEMI,
+  -6 SEMI, -5 SEMI, -4 SEMI, -3 SEMI, -2 SEMI, -1 SEMI,
+  -24, -8, -4, 0, 4, 8, 24,
+  1 SEMI, 2 SEMI, 3 SEMI, 4 SEMI, 5 SEMI, 6 SEMI,
+  7 SEMI, 7 SEMI + 4,
+  8 SEMI, 9 SEMI, 10 SEMI, 11 SEMI,
+  12 SEMI, 12 SEMI + 4,
+  13 SEMI, 14 SEMI, 15 SEMI, 16 SEMI,
+  17 SEMI, 17 SEMI + 4,
+  18 SEMI, 19 SEMI, 20 SEMI, 21 SEMI, 22 SEMI, 23 SEMI,
+  24 SEMI - 4, 24 SEMI, 24 SEMI
+};
+
+void MacroOscillator::RenderTriple(
+    const uint8_t* sync,
+    int16_t* buffer,
+    uint8_t size) {
+  analog_oscillator_[0].set_parameter(0);
+  analog_oscillator_[1].set_parameter(0);
+  analog_oscillator_[2].set_parameter(0);
+
+  analog_oscillator_[0].set_pitch(pitch_ + (12 << 7));
+  for (uint8_t i = 0; i < 2; ++i) {
+    int16_t detune_1 = intervals[parameter_[i] >> 9];
+    int16_t detune_2 = intervals[((parameter_[i] >> 8) + 1) >> 1];
+    uint16_t xfade = parameter_[i] << 8;
+    int16_t detune = detune_1 + ((detune_2 - detune_1) * xfade >> 16);
+    analog_oscillator_[i + 1].set_pitch(pitch_ + detune + (12 << 7));
+  }
+
+  AnalogOscillatorShape shape = shape_ == MACRO_OSC_SHAPE_TRIPLE_SAW
+      ? OSC_SHAPE_SAW
+      : OSC_SHAPE_SQUARE;
+  analog_oscillator_[0].set_shape(shape);
+  analog_oscillator_[1].set_shape(shape);
+  analog_oscillator_[2].set_shape(shape);
+  
+  // Use half the sample rate.
+  uint8_t half_size = size >> 1;
+
+  // Downsample the sync buffer.
+  for (uint8_t i = 0; i < half_size; ++i) {
+    sync_buffer_[i] = sync[i << 1] | sync[(i << 1) + 1];
+  }
+  int16_t* voice_1_buffer = buffer + half_size;
+  int16_t* voice_2_buffer = temp_buffer_;
+  int16_t* voice_3_buffer = temp_buffer_ + half_size;
+  
+  analog_oscillator_[0].Render(sync_buffer_, voice_1_buffer, NULL, half_size);
+  analog_oscillator_[1].Render(sync_buffer_, voice_2_buffer, NULL, half_size);
+  analog_oscillator_[2].Render(sync_buffer_, voice_3_buffer, NULL, half_size);
+  
+  for (uint8_t i = 0; i < size; ++i) {
+    int32_t sample = 0;
+    sample += static_cast<int32_t>(voice_1_buffer[i >> 1]) * 4 >> 3;
+    sample += static_cast<int32_t>(voice_2_buffer[i >> 1]) * 5 >> 3;
+    sample += static_cast<int32_t>(voice_3_buffer[i >> 1]) * 5 >> 3;
+    CLIP(sample);
+    buffer[i] = sample;
+  }
+}
+
 void MacroOscillator::RenderSquareSync(
     const uint8_t* sync,
     int16_t* buffer,
@@ -187,8 +258,17 @@ void MacroOscillator::RenderSineTriangle(
     const uint8_t* sync,
     int16_t* buffer,
     uint8_t size) {
-  analog_oscillator_[0].set_parameter(parameter_[0]);
-  analog_oscillator_[1].set_parameter(parameter_[0]);
+  int32_t attenuation_sine = 32767 - 6 * (pitch_ - (92 << 7));
+  int32_t attenuation_tri = 32767 - 7 * (pitch_ - (80 << 7));
+  if (attenuation_tri < 0) attenuation_tri = 0;
+  if (attenuation_sine < 0) attenuation_sine = 0;
+  if (attenuation_tri > 32767) attenuation_tri = 32767;
+  if (attenuation_sine > 32767) attenuation_sine = 32767;
+  
+  int32_t timbre = parameter_[0];
+
+  analog_oscillator_[0].set_parameter(timbre * attenuation_sine >> 15);
+  analog_oscillator_[1].set_parameter(timbre * attenuation_tri >> 15);
   analog_oscillator_[0].set_pitch(pitch_);
   analog_oscillator_[1].set_pitch(pitch_);
   
@@ -271,9 +351,12 @@ MacroOscillator::RenderFn MacroOscillator::fn_table_[] = {
   &MacroOscillator::RenderSquareSync,
   &MacroOscillator::RenderSineTriangle,
   &MacroOscillator::RenderBuzz,
+  &MacroOscillator::RenderTriple,
+  &MacroOscillator::RenderTriple,
   &MacroOscillator::RenderDigital,
   &MacroOscillator::RenderDigital,
   &MacroOscillator::RenderSawComb,
+  &MacroOscillator::RenderDigital,
   &MacroOscillator::RenderDigital,
   &MacroOscillator::RenderDigital,
   &MacroOscillator::RenderDigital,

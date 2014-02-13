@@ -76,16 +76,17 @@ enum DigitalOscillatorShape {
   OSC_SHAPE_WAVETABLES,
   OSC_SHAPE_WAVE_MAP,
   OSC_SHAPE_WAVE_LINE,
+  OSC_SHAPE_WAVE_PARAPHONIC,
   
   OSC_SHAPE_FILTERED_NOISE,
   OSC_SHAPE_TWIN_PEAKS_NOISE,
   OSC_SHAPE_CLOCKED_NOISE,
   OSC_SHAPE_GRANULAR_CLOUD,
   OSC_SHAPE_PARTICLE_NOISE,
-  
-  OSC_SHAPE_QUESTION_MARK,
-  
-  OSC_SHAPE_DIGITAL_LAST
+
+  OSC_SHAPE_DIGITAL,
+
+  OSC_SHAPE_QUESTION_MARK_LAST
 };
 
 struct ResoSquareState {
@@ -132,6 +133,7 @@ struct PluckState {
   uint32_t phase_increment;
   uint32_t max_phase_increment;
   int16_t previous_sample;
+  uint8_t polyphony_assigner;
 };
 
 struct FeedbackFmState {
@@ -286,6 +288,7 @@ class DigitalOscillator {
   void RenderWavetables(const uint8_t*, int16_t*, uint8_t);
   void RenderWaveMap(const uint8_t*, int16_t*, uint8_t);
   void RenderWaveLine(const uint8_t*, int16_t*, uint8_t);
+  void RenderWaveParaphonic(const uint8_t*, int16_t*, uint8_t);
   
   void RenderTwinPeaksNoise(const uint8_t*, int16_t*, uint8_t);
   void RenderFilteredNoise(const uint8_t*, int16_t*, uint8_t);
@@ -312,9 +315,10 @@ class DigitalOscillator {
 
   int16_t parameter_[2];
   int16_t previous_parameter_[2];
+  int32_t smoothed_parameter_;
   int16_t pitch_;
   
-  uint8_t pluck_polyphony_assigner_;
+  uint8_t active_voice_;
   
   bool strike_;
 

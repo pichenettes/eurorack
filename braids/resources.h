@@ -46,6 +46,8 @@ extern const char* string_table[];
 
 extern const uint16_t* lookup_table_table[];
 
+extern const int16_t* lookup_table_signed_table[];
+
 extern const uint32_t* lookup_table_hr_table[];
 
 extern const int16_t* waveform_table[];
@@ -56,7 +58,6 @@ extern const uint8_t* wt_table[];
 
 extern const uint16_t* char_table[];
 
-extern const uint16_t lut_blep[];
 extern const uint16_t lut_resonator_coefficient[];
 extern const uint16_t lut_resonator_scale[];
 extern const uint16_t lut_svf_cutoff[];
@@ -67,15 +68,14 @@ extern const uint16_t lut_granular_envelope_rate[];
 extern const uint16_t lut_bowing_envelope[];
 extern const uint16_t lut_bowing_friction[];
 extern const uint16_t lut_blowing_envelope[];
-extern const uint16_t lut_blowing_jet[];
 extern const uint16_t lut_flute_body_filter[];
 extern const uint16_t lut_fm_frequency_quantizer[];
 extern const uint16_t lut_vco_detune[];
 extern const uint16_t lut_bell[];
 extern const uint16_t lut_fof_envelope[];
-extern const uint16_t lut_env_linear[];
 extern const uint16_t lut_env_expo[];
-extern const uint16_t lut_env_quartic[];
+extern const int16_t lut_blep[];
+extern const int16_t lut_blowing_jet[];
 extern const uint32_t lut_oscillator_increments[];
 extern const uint32_t lut_oscillator_delays[];
 extern const uint32_t lut_env_portamento_increments[];
@@ -99,57 +99,52 @@ extern const int16_t wav_bandlimited_comb_13[];
 extern const int16_t wav_bandlimited_comb_14[];
 extern const int16_t wav_bandlimited_comb_15[];
 extern const int16_t wav_bandlimited_comb_16[];
-extern const int16_t ws_overdrive[];
 extern const int16_t ws_moderate_overdrive[];
 extern const int16_t ws_slight_overdrive[];
 extern const int16_t ws_violent_overdrive[];
-extern const int16_t ws_sine[];
-extern const int16_t ws_fold[];
+extern const int16_t ws_sine_fold[];
+extern const int16_t ws_tri_fold[];
 extern const uint8_t wt_waves[];
 extern const uint8_t wt_map[];
 extern const uint8_t wt_code[];
 extern const uint16_t chr_characters[];
 #define STR_DUMMY 0  // dummy
+#define LUT_RESONATOR_COEFFICIENT 0
+#define LUT_RESONATOR_COEFFICIENT_SIZE 257
+#define LUT_RESONATOR_SCALE 1
+#define LUT_RESONATOR_SCALE_SIZE 257
+#define LUT_SVF_CUTOFF 2
+#define LUT_SVF_CUTOFF_SIZE 257
+#define LUT_SVF_DAMP 3
+#define LUT_SVF_DAMP_SIZE 257
+#define LUT_SVF_SCALE 4
+#define LUT_SVF_SCALE_SIZE 257
+#define LUT_GRANULAR_ENVELOPE 5
+#define LUT_GRANULAR_ENVELOPE_SIZE 513
+#define LUT_GRANULAR_ENVELOPE_RATE 6
+#define LUT_GRANULAR_ENVELOPE_RATE_SIZE 257
+#define LUT_BOWING_ENVELOPE 7
+#define LUT_BOWING_ENVELOPE_SIZE 752
+#define LUT_BOWING_FRICTION 8
+#define LUT_BOWING_FRICTION_SIZE 257
+#define LUT_BLOWING_ENVELOPE 9
+#define LUT_BLOWING_ENVELOPE_SIZE 752
+#define LUT_FLUTE_BODY_FILTER 10
+#define LUT_FLUTE_BODY_FILTER_SIZE 128
+#define LUT_FM_FREQUENCY_QUANTIZER 11
+#define LUT_FM_FREQUENCY_QUANTIZER_SIZE 129
+#define LUT_VCO_DETUNE 12
+#define LUT_VCO_DETUNE_SIZE 257
+#define LUT_BELL 13
+#define LUT_BELL_SIZE 257
+#define LUT_FOF_ENVELOPE 14
+#define LUT_FOF_ENVELOPE_SIZE 1025
+#define LUT_ENV_EXPO 15
+#define LUT_ENV_EXPO_SIZE 257
 #define LUT_BLEP 0
 #define LUT_BLEP_SIZE 5429
-#define LUT_RESONATOR_COEFFICIENT 1
-#define LUT_RESONATOR_COEFFICIENT_SIZE 257
-#define LUT_RESONATOR_SCALE 2
-#define LUT_RESONATOR_SCALE_SIZE 257
-#define LUT_SVF_CUTOFF 3
-#define LUT_SVF_CUTOFF_SIZE 257
-#define LUT_SVF_DAMP 4
-#define LUT_SVF_DAMP_SIZE 257
-#define LUT_SVF_SCALE 5
-#define LUT_SVF_SCALE_SIZE 257
-#define LUT_GRANULAR_ENVELOPE 6
-#define LUT_GRANULAR_ENVELOPE_SIZE 513
-#define LUT_GRANULAR_ENVELOPE_RATE 7
-#define LUT_GRANULAR_ENVELOPE_RATE_SIZE 257
-#define LUT_BOWING_ENVELOPE 8
-#define LUT_BOWING_ENVELOPE_SIZE 1568
-#define LUT_BOWING_FRICTION 9
-#define LUT_BOWING_FRICTION_SIZE 257
-#define LUT_BLOWING_ENVELOPE 10
-#define LUT_BLOWING_ENVELOPE_SIZE 1568
-#define LUT_BLOWING_JET 11
+#define LUT_BLOWING_JET 1
 #define LUT_BLOWING_JET_SIZE 257
-#define LUT_FLUTE_BODY_FILTER 12
-#define LUT_FLUTE_BODY_FILTER_SIZE 128
-#define LUT_FM_FREQUENCY_QUANTIZER 13
-#define LUT_FM_FREQUENCY_QUANTIZER_SIZE 129
-#define LUT_VCO_DETUNE 14
-#define LUT_VCO_DETUNE_SIZE 257
-#define LUT_BELL 15
-#define LUT_BELL_SIZE 257
-#define LUT_FOF_ENVELOPE 16
-#define LUT_FOF_ENVELOPE_SIZE 1025
-#define LUT_ENV_LINEAR 17
-#define LUT_ENV_LINEAR_SIZE 257
-#define LUT_ENV_EXPO 18
-#define LUT_ENV_EXPO_SIZE 257
-#define LUT_ENV_QUARTIC 19
-#define LUT_ENV_QUARTIC_SIZE 257
 #define LUT_OSCILLATOR_INCREMENTS 0
 #define LUT_OSCILLATOR_INCREMENTS_SIZE 97
 #define LUT_OSCILLATOR_DELAYS 1
@@ -202,18 +197,16 @@ extern const uint16_t chr_characters[];
 #define WAV_BANDLIMITED_COMB_18_SIZE 257
 #define WAV_BANDLIMITED_COMB_19 22
 #define WAV_BANDLIMITED_COMB_19_SIZE 257
-#define WS_OVERDRIVE 0
-#define WS_OVERDRIVE_SIZE 257
-#define WS_MODERATE_OVERDRIVE 1
+#define WS_MODERATE_OVERDRIVE 0
 #define WS_MODERATE_OVERDRIVE_SIZE 257
-#define WS_SLIGHT_OVERDRIVE 2
+#define WS_SLIGHT_OVERDRIVE 1
 #define WS_SLIGHT_OVERDRIVE_SIZE 257
-#define WS_VIOLENT_OVERDRIVE 3
+#define WS_VIOLENT_OVERDRIVE 2
 #define WS_VIOLENT_OVERDRIVE_SIZE 257
-#define WS_SINE 4
-#define WS_SINE_SIZE 257
-#define WS_FOLD 5
-#define WS_FOLD_SIZE 257
+#define WS_SINE_FOLD 3
+#define WS_SINE_FOLD_SIZE 257
+#define WS_TRI_FOLD 4
+#define WS_TRI_FOLD_SIZE 257
 #define WT_WAVES 0
 #define WT_WAVES_SIZE 33024
 #define WT_MAP 1

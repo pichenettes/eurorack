@@ -745,6 +745,12 @@ void DigitalOscillator::RenderFeedbackFm(
     uint8_t size) {
   int16_t previous_sample = state_.ffm.previous_sample;
   uint32_t modulator_phase = state_.ffm.modulator_phase;
+
+  int32_t attenuation = pitch_ - (72 << 7) + ((parameter_[1] - 16384) >> 1);
+  attenuation = 32767 - attenuation * 4;
+  if (attenuation < 0) attenuation = 0;
+  if (attenuation > 32767) attenuation = 32767;
+  
   uint32_t modulator_phase_increment = ComputePhaseIncrement(
       (12 << 7) + pitch_ + ((parameter_[1] - 16384) >> 1)) >> 1;
   
@@ -761,9 +767,10 @@ void DigitalOscillator::RenderFeedbackFm(
     modulator_phase += modulator_phase_increment;
 
     int32_t pm;
-    pm = (previous_sample * 3) << 12;
+    int32_t p = parameter_0 * attenuation >> 15;
+    pm = previous_sample << 14;
     pm = (
-        Interpolate824(wav_sine, modulator_phase + pm) * parameter_0) << 1;
+        Interpolate824(wav_sine, modulator_phase + pm) * p) << 1;
     previous_sample = Interpolate824(wav_sine, phase_ + pm);
     *buffer++ = previous_sample;
   }
@@ -1009,12 +1016,12 @@ void DigitalOscillator::RenderPlucked(
     uint8_t size) {
   phase_increment_ <<= 1;
   if (strike_) {
-    ++pluck_polyphony_assigner_;
-    if (pluck_polyphony_assigner_ >= kNumPluckVoices) {
-      pluck_polyphony_assigner_ = 0;
+    ++active_voice_;
+    if (active_voice_ >= kNumPluckVoices) {
+      active_voice_ = 0;
     }
     // Find the optimal oversampling rate.
-    PluckState* p = &state_.plk[pluck_polyphony_assigner_];
+    PluckState* p = &state_.plk[active_voice_];
     int32_t increment = phase_increment_;
     p->shift = 0;
     while (increment > (2 << 22)) {
@@ -1032,7 +1039,7 @@ void DigitalOscillator::RenderPlucked(
     strike_ = false;
   }
   
-  PluckState* current_string = &state_.plk[pluck_polyphony_assigner_];
+  PluckState* current_string = &state_.plk[active_voice_];
   
   // Update the phase increment of the latest note, but do not transpose too
   // high above the original pitch.
@@ -1170,7 +1177,9 @@ void DigitalOscillator::RenderBowed(
     int32_t bridge_reflection = -lp_state;
     int32_t nut_reflection = -nut_value;
     int32_t string_velocity = bridge_reflection + nut_reflection;
-    int32_t bow_velocity = lut_bowing_envelope[excitation_ptr];
+    int32_t bow_velocity = lut_bowing_envelope[excitation_ptr >> 1];
+    bow_velocity += lut_bowing_envelope[(excitation_ptr + 1) >> 1];
+    bow_velocity >>= 1;
     int32_t velocity_delta = bow_velocity - string_velocity;
     
     friction = velocity_delta * parameter_0 >> 5;
@@ -1193,15 +1202,15 @@ void DigitalOscillator::RenderBowed(
     int32_t out = temp - biquad_y1;
     biquad_y1 = biquad_y0;
     biquad_y0 = temp;
-    
+
     CLIP(out)
     *buffer++ = (out + previous_sample) >> 1;
     *buffer++ = out; size--;
     previous_sample = out;
     ++excitation_ptr;
   }
-  if (excitation_ptr >= LUT_BOWING_ENVELOPE_SIZE - 128) {
-    excitation_ptr = LUT_BOWING_ENVELOPE_SIZE - 129;
+  if ((excitation_ptr >> 1) >= LUT_BOWING_ENVELOPE_SIZE - 32) {
+    excitation_ptr = (LUT_BOWING_ENVELOPE_SIZE - 32) << 1;
   }
   state_.phy.delay_ptr = delay_ptr % kWGNeckLength;
   state_.phy.excitation_ptr = excitation_ptr;
@@ -1365,10 +1374,10 @@ void DigitalOscillator::RenderFluted(
     int32_t out = bore_value >> 1;
     CLIP(out)
     *buffer++ = out;
-    ++excitation_ptr;
+    excitation_ptr += size & 1;
   }
-  if (excitation_ptr >= LUT_BLOWING_ENVELOPE_SIZE - 128) {
-    excitation_ptr = LUT_BLOWING_ENVELOPE_SIZE - 129;
+  if (excitation_ptr >= LUT_BLOWING_ENVELOPE_SIZE - 32) {
+    excitation_ptr = LUT_BLOWING_ENVELOPE_SIZE - 32;
   }
   state_.phy.delay_ptr = delay_ptr;
   state_.phy.excitation_ptr = excitation_ptr;
@@ -1482,9 +1491,16 @@ void DigitalOscillator::RenderWaveMap(
     uint8_t size) {
   
   // The grid is 16x16; so there are 15 interpolation squares.
-  uint16_t p[2] = { parameter_[0] * 15 >> 4, parameter_[1] * 15 >> 4 };
-  uint16_t wave_xfade[2] = { p[0] << 5, p[1] << 5 };
-  uint16_t wave_coordinate[2] = { p[0] >> 11, p[1] >> 11 };
+  uint16_t p[2];
+  uint16_t wave_xfade[2];
+  uint16_t wave_coordinate[2];
+
+  p[0] = parameter_[0] * 15 >> 4;
+  p[1] = parameter_[1] * 15 >> 4;
+  wave_xfade[0] = p[0] << 5;
+  wave_xfade[1] = p[1] << 5;
+  wave_coordinate[0] = p[0] >> 11;
+  wave_coordinate[1] = p[1] >> 11;
 
   const uint8_t* wave[2][2];
   
@@ -1519,83 +1535,201 @@ void DigitalOscillator::RenderWaveMap(
 }
 
 const uint8_t wave_line[] = {
-    187, 179, 154, 155, 135, 134, 137, 19, 24, 3, 8, 66, 79, 25, 180, 174, 64,
-    127, 198, 15, 10, 7, 11, 0, 191, 192, 115, 238, 237, 236, 241, 47, 70, 76,
-    235, 26, 133, 208, 34, 175, 183, 146, 147, 148, 150, 151, 152, 153, 117,
-    138, 32, 33, 35, 125, 199, 201, 30, 31, 193, 27, 29, 21, 18, 182
+  187, 179, 154, 155, 135, 134, 137, 19, 24, 3, 8, 66, 79, 25, 180, 174, 64,
+  127, 198, 15, 10, 7, 11, 0, 191, 192, 115, 238, 237, 236, 241, 47, 70, 76,
+  235, 26, 133, 208, 34, 175, 183, 146, 147, 148, 150, 151, 152, 153, 117,
+  138, 32, 33, 35, 125, 199, 201, 30, 31, 193, 27, 29, 21, 18, 182
+};
+
+
+const uint8_t mini_wave_line[] = {
+  174, 157, 161, 171, 188, 189, 191, 192, 193, 196, 198, 201, 234, 232,
+  229, 226, 224, 1, 2, 3, 4, 5, 8, 12, 32, 36, 42, 47, 252, 254, 141, 139,
+  135
 };
 
 void DigitalOscillator::RenderWaveLine(
     const uint8_t* sync,
     int16_t* buffer,
     uint8_t size) {
-  
-  uint32_t phase_increment = phase_increment_ >> 1;
+  smoothed_parameter_ = (3 * smoothed_parameter_ + (parameter_[0] << 1)) >> 2;
 
-  const uint8_t* wave_previous = wt_waves + wave_line[previous_parameter_[0] >> 9] * 129;
-  const uint8_t* wave_current = wt_waves + wave_line[parameter_[0] >> 9] * 129;
-  const uint8_t* wave_1 = wt_waves + wave_line[parameter_[0] >> 9] * 129;
-  const uint8_t* wave_2 = wt_waves + wave_line[(parameter_[0] >> 9) + 1] * 129;
+  uint16_t scan = smoothed_parameter_;
+  const uint8_t* wave_0 = wt_waves + wave_line[previous_parameter_[0] >> 9] * 129;
+  const uint8_t* wave_1 = wt_waves + wave_line[scan >> 10] * 129;
+  const uint8_t* wave_2 = wt_waves + wave_line[(scan >> 10) + 1] * 129;
 
-  uint16_t smooth_xfade = parameter_[0] << 7;
+  uint16_t smooth_xfade = scan << 6;
   uint16_t rough_xfade = 0;
-  uint16_t rough_xfade_increment = 65536 / (2 * size);
+  uint16_t rough_xfade_increment = 32768 / size;
+  uint32_t balance = parameter_[1] << 3;
+
   uint32_t phase = phase_;
+  uint32_t phase_increment = phase_increment_ >> 1;
   
-  uint16_t balance = parameter_[1];
-  while (size--) {
-    // 2x naive oversampling.
-    if (*sync++) {
-      phase = 0;
+  int16_t rough, smooth;
+  
+  if (parameter_[1] < 8192) {
+    while (size--) {
+      int32_t sample = 0;
+      
+      rough = Crossfade(wave_0, wave_1, (phase >> 1) & 0xfe000000, rough_xfade);
+      smooth = Crossfade(wave_0, wave_1, phase >> 1, rough_xfade);
+      sample += Mix(rough, smooth, balance);
+      phase += phase_increment;
+      rough_xfade += rough_xfade_increment;
+      
+      rough = Crossfade(wave_0, wave_1, (phase >> 1) & 0xfe000000, rough_xfade);
+      smooth = Crossfade(wave_0, wave_1, phase >> 1, rough_xfade);
+      sample += Mix(rough, smooth, balance);
+      phase += phase_increment;
+      rough_xfade += rough_xfade_increment;
+      
+      *buffer++ = sample >> 1;
     }
+  } else if (parameter_[1] < 16384) {
+    while (size--) {
+      int32_t sample = 0;
+      
+      rough = Crossfade(wave_0, wave_1, phase >> 1, rough_xfade);
+      smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      sample += Mix(rough, smooth, balance);
+      phase += phase_increment;
+      rough_xfade += rough_xfade_increment;
+      
+      rough = Crossfade(wave_0, wave_1, phase >> 1, rough_xfade);
+      smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      sample += Mix(rough, smooth, balance);
+      phase += phase_increment;
+      rough_xfade += rough_xfade_increment;
 
-    int16_t sample = 0;
-
-
-    if (balance < 8192) {
-      int16_t rough = Crossfade(wave_previous, wave_current, (phase >> 1) & 0xfe000000, rough_xfade);
-      int16_t smooth = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
-      sample += Mix(rough, smooth, balance << 3) >> 1;
-    } else if (balance < 16384) {
-      int16_t rough = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
-      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
-      sample += Mix(rough, smooth, balance << 3) >> 1;
-    } else if (balance < 24576) {
-      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
-      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
-      sample += Mix(smooth, rough, balance << 3) >> 1;
-    } else {
-      int16_t smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
-      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
-      sample += Mix(smooth, rough, balance << 3) >> 1;
+      *buffer++ = sample >> 1;
     }
-    phase += phase_increment;
-    rough_xfade += rough_xfade_increment;
-    if (balance < 8192) {
-      int16_t rough = Crossfade(wave_previous, wave_current, (phase >> 1) & 0xfe000000, rough_xfade);
-      int16_t smooth = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
-      sample += Mix(rough, smooth, balance << 3) >> 1;
-    } else if (balance < 16384) {
-      int16_t rough = Crossfade(wave_previous, wave_current, phase >> 1, rough_xfade);
-      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
-      sample += Mix(rough, smooth, balance << 3) >> 1;
-    } else if (balance < 24576) {
-      int16_t smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
-      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
-      sample += Mix(smooth, rough, balance << 3) >> 1;
-    } else {
-      int16_t smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
-      int16_t rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
-      sample += Mix(smooth, rough, balance << 3) >> 1;
+  } else if (parameter_[1] < 24576) {
+    while (size--) {
+      int32_t sample = 0;
+      
+      smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance);
+      phase += phase_increment;
+
+      smooth = Crossfade(wave_1, wave_2, phase >> 1, smooth_xfade);
+      rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance);
+      phase += phase_increment;
+
+      *buffer++ = sample >> 1;
     }
-    phase += phase_increment;
-    rough_xfade += rough_xfade_increment;
-    
-    *buffer++ = sample;
+  } else {
+    while (size--) {
+      int32_t sample = 0;
+      smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance);
+      phase += phase_increment;
+
+      smooth = Crossfade(wave_1, wave_2, (phase >> 1) & 0xfe000000, smooth_xfade);
+      rough = Crossfade(wave_1, wave_2, (phase >> 1) & 0xf8000000, smooth_xfade);
+      sample += Mix(smooth, rough, balance);
+      phase += phase_increment;
+
+      *buffer++ = sample >> 1;
+    }
+  }
+  phase_ = phase;
+  previous_parameter_[0] = smoothed_parameter_ >> 1;
+}
+
+#define SEMI * 128
+
+const uint16_t chords[17][3] = {
+  { 4, 8, 12 },  // Fat
+  { 16, 32, 48 },  // Superfat
+  { 4, 7 SEMI, 4 + 7 SEMI },  // Fat power
+  { 4, 12 SEMI, 4 + 12 SEMI },  // Fat octave
+  { 12 SEMI, 24 SEMI, 36 SEMI},  // Octaves
+  { 12 SEMI, 7 SEMI, 19 SEMI },  // Power
+  { 4 SEMI,  7 SEMI , 12 SEMI },  // Major
+  { 4 SEMI,  7 SEMI , 11 SEMI },  // Major7
+  { 3 SEMI,  7 SEMI , 10 SEMI },  // Minor7
+  { 3 SEMI,  7 SEMI , 12 SEMI },  // Minor
+  { 2 SEMI,  7 SEMI , 12 SEMI },  // Sus2
+  { 4 SEMI,  7 SEMI , 12 SEMI },  // Sus4
+  { 3 SEMI,  7 SEMI , 14 SEMI },  // Minor9
+  { 4 SEMI,  7 SEMI , 14 SEMI },  // Major9
+  { 3 SEMI,  7 SEMI , 16 SEMI },  // Minor11
+  { 4 SEMI,  7 SEMI , 16 SEMI },  // Major11
+  { 4 SEMI,  7 SEMI , 16 SEMI },  // Major11
+};
+
+void DigitalOscillator::RenderWaveParaphonic(
+    const uint8_t* sync,
+    int16_t* buffer,
+    uint8_t size) {
+  if (strike_) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      state_.saw.phase[i] = Random::GetWord();
+    }
+    strike_ = false;
   }
   
-  phase_ = phase;
-  previous_parameter_[0] = parameter_[0];
+  // Do not use an array here to allow these to be kept in arbitrary registers.
+  uint32_t phase_0, phase_1, phase_2, phase_3;
+  uint32_t phase_increment[3];
+  uint32_t phase_increment_0;
+
+  phase_increment_0 = phase_increment_;
+  phase_0 = state_.saw.phase[0];
+  phase_1 = state_.saw.phase[1];
+  phase_2 = state_.saw.phase[2];
+  phase_3 = state_.saw.phase[3];
+  
+  for (uint8_t i = 0; i < 3; ++i) {
+    uint16_t detune_1 = chords[parameter_[1] >> 11][i];
+    uint16_t detune_2 = chords[((parameter_[1] >> 10) + 1) >> 1][i];
+    uint16_t detune_xfade = parameter_[1] << 6;
+    uint16_t detune = detune_1 + ((detune_2 - detune_1) * detune_xfade >> 16);
+    phase_increment[i] = ComputePhaseIncrement(pitch_ + detune);
+  }
+
+  const uint8_t* wave_1 = wt_waves + mini_wave_line[parameter_[0] >> 10] * 129;
+  const uint8_t* wave_2 = wt_waves + mini_wave_line[(parameter_[0] >> 10) + 1] * 129;
+  uint16_t wave_xfade = parameter_[0] << 6;
+  
+  while (size--) {
+    int32_t sample = 0;
+    
+    phase_0 += phase_increment_0;
+    phase_1 += phase_increment[0];
+    phase_2 += phase_increment[1];
+    phase_3 += phase_increment[2];
+
+    sample += Crossfade(wave_1, wave_2, phase_0 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_1 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_2 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_3 >> 1, wave_xfade);
+    *buffer++ = sample >> 2;
+    
+    phase_0 += phase_increment_0;
+    phase_1 += phase_increment[0];
+    phase_2 += phase_increment[1];
+    phase_3 += phase_increment[2];
+    
+    sample = 0;
+    sample += Crossfade(wave_1, wave_2, phase_0 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_1 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_2 >> 1, wave_xfade);
+    sample += Crossfade(wave_1, wave_2, phase_3 >> 1, wave_xfade);
+    *buffer++ = sample >> 2;
+    size--;
+  }
+  
+  state_.saw.phase[0] = phase_0;
+  state_.saw.phase[1] = phase_1;
+  state_.saw.phase[2] = phase_2;
+  state_.saw.phase[3] = phase_3;
+
 }
 
 void DigitalOscillator::RenderFilteredNoise(
@@ -2106,14 +2240,16 @@ DigitalOscillator::RenderFn DigitalOscillator::fn_table_[] = {
   &DigitalOscillator::RenderWavetables,
   &DigitalOscillator::RenderWaveMap,
   &DigitalOscillator::RenderWaveLine,
+  &DigitalOscillator::RenderWaveParaphonic,
   &DigitalOscillator::RenderFilteredNoise,
   &DigitalOscillator::RenderTwinPeaksNoise,
   &DigitalOscillator::RenderClockedNoise,
   &DigitalOscillator::RenderGranularCloud,
   &DigitalOscillator::RenderParticleNoise,
   &DigitalOscillator::RenderDigitalModulation,
-  &DigitalOscillator::RenderQuestionMark
   // &DigitalOscillator::RenderYourAlgo,
+
+  &DigitalOscillator::RenderQuestionMark
 };
 
 }  // namespace braids
