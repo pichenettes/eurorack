@@ -1,12 +1,12 @@
 [submodule "avrlib"]
 	path = avrlib
-	url = git@github.com:pichenettes/avril.git
-[submodule "stmlib"]
-	path = stmlib
-	url = git@github.com:pichenettes/stmlib.git
+	url = https://github.com/pichenettes/avril.git
 [submodule "avrlibx"]
 	path = avrlibx
-	url = git@github.com:pichenettes/avrilx.git
+	url = https://github.com/pichenettes/avrilx.git
+[submodule "stmlib"]
+	path = stmlib
+	url = https://github.com/pichenettes/stmlib.git
 [submodule "stm_audio_bootloader"]
 	path = stm_audio_bootloader
-	url = git@github.com:pichenettes/stm-audio-bootloader.git
+	url = https://github.com/pichenettes/stm-audio-bootloader.git
