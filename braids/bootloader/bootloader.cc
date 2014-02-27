@@ -50,7 +50,7 @@ const double kBitRate = 12000.0;
 const uint32_t kStartAddress = 0x08004000;
 
 Adc adc;
-System system;
+System sys;
 Display display;
 Encoder encoder;
 PacketDecoder decoder;
@@ -144,12 +144,12 @@ void PacketInspector() {
 }
 
 void Init() {
-  system.Init(F_CPU / (3 * kSampleRate) - 1, false);
+  sys.Init(F_CPU / (3 * kSampleRate) - 1, false);
   system_clock.Init();
   adc.Init(3 * kSampleRate > 96000);
   encoder.Init();
   display.Init();
-  system.StartTimers();
+  sys.StartTimers();
 }
 
 void InitializeReception() {
