@@ -5,6 +5,9 @@ Mutable Instruments' Eurorack Modules.
 * Ripples: Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
 * Grids: Topographic drum sequencer.
 * Links: Utility module - buffer, mixer.
+* Frames: Keyframer/mixer.
+* Tides: Tidal modulator.
+* Yarns: MIDI interface.
 * Volts: +5V power module.
 
 License
