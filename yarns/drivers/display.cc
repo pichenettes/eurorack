@@ -137,17 +137,27 @@ void Display::Print(const char* short_buffer, const char* long_buffer) {
   scrolling_ = false;
 }
 
+# define SHIFT_BIT \
+  GPIOB->BRR = kPinClk; \
+  if (data & 1) { \
+    GPIOB->BSRR = kPinData; \
+  } else { \
+    GPIOB->BRR = kPinData; \
+  } \
+  data >>= 1; \
+  GPIOB->BSRR = kPinClk;
+
 void Display::Shift14SegmentsWord(uint16_t data) {
   GPIOB->BRR = kPinEnable;
-  for (uint16_t i = 0; i < 16; ++i) {
-    GPIOB->BRR = kPinClk;
-    if (data & 1) {
-      GPIOB->BSRR = kPinData;
-    } else {
-      GPIOB->BRR = kPinData;
-    }
-    data >>= 1;
-    GPIOB->BSRR = kPinClk;
+  for (uint16_t i = 0; i < 2; ++i) {
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
+    SHIFT_BIT
   }
   GPIOB->BSRR = kPinEnable;
 }

@@ -153,9 +153,8 @@ void TIM1_UP_IRQHandler(void) {
   if (dac.channel() == 0) {
     // Internal clock refresh at 48kHz
     multi.RefreshInternalClock();
-    if (!has_audio_sources) {
-      ui.PollFast();
-    }
+  } else if (dac.channel() == 1) {
+    ui.PollFast();
   }
 }
 
