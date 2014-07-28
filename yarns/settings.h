@@ -56,8 +56,10 @@ enum SettingUnit {
   SETTING_UNIT_INDEX,
   SETTING_UNIT_TEMPO,
   SETTING_UNIT_MIDI_CHANNEL,
+  SETTING_UNIT_MIDI_CHANNEL_OFF,
   SETTING_UNIT_BAR_DURATION,
-  SETTING_UNIT_ENUMERATION
+  SETTING_UNIT_VIBRATO_SPEED,
+  SETTING_UNIT_ENUMERATION,
 };
 
 enum SettingIndex {
@@ -104,6 +106,7 @@ enum SettingIndex {
   SETTING_SEQUENCER_EUCLIDEAN_LENGTH,
   SETTING_SEQUENCER_EUCLIDEAN_FILL,
   SETTING_SEQUENCER_EUCLIDEAN_ROTATE,
+  SETTING_REMOTE_CONTROL_CHANNEL,
 
   SETTING_LAST
 };
@@ -117,6 +120,22 @@ struct Setting {
   int16_t min_value;
   int16_t max_value;
   const char* const* values;
+  uint8_t part_cc;
+  uint8_t remote_control_cc;
+  
+  uint8_t Scale(uint8_t value_7bits) const {
+    uint8_t scaled_value;
+    uint8_t range = max_value - min_value + 1;
+    scaled_value = range * value_7bits >> 7;
+    scaled_value += min_value;
+    if (unit == SETTING_UNIT_TEMPO) {
+      scaled_value &= 0xfe;
+      if (scaled_value <= 38) {
+        scaled_value = 39;
+      }
+    }
+    return scaled_value;
+  }
 };
 
 class Settings {
@@ -125,8 +144,10 @@ class Settings {
   ~Settings() { }
   
   void Init();
-  
   void Set(const Setting& setting, uint8_t value);
+  void Set(const Setting& setting, uint8_t* part, uint8_t value);
+  void SetFromCC(uint8_t part, uint8_t controller, uint8_t value);
+
   uint8_t Get(const Setting& setting) const;
   void Increment(const Setting& setting, int16_t increment);
 
@@ -153,6 +174,9 @@ class Settings {
    
   static const Setting settings_[SETTING_LAST];
   static const SettingIndex* const menus_[LAYOUT_LAST];
+  
+  uint8_t part_cc_map_[128];
+  uint8_t remote_control_cc_map_[128];
   
   DISALLOW_COPY_AND_ASSIGN(Settings);
 };

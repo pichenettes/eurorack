@@ -34,6 +34,7 @@
 
 #include "yarns/just_intonation_processor.h"
 #include "yarns/midi_handler.h"
+#include "yarns/settings.h"
 
 namespace yarns {
   
@@ -279,27 +280,34 @@ void Multi::GetCvGate(uint16_t* cv, bool* gate) {
       break;
       
     case LAYOUT_DUAL_MONO:
+      // {
+      //   cv[0] = voice_[0].note_dac_code();
+      //   cv[1] = voice_[1].note_dac_code();
+      //   cv[2] = voice_[0].modulation_dac_code();
+      //   cv[3] = voice_[1].modulation_dac_code();
+      //   gate[0] = voice_[0].gate();
+      //   gate[1] = voice_[1].gate();
+      //   gate[2] = clock();
+      //   gate[3] = reset_or_playing_flag();
+      // }
+      // break;
+    
     case LAYOUT_DUAL_POLY:
     case LAYOUT_QUAD_POLYCHAINED:
       {
         cv[0] = voice_[0].note_dac_code();
         cv[1] = voice_[1].note_dac_code();
-        if (settings_.layout == LAYOUT_DUAL_MONO) {
-          cv[2] = voice_[0].modulation_dac_code();
-          cv[3] = voice_[1].modulation_dac_code();
-        } else {
-          cv[2] = (voice_[0].modulation_dac_code() >> 1) + \
-              (voice_[1].modulation_dac_code() >> 1);
-          cv[3] = (voice_[0].aux_cv_dac_code() >> 1) +
-              (voice_[1].aux_cv_dac_code() >> 1);
-        }
+        cv[2] = (voice_[0].modulation_dac_code() >> 1) + \
+            (voice_[1].modulation_dac_code() >> 1);
+        cv[3] = (voice_[0].aux_cv_dac_code() >> 1) +
+            (voice_[1].aux_cv_dac_code() >> 1);
         gate[0] = voice_[0].gate();
         gate[1] = voice_[1].gate();
         gate[2] = clock();
         gate[3] = reset_or_playing_flag();
       }
       break;
-      
+    
     case LAYOUT_QUAD_MONO:
     case LAYOUT_QUAD_POLY:
     case LAYOUT_OCTAL_POLYCHAINED:
@@ -410,13 +418,21 @@ void Multi::GetLedsBrightness(uint8_t* brightness) {
       break;
       
     case LAYOUT_DUAL_MONO:
+      // {
+      //   brightness[0] = voice_[0].gate() ? 255 : 0;
+      //   brightness[1] = voice_[1].gate() ? 255 : 0;
+      //   brightness[2] = voice_[0].modulation();
+      //   brightness[3] = voice_[1].modulation();
+      // }
+      // break;
+      // 
     case LAYOUT_DUAL_POLY:
     case LAYOUT_QUAD_POLYCHAINED:
       {
         brightness[0] = voice_[0].gate() ? 255 : 0;
         brightness[1] = voice_[1].gate() ? 255 : 0;
         brightness[2] = voice_[0].modulation() + voice_[1].modulation();
-        brightness[3] = voice_[0].aux_cv() + voice_[1].aux_cv();
+        brightness[3] = (voice_[0].aux_cv() >> 1) + (voice_[1].aux_cv() >> 1);
       }
       break;
       
@@ -726,6 +742,24 @@ void Multi::ClockSong() {
   }
   ++song_clock_;
 }
+
+bool Multi::ControlChange(uint8_t channel, uint8_t controller, uint8_t value) {
+  bool thru = true;
+  
+  if (channel + 1 == settings_.remote_control_channel) {
+    yarns::settings.SetFromCC(0xff, controller, value);
+  }
+  
+  for (uint8_t i = 0; i < num_active_parts_; ++i) {
+    if (part_[i].accepts(channel) && \
+        channel + 1 != settings_.remote_control_channel) {
+      thru = part_[i].ControlChange(channel, controller, value) && thru;
+      yarns::settings.SetFromCC(i, controller, value);
+    }
+  }
+  return thru;
+}
+
 
 /* extern */
 Multi multi;

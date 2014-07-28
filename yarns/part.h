@@ -394,6 +394,7 @@ class Part {
   uint8_t seq_rec_step_;
   
   uint16_t gate_length_counter_;
+  uint16_t lfo_counter_;
   
   bool has_siblings_;
   

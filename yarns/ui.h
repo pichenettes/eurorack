@@ -60,6 +60,7 @@ enum UiMode {
   UI_MODE_PUSH_IT_SELECT_NOTE,
   UI_MODE_LEARNING,
   UI_MODE_FACTORY_TESTING,
+  UI_MODE_SPLASH,
   UI_MODE_LAST
 };
 
@@ -186,6 +187,7 @@ class Ui {
   void PrintPushItNote();
   void PrintLearning();
   void PrintFactoryTesting();
+  void PrintVersionNumber();
   
   void DoInitCommand();
   void DoDumpCommand();

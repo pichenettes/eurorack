@@ -51,7 +51,8 @@ struct MultiSettings {
   uint8_t clock_bar_duration;
   uint8_t clock_override;
   int8_t custom_pitch_table[12];
-  uint8_t padding[13];
+  uint8_t remote_control_channel;
+  uint8_t padding[12];
 };
 
 enum MultiSetting {
@@ -61,7 +62,20 @@ enum MultiSetting {
   MULTI_CLOCK_INPUT_DIVISION,
   MULTI_CLOCK_OUTPUT_DIVISION,
   MULTI_CLOCK_BAR_DURATION,
-  MULTI_CLOCK_OVERRIDE
+  MULTI_CLOCK_OVERRIDE,
+  MULTI_PITCH_1,
+  MULTI_PITCH_2,
+  MULTI_PITCH_3,
+  MULTI_PITCH_4,
+  MULTI_PITCH_5,
+  MULTI_PITCH_6,
+  MULTI_PITCH_7,
+  MULTI_PITCH_8,
+  MULTI_PITCH_9,
+  MULTI_PITCH_10,
+  MULTI_PITCH_11,
+  MULTI_PITCH_12,
+  MULTI_REMOTE_CONTROL_CHANNEL
 };
 
 enum Layout {
@@ -129,15 +143,7 @@ class Multi {
     return thru;
   }
   
-  bool ControlChange(uint8_t channel, uint8_t controller, uint8_t value) {
-    bool thru = true;
-    for (uint8_t i = 0; i < num_active_parts_; ++i) {
-      if (part_[i].accepts(channel)) {
-        thru = part_[i].ControlChange(channel, controller, value) && thru;
-      }
-    }
-    return thru;
-  }
+  bool ControlChange(uint8_t channel, uint8_t controller, uint8_t value);
 
   bool PitchBend(uint8_t channel, uint16_t pitch_bend) {
     bool thru = true;
@@ -420,6 +426,7 @@ class Multi {
   void ChangeLayout(Layout old_layout, Layout new_layout);
   void UpdateLayout();
   void ClockSong();
+  void HandleRemoteControlCC(uint8_t controller, uint8_t value);
   
   MultiSettings settings_;
   
