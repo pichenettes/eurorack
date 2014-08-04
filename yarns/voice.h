@@ -71,7 +71,7 @@ class Voice {
     mod_pitch_bend_ = pitch_bend;
   }
   void Aftertouch(uint8_t velocity) {
-    mod_aux_[0] = velocity << 1;
+    mod_aux_[0] = velocity << 9;
   }
 
   inline void set_modulation_rate(uint8_t modulation_rate) {
@@ -99,12 +99,12 @@ class Voice {
   inline int32_t note() const { return note_; }
   inline uint8_t velocity() const { return mod_velocity_; }
   inline uint8_t modulation() const { return mod_wheel_; }
-  inline uint8_t aux_cv() const { return mod_aux_[aux_cv_source_]; }
+  inline uint8_t aux_cv() const { return mod_aux_[aux_cv_source_] >> 8; }
 
-  inline uint16_t DacCodeFrom8BitValue(uint8_t value) const {
+  inline uint16_t DacCodeFrom16BitValue(uint16_t value) const {
     uint32_t v = static_cast<uint32_t>(value);
     uint32_t scale = calibrated_dac_code_[3] - calibrated_dac_code_[8];
-    return static_cast<uint16_t>(calibrated_dac_code_[3] - (scale * v >> 8));
+    return static_cast<uint16_t>(calibrated_dac_code_[3] - (scale * v >> 16));
   }
 
   inline uint16_t note_dac_code() const {
@@ -112,13 +112,13 @@ class Voice {
   }
 
   inline uint16_t velocity_dac_code() const {
-    return DacCodeFrom8BitValue(mod_velocity_ << 1);
+    return DacCodeFrom16BitValue(mod_velocity_ << 9);
   }
   inline uint16_t modulation_dac_code() const {
-    return DacCodeFrom8BitValue(mod_wheel_ << 1);
+    return DacCodeFrom16BitValue(mod_wheel_ << 9);
   }
   inline uint16_t aux_cv_dac_code() const { 
-    return DacCodeFrom8BitValue(mod_aux_[aux_cv_source_]);
+    return DacCodeFrom16BitValue(mod_aux_[aux_cv_source_]);
   }
 
   inline bool gate() const { return gate_ && !retrigger_delay_; }
@@ -158,6 +158,19 @@ class Voice {
     return audio_buffer_.ImmediateRead();
   }
   
+  void TapLfo(uint32_t target_phase) {
+    uint32_t target_increment = target_phase - lfo_pll_previous_target_phase_;
+    
+    int32_t d_error = target_increment - (lfo_phase_ - lfo_pll_previous_phase_);
+    int32_t p_error = target_phase - lfo_phase_;
+    int32_t error = d_error + (p_error >> 1);
+    
+    lfo_pll_phase_increment_ += error >> 11;
+    
+    lfo_pll_previous_phase_ = lfo_phase_;
+    lfo_pll_previous_target_phase_ = target_phase;
+  }
+  
  private:
   uint16_t NoteToDacCode(int32_t note) const;
   uint32_t ComputePhaseIncrement(int16_t pitch);
@@ -176,7 +189,7 @@ class Voice {
   
   int16_t mod_pitch_bend_;
   uint8_t mod_wheel_;
-  uint8_t mod_aux_[4];
+  uint16_t mod_aux_[5];
   uint8_t mod_velocity_;
   
   uint8_t pitch_bend_range_;
@@ -201,6 +214,11 @@ class Voice {
   uint16_t trigger_pulse_;
   uint32_t trigger_phase_increment_;
   uint32_t trigger_phase_;
+  
+  // PLL for clock-synced LFO.
+  uint32_t lfo_pll_phase_increment_;
+  uint32_t lfo_pll_previous_target_phase_;
+  uint32_t lfo_pll_previous_phase_;
   
   uint8_t audio_mode_;
   int16_t osc_pitch_;

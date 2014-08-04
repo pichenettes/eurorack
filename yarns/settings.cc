@@ -28,6 +28,7 @@
 
 #include "yarns/settings.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace yarns {
@@ -57,7 +58,7 @@ const char* const sequencer_arp_direction_values[] = {
 };
 
 const char* const voicing_aux_cv_values[] = {
-  "AT", "BREATH", "PEDAL", "LFO"
+  "AT", "BREATH", "PEDAL", "VIBRATO LFO", "LFO"
 };
 
 const char* const voicing_oscillator_values[] = {
@@ -118,223 +119,272 @@ const Setting Settings::settings_[] = {
   {
     "LA", "LAYOUT",
     SETTING_DOMAIN_MULTI, { MULTI_LAYOUT, 0 },
-    SETTING_UNIT_ENUMERATION, LAYOUT_MONO, LAYOUT_LAST - 1, layout_values
+    SETTING_UNIT_ENUMERATION, LAYOUT_MONO, LAYOUT_LAST - 1, layout_values,
+    0, 1,
   },
   {
     "PA", "PART",
     SETTING_DOMAIN_GLOBAL, { GLOBAL_ACTIVE_PART, 0 },
-    SETTING_UNIT_INDEX, 0, 3, NULL
+    SETTING_UNIT_INDEX, 0, 3, NULL,
+    0, 0,
   },
   {
     "PA", "PART",
     SETTING_DOMAIN_GLOBAL, { GLOBAL_ACTIVE_PART, 0 },
-    SETTING_UNIT_INDEX, 0, 1, NULL
+    SETTING_UNIT_INDEX, 0, 1, NULL,
+    0, 0,
   },
   {
     "TE", "TEMPO",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_TEMPO, 0 },
-    SETTING_UNIT_TEMPO, 39, 240, NULL
+    SETTING_UNIT_TEMPO, 39, 240, NULL,
+    0, 2,
   },
   {
     "SW", "SWING",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_SWING, 0 },
-    SETTING_UNIT_UINT8, 0, 99, NULL
+    SETTING_UNIT_UINT8, 0, 99, NULL,
+    0, 3,
   },
   {
     "I/", "INPUT CLK DIV",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_INPUT_DIVISION, 0 },
-    SETTING_UNIT_UINT8, 1, 4, NULL
+    SETTING_UNIT_UINT8, 1, 4, NULL,
+    0, 0,
   },
   {
     "O/", "OUTPUT CLK DIV",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_OUTPUT_DIVISION, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 11, clock_division_values
+    SETTING_UNIT_ENUMERATION, 0, 11, clock_division_values,
+    0, 0,
   },
   {
     "B-", "BAR DURATION",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_BAR_DURATION, 0 },
-    SETTING_UNIT_BAR_DURATION, 0, kMaxBarDuration + 1, NULL
+    SETTING_UNIT_BAR_DURATION, 0, kMaxBarDuration + 1, NULL,
+    0, 0,
   },
   {
     "C>", "CLOCK OUTPUT",
     SETTING_DOMAIN_MULTI, { MULTI_CLOCK_OVERRIDE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values
+    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values,
+    0, 0,
   },
   {
     "CH", "CHANNEL",
     SETTING_DOMAIN_PART, { PART_MIDI_CHANNEL, 0 },
-    SETTING_UNIT_MIDI_CHANNEL, 0, 16, NULL
+    SETTING_UNIT_MIDI_CHANNEL, 0, 16, NULL,
+    0, 4,
   },
   {
     "N>", "NOTE>",
     SETTING_DOMAIN_PART, { PART_MIDI_MIN_NOTE, 0 },
-    SETTING_UNIT_UINT8, 0, 127, NULL
+    SETTING_UNIT_UINT8, 0, 127, NULL,
+    16, 5,
   },
   {
     "N<", "NOTE<",
     SETTING_DOMAIN_PART, { PART_MIDI_MAX_NOTE, 0 },
-    SETTING_UNIT_UINT8, 0, 127, NULL
+    SETTING_UNIT_UINT8, 0, 127, NULL,
+    17, 6,
   },
   {
     "NO", "NOTE",
     SETTING_DOMAIN_PART, { PART_MIDI_MIN_NOTE, PART_MIDI_MAX_NOTE },
-    SETTING_UNIT_UINT8, 0, 127, NULL
+    SETTING_UNIT_UINT8, 0, 127, NULL,
+    0, 0,
   },
   {
     "V<", "VELO<",
     SETTING_DOMAIN_PART, { PART_MIDI_MIN_VELOCITY, 0 },
-    SETTING_UNIT_UINT8, 0, 127, NULL
+    SETTING_UNIT_UINT8, 0, 127, NULL,
+    0, 0,
   },
   {
     "V>", "VELO>",
     SETTING_DOMAIN_PART, { PART_MIDI_MAX_VELOCITY, 0 },
-    SETTING_UNIT_UINT8, 0, 127, NULL
+    SETTING_UNIT_UINT8, 0, 127, NULL,
+    0, 0,
   },
   {
     ">>", "OUTPUT MIDI MODE",
     SETTING_DOMAIN_PART, { PART_MIDI_OUT_MODE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 2, midi_out_mode_values
+    SETTING_UNIT_ENUMERATION, 0, 2, midi_out_mode_values,
+    0, 7,
   },
   {
     "VO", "VOICING",
     SETTING_DOMAIN_PART, { PART_VOICING_ALLOCATION_MODE, 0 },
     SETTING_UNIT_ENUMERATION, 1, VOICE_ALLOCATION_MODE_LAST - 1,
-    voicing_allocation_mode_values
+    voicing_allocation_mode_values,
+    18, 8,
   },
   {
     "NP", "NOTE PRIORITY",
     SETTING_DOMAIN_PART, { PART_VOICING_ALLOCATION_PRIORITY, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 2, voicing_allocation_priority_values
+    SETTING_UNIT_ENUMERATION, 0, 2, voicing_allocation_priority_values,
+    19, 9,
   },
   {
     "PO", "PORTAMENTO",
     SETTING_DOMAIN_PART, { PART_VOICING_PORTAMENTO, 0 },
-    SETTING_UNIT_UINT8, 0, 99, NULL
+    SETTING_UNIT_UINT8, 0, 99, NULL,
+    5, 10,
   },
   {
     "LG", "LEGATO MODE",
     SETTING_DOMAIN_PART, { PART_VOICING_LEGATO_MODE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values
+    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values,
+    20, 11,
   },
   {
     "BR", "BEND RANGE",
     SETTING_DOMAIN_PART, { PART_VOICING_PITCH_BEND_RANGE, 0 },
-    SETTING_UNIT_UINT8, 0, 24, NULL
+    SETTING_UNIT_UINT8, 0, 24, NULL,
+    21, 12,
   },
   {
     "VR", "VIBRATO RANGE",
     SETTING_DOMAIN_PART, { PART_VOICING_VIBRATO_RANGE, 0 },
-    SETTING_UNIT_UINT8, 0, 12, NULL
+    SETTING_UNIT_UINT8, 0, 12, NULL,
+    22, 13,
   },
   {
     "VS", "VIBRATO SPEED",
     SETTING_DOMAIN_PART, { PART_VOICING_MODULATION_RATE, 0 },
-    SETTING_UNIT_UINT8, 0, 99, NULL
+    SETTING_UNIT_VIBRATO_SPEED, 0, 109, NULL,
+    23, 14,
   },
   {
     "TT", "TRANSPOSE",
     SETTING_DOMAIN_PART, { PART_VOICING_TUNING_TRANSPOSE, 0 },
-    SETTING_UNIT_INT8, -36, 36, NULL
+    SETTING_UNIT_INT8, -36, 36, NULL,
+    24, 15,
   },
   {
     "TF", "FINE TUNING",
     SETTING_DOMAIN_PART, { PART_VOICING_TUNING_FINE, 0 },
-    SETTING_UNIT_INT8, -64, 64, NULL
+    SETTING_UNIT_INT8, -64, 64, NULL,
+    25, 16,
   },
   {
     "TR", "TUNING ROOT",
     SETTING_DOMAIN_PART, { PART_VOICING_TUNING_ROOT, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 11, note_values
+    SETTING_UNIT_ENUMERATION, 0, 11, note_values,
+    26, 17,
   },
   {
     "TS", "TUNING SYSTEM",
     SETTING_DOMAIN_PART, { PART_VOICING_TUNING_SYSTEM, 0 },
     SETTING_UNIT_ENUMERATION, 0, TUNING_SYSTEM_LAST - 1,
-    tuning_system_values
+    tuning_system_values,
+    27, 18,
   },
   {
     "T-", "TRIG DURATION",
     SETTING_DOMAIN_PART, { PART_VOICING_TRIGGER_DURATION, 0 },
-    SETTING_UNIT_UINT8, 1, 99, NULL
+    SETTING_UNIT_UINT8, 1, 99, NULL,
+    28, 19,
   },
   {
     "T*", "TRIG VELOCITY SCALE",
     SETTING_DOMAIN_PART, { PART_VOICING_TRIGGER_SCALE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values
+    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values,
+    29, 20,
   },
   {
     "T\x88", "TRIG SHAPE",
     SETTING_DOMAIN_PART, { PART_VOICING_TRIGGER_SHAPE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 5, trigger_shape_values
+    SETTING_UNIT_ENUMERATION, 0, 5, trigger_shape_values,
+    30, 21,
   },
   {
     "CV", "AUX. CV OUT",
     SETTING_DOMAIN_PART, { PART_VOICING_AUX_CV, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 3, voicing_aux_cv_values
+    SETTING_UNIT_ENUMERATION, 0, 4, voicing_aux_cv_values,
+    31, 22,
   },
   {
     "OS", "OSCILLATOR",
     SETTING_DOMAIN_PART, { PART_VOICING_AUDIO_MODE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 6, voicing_oscillator_values
+    SETTING_UNIT_ENUMERATION, 0, 6, voicing_oscillator_values,
+    71, 23,
   },
   {
     "C/", "CLOCK DIV",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_CLOCK_DIVISION, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 11, clock_division_values
+    SETTING_UNIT_ENUMERATION, 0, 11, clock_division_values,
+    102, 24,
   },
   {
     "G-", "GATE LENGTH",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_GATE_LENGTH, 0 },
-    SETTING_UNIT_UINT8, 1, 48, NULL
+    SETTING_UNIT_UINT8, 1, 48, NULL,
+    103, 25,
   },
   {
     "AR", "ARP RANGE",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_RANGE, 0 },
-    SETTING_UNIT_UINT8, 0, 4, NULL
+    SETTING_UNIT_UINT8, 0, 4, NULL,
+    104, 26,
   },
   {
     "RG", "RHYTHMIC GENERATOR",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_RANGE, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values
+    SETTING_UNIT_ENUMERATION, 0, 1, boolean_values,
+    0, 0,
   },
   {
     "AD", "ARP DIRECTION",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_DIRECTION, 0 },
     SETTING_UNIT_ENUMERATION, 0, ARPEGGIATOR_DIRECTION_LAST - 1,
-    sequencer_arp_direction_values
+    sequencer_arp_direction_values,
+    0, 0,
   },
   {
     // Variant without the CHORD option.
     "AD", "ARP DIRECTION",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_DIRECTION, 0 },
     SETTING_UNIT_ENUMERATION, 0, ARPEGGIATOR_DIRECTION_LAST - 2,
-    sequencer_arp_direction_values
+    sequencer_arp_direction_values,
+    105, 27,
   },
   {
     "AP", "ARP PATTERN",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_PATTERN, 0 },
-    SETTING_UNIT_INDEX, 0, 21, NULL
+    SETTING_UNIT_INDEX, 0, 21, NULL,
+    106, 28,
   },
   {
     "RP", "RHYTHMIC PATTERN",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_ARP_PATTERN, 0 },
-    SETTING_UNIT_INDEX, 0, 21, NULL
+    SETTING_UNIT_INDEX, 0, 21, NULL,
+    0, 0,
   },
   {
     "E-", "EUCLIDEAN LENGTH",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_EUCLIDEAN_LENGTH, 0 },
-    SETTING_UNIT_UINT8, 0, 32, NULL
+    SETTING_UNIT_UINT8, 0, 32, NULL,
+    107, 29,
   },
   {
     "EF", "EUCLIEAN FILL",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_EUCLIDEAN_FILL, 0 },
-    SETTING_UNIT_UINT8, 0, 32, NULL
+    SETTING_UNIT_UINT8, 0, 32, NULL,
+    108, 30,
   },
   {
     "ER", "EUCLIEAN ROTATE",
     SETTING_DOMAIN_PART, { PART_SEQUENCER_EUCLIDEAN_ROTATE, 0 },
-    SETTING_UNIT_UINT8, 0, 32, NULL
+    SETTING_UNIT_UINT8, 0, 32, NULL,
+    109, 31,
   },
+  {
+    "RC", "REMOTE CONTROL CHANNEL",
+    SETTING_DOMAIN_MULTI, { MULTI_REMOTE_CONTROL_CHANNEL, 0 },
+    SETTING_UNIT_MIDI_CHANNEL_OFF, 0, 16, NULL,
+    0, 0,
+  }
 };
 
 const SettingIndex mono_menu[] = {
@@ -367,6 +417,7 @@ const SettingIndex mono_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -400,6 +451,7 @@ const SettingIndex dual_mono_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -433,6 +485,7 @@ const SettingIndex quad_mono_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -464,6 +517,7 @@ const SettingIndex dual_poly_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -495,6 +549,7 @@ const SettingIndex quad_poly_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -525,6 +580,7 @@ const SettingIndex dual_polychained_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -555,6 +611,7 @@ const SettingIndex quad_polychained_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -585,6 +642,7 @@ const SettingIndex octal_polychained_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -606,6 +664,7 @@ const SettingIndex quad_triggers_menu[] = {
   SETTING_SEQUENCER_EUCLIDEAN_LENGTH,
   SETTING_SEQUENCER_EUCLIDEAN_FILL,
   SETTING_SEQUENCER_EUCLIDEAN_ROTATE,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -639,6 +698,7 @@ const SettingIndex three_one_menu[] = {
   SETTING_VOICING_TUNING_FINE,
   SETTING_VOICING_TUNING_SYSTEM,
   SETTING_VOICING_TUNING_ROOT,
+  SETTING_REMOTE_CONTROL_CHANNEL,
   SETTING_LAST
 };
 
@@ -657,6 +717,24 @@ const SettingIndex* const Settings::menus_[] = {
 
 void Settings::Init() {
   global_.active_part = 0;
+  
+  // Build tables used to convert from a CC to a parameter number.
+  std::fill(&part_cc_map_[0], &part_cc_map_[128], 0xff);
+  std::fill(&remote_control_cc_map_[0], &remote_control_cc_map_[128], 0xff);
+  
+  for (uint8_t i = 0; i < SETTING_LAST; ++i) {
+    const Setting& setting = settings_[i];
+    if (setting.part_cc) {
+      if (setting.domain != SETTING_DOMAIN_PART) while (1);
+      part_cc_map_[setting.part_cc] = i;
+    }
+    if (setting.remote_control_cc) {
+      uint8_t num_instances = setting.domain == SETTING_DOMAIN_PART ? 4 : 1;
+      for (uint8_t j = 0; j < num_instances; ++j) {
+        remote_control_cc_map_[setting.remote_control_cc + j * 32] = i;
+      }
+    }
+  }
 }
 
 void Settings::Set(uint8_t address, uint8_t value) {
@@ -665,7 +743,20 @@ void Settings::Set(uint8_t address, uint8_t value) {
   bytes[address] = value;
 }
 
-void Settings::Set(const Setting& setting, uint8_t value) {
+void Settings::SetFromCC(
+    uint8_t part_index,
+    uint8_t controller,
+    uint8_t value) {
+  uint8_t* map = part_index == 0xff ? remote_control_cc_map_ : part_cc_map_;
+  uint8_t part = part_index == 0xff ? controller >> 5 : part_index;
+  uint8_t setting_index = map[controller];
+  if (setting_index != 0xff) {
+    const Setting& setting = settings_[setting_index];
+    Set(setting, &part, setting.Scale(value));
+  }
+}
+
+void Settings::Set(const Setting& setting, uint8_t* part, uint8_t value) {
   switch (setting.domain) {
     case SETTING_DOMAIN_GLOBAL:
       Set(setting.address[0], value);
@@ -673,23 +764,27 @@ void Settings::Set(const Setting& setting, uint8_t value) {
 
     case SETTING_DOMAIN_MULTI:
       multi.Set(setting.address[0], value);
-      if (global_.active_part >= multi.num_active_parts()) {
-        global_.active_part = multi.num_active_parts() - 1;
+      if (*part >= multi.num_active_parts()) {
+        *part = multi.num_active_parts() - 1;
       }
       break;
 
     case SETTING_DOMAIN_PART:
-      multi.mutable_part(global_.active_part)->Set(setting.address[0], value);
+      multi.mutable_part(*part)->Set(setting.address[0], value);
       // When the module is configured in *triggers* mode, each part is mapped
       // to a single note. To edit this setting, both the "note min" and
       // "note max" parameters are simultaneously changed to the same value.
       // This is a bit more user friendly than letting the user set note min
       // and note max to the same value.
       if (setting.address[1]) {
-        multi.mutable_part(global_.active_part)->Set(setting.address[1], value);
+        multi.mutable_part(*part)->Set(setting.address[1], value);
       }
       break;
   }
+}
+
+void Settings::Set(const Setting& setting, uint8_t value) {
+  Set(setting, &global_.active_part, value);
 }
 
 uint8_t Settings::Get(const Setting& setting) const {
@@ -761,6 +856,22 @@ void Settings::Print(const Setting& setting, char* buffer) const {
         strcpy(buffer, "ALL");
       } else {
         PrintInteger(buffer, value + 1);
+      }
+      break;
+
+    case SETTING_UNIT_MIDI_CHANNEL_OFF:
+      if (value == 0x00) {
+        strcpy(buffer, "OFF");
+      } else {
+        PrintInteger(buffer, value);
+      }
+      break;
+    
+    case SETTING_UNIT_VIBRATO_SPEED:
+      if (value < 100) {
+        PrintInteger(buffer, value);
+      } else {
+        strcpy(buffer, clock_division_values[value - 100]);
       }
       break;
       

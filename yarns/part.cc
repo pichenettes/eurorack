@@ -248,6 +248,15 @@ void Part::Clock() {
   if (arp_seq_prescaler_ >= clock_divisions[seq_.clock_division]) {
     arp_seq_prescaler_ = 0;
   }
+  
+  if (voicing_.modulation_rate >= 100) {
+    uint32_t num_ticks = clock_divisions[voicing_.modulation_rate - 100];
+    uint32_t expected_phase = (lfo_counter_ % num_ticks) * 65536 / num_ticks;
+    for (uint8_t i = 0; i < num_voices_; ++i) {
+      voice_[i]->TapLfo(expected_phase << 16);
+    }
+  }
+  ++lfo_counter_;
 }
 
 void Part::Start(bool started_by_keyboard) {
@@ -269,6 +278,8 @@ void Part::Start(bool started_by_keyboard) {
     arp_direction_ = 1;
   }
   arp_step_ = 0;
+  
+  lfo_counter_ = 0;
   
   generated_notes_.Clear();
 }

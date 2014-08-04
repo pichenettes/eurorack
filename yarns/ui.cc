@@ -139,7 +139,13 @@ Ui::Mode Ui::modes_[] = {
   { &Ui::OnIncrementFactoryTesting, &Ui::OnClickFactoryTesting,
     &Ui::PrintFactoryTesting,
     UI_MODE_PARAMETER_SELECT,
-    NULL, 0, 99 }
+    NULL, 0, 99 },
+    
+  // UI_MODE_SPLASH
+  { &Ui::OnIncrementParameterSelect, &Ui::OnClick,
+    &Ui::PrintVersionNumber,
+    UI_MODE_PARAMETER_SELECT,
+    NULL, 0, 0 }
 };
 
 void Ui::Init() {
@@ -149,7 +155,7 @@ void Ui::Init() {
   queue_.Init();
   leds_.Init();
   
-  previous_mode_ = mode_ = UI_MODE_PARAMETER_SELECT;
+  previous_mode_ = mode_ = UI_MODE_SPLASH;
   setting_index_ = 0;
   previous_tap_time_ = 0;
   tap_tempo_count_ = 0;
@@ -160,10 +166,15 @@ void Ui::Init() {
   modes_[UI_MODE_MAIN_MENU].incremented_variable = &command_index_;
   modes_[UI_MODE_LOAD_SELECT_PROGRAM].incremented_variable = &program_index_;
   modes_[UI_MODE_SAVE_SELECT_PROGRAM].incremented_variable = &program_index_;
-  modes_[UI_MODE_CALIBRATION_SELECT_VOICE].incremented_variable = &calibration_voice_;
-  modes_[UI_MODE_CALIBRATION_SELECT_NOTE].incremented_variable = &calibration_note_;
-  modes_[UI_MODE_SELECT_RECORDING_PART].incremented_variable = &recording_part_;
-  modes_[UI_MODE_FACTORY_TESTING].incremented_variable = &factory_testing_number_;
+  modes_[UI_MODE_CALIBRATION_SELECT_VOICE].incremented_variable = \
+      &calibration_voice_;
+  modes_[UI_MODE_CALIBRATION_SELECT_NOTE].incremented_variable = \
+      &calibration_note_;
+  modes_[UI_MODE_SELECT_RECORDING_PART].incremented_variable = \
+      &recording_part_;
+  modes_[UI_MODE_FACTORY_TESTING].incremented_variable = \
+      &factory_testing_number_;
+  PrintVersionNumber();
 }
 
 void Ui::Poll() {
@@ -235,7 +246,13 @@ void Ui::Poll() {
     leds_brightness[1] = (((x + 256) & 511) < 128) ? 255 : 0;
     leds_brightness[2] = (((x + 128) & 511) < 128) ? 255 : 0;
     leds_brightness[3] = (((x + 000) & 511) < 128) ? 255 : 0;
+  } else if (mode_ == UI_MODE_SPLASH) {
+    leds_brightness[0] = 255;
+    leds_brightness[1] = 0;
+    leds_brightness[2] = 0;
+    leds_brightness[3] = 0;
   }
+  
   leds_.Write(leds_brightness);
   leds_.Write();
 }
@@ -350,6 +367,10 @@ void Ui::PrintFactoryTesting() {
       }
       break;
   }
+}
+
+void Ui::PrintVersionNumber() {
+  display_.Print("02");
 }
 
 // Generic Handlers
@@ -656,8 +677,8 @@ void Ui::TapTempo() {
 }
 
 void Ui::DoEvents() {
-  bool refresh_display_ = false;
-  bool scroll_display_ = false;
+  bool refresh_display = false;
+  bool scroll_display = false;
   
   while (queue_.available()) {
     Event e = queue_.PullEvent();
@@ -673,13 +694,13 @@ void Ui::DoEvents() {
     } else if (e.control_type == CONTROL_SWITCH_HOLD) {
       OnSwitchHeld(e);
     }
-    refresh_display_ = true;
-    scroll_display_ = true;
+    refresh_display = true;
+    scroll_display = true;
   }
   if (queue_.idle_time() > 600) {
     if (!display_.scrolling()) {
       factory_testing_display_ = UI_FACTORY_TESTING_DISPLAY_EMPTY;
-      refresh_display_ = true;
+      refresh_display = true;
     }
   }
   if (queue_.idle_time() > 400 && multi.latched()) {
@@ -687,17 +708,17 @@ void Ui::DoEvents() {
   }
   if (queue_.idle_time() > 50 &&
       (mode_ == UI_MODE_RECORDING || mode_ == UI_MODE_OVERDUBBING)) {
-    refresh_display_ = true;
+    refresh_display = true;
   }
 
   if (mode_ == UI_MODE_LEARNING && !multi.learning()) {
     OnClickLearning(Event());
   }
   
-  if (refresh_display_) {
+  if (refresh_display) {
     queue_.Touch();
     (this->*modes_[mode_].refresh_display)();
-    if (scroll_display_) {
+    if (scroll_display) {
       display_.Scroll();
     }
     display_.set_blink(
@@ -711,6 +732,10 @@ void Ui::DoEvents() {
       display_.set_fade(multi.tempo() * 235 >> 8);
     } else {
       display_.set_fade(0);
+    }
+    
+    if (mode_ == UI_MODE_SPLASH) {
+      mode_ = UI_MODE_PARAMETER_SELECT;
     }
   }
 }

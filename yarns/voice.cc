@@ -99,7 +99,7 @@ inline uint16_t Voice::NoteToDacCode(int32_t note) const {
 void Voice::ResetAllControllers() {
   mod_pitch_bend_ = 8192;
   mod_wheel_ = 0;
-  std::fill(&mod_aux_[0], &mod_aux_[4], 0);
+  std::fill(&mod_aux_[0], &mod_aux_[5], 0);
 }
 
 void Voice::Refresh() {
@@ -123,12 +123,17 @@ void Voice::Refresh() {
   note += tuning_;
   
   // Add vibrato.
-  lfo_phase_ += lut_lfo_increments[modulation_rate_];
+  if (modulation_rate_ < 100) {
+    lfo_phase_ += lut_lfo_increments[modulation_rate_];
+  } else {
+    lfo_phase_ += lfo_pll_phase_increment_;
+  }
   int32_t lfo = lfo_phase_ < 1UL << 31
       ?  -32768 + (lfo_phase_ >> 15)
       : 0x17fff - (lfo_phase_ >> 15);
   note += lfo * mod_wheel_ * vibrato_range_ >> 15;
-  mod_aux_[3] = (lfo * mod_wheel_ >> 15) + 128;
+  mod_aux_[3] = (lfo * mod_wheel_ >> 7) + 32768;
+  mod_aux_[4] = lfo + 32768;
   
   if (retrigger_delay_) {
     --retrigger_delay_;
@@ -189,11 +194,11 @@ void Voice::ControlChange(uint8_t controller, uint8_t value) {
       break;
     
     case kCCBreathController:
-      mod_aux_[1] = value << 1;
+      mod_aux_[1] = value << 9;
       break;
       
     case kCCFootPedalMsb:
-      mod_aux_[2] = value << 1;
+      mod_aux_[2] = value << 9;
       break;
   }
 }
