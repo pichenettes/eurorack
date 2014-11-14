@@ -14,12 +14,12 @@
 VERSION        = 0.1
 MCU_NAME       = 328
 TARGET         = grids_bootloader
-PACKAGES       = avrlib grids/bootloader
+PACKAGES       = avrlib grids/bootloader avr_audio_bootloader/fsk
 EXTRA_DEFINES  = -funsigned-char -fno-inline-small-functions -DDISABLE_DEFAULT_UART_RX_ISR
-EXTRA_LD_FLAGS = ,--section-start=.text=0x7c00,--relax
+EXTRA_LD_FLAGS = ,--section-start=.text=0x7000,--relax
 
 LFUSE          = ff
-HFUSE          = dc
+HFUSE          = d8
 EFUSE          = 05
 LOCK           = 2f
 
