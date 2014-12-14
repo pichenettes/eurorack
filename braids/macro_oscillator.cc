@@ -69,8 +69,8 @@ void MacroOscillator::RenderMorph(
     const uint8_t* sync,
     int16_t* buffer,
     uint8_t size) {
-  analog_oscillator_[0].set_pitch(pitch_);
-  analog_oscillator_[1].set_pitch(pitch_);
+  analog_oscillator_[0].set_pitch(pitch_ + (12 << 7));
+  analog_oscillator_[1].set_pitch(pitch_ + (12 << 7));
   
   uint16_t balance;
   if (parameter_[0] <= 10922) {
@@ -92,9 +92,12 @@ void MacroOscillator::RenderMorph(
     analog_oscillator_[1].set_shape(OSC_SHAPE_SINE);
     balance = 0;
   }
-  analog_oscillator_[0].Render(sync, buffer, NULL, size);
-  analog_oscillator_[1].Render(sync, temp_buffer_, NULL, size);
-  int16_t* temp_buffer = temp_buffer_;
+  
+  uint8_t half_size = size >> 1;
+  int16_t* shape_1 = temp_buffer_;
+  int16_t* shape_2 = temp_buffer_ + half_size;
+  analog_oscillator_[0].Render(sync, shape_1, NULL, half_size);
+  analog_oscillator_[1].Render(sync, shape_2, NULL, half_size);
   
   int32_t lp_cutoff = pitch_ - (parameter_[1] >> 1) + 128 * 128;
   if (lp_cutoff < 0) {
@@ -105,8 +108,8 @@ void MacroOscillator::RenderMorph(
   int32_t f = Interpolate824(lut_svf_cutoff, lp_cutoff << 17);
   int32_t lp_state = lp_state_;
   
-  while (size--) {
-    int16_t sample = Mix(*buffer, *temp_buffer, balance);
+  while (size) {
+    int16_t sample = Mix(*shape_1, *shape_2, balance);
     int32_t shifted_sample = sample;
     shifted_sample += (parameter_[1] >> 2) + (parameter_[0] >> 4);
     
@@ -115,9 +118,13 @@ void MacroOscillator::RenderMorph(
     shifted_sample = lp_state + 32768;
     
     int16_t fuzzed = Interpolate88(ws_violent_overdrive, shifted_sample);
-    *buffer = Mix(sample, fuzzed, parameter_[1] << 1);
-    buffer++;
-    temp_buffer++;
+    buffer[1] = Mix(sample, fuzzed, parameter_[1] << 1);
+    buffer[0] = (buffer[1] + previous_sample_) >> 1;
+    previous_sample_ = buffer[1];
+    buffer += 2;
+    size -= 2;
+    ++shape_1;
+    ++shape_2;
   }
   lp_state_ = lp_state;
 }
@@ -128,26 +135,29 @@ void MacroOscillator::RenderSawSquare(
     uint8_t size) {
   analog_oscillator_[0].set_parameter(parameter_[0]);
   analog_oscillator_[1].set_parameter(parameter_[0]);
-  analog_oscillator_[0].set_pitch(pitch_);
-  analog_oscillator_[1].set_pitch(pitch_);
+  analog_oscillator_[0].set_pitch(pitch_ + (12 << 7));
+  analog_oscillator_[1].set_pitch(pitch_ + (12 << 7));
 
   analog_oscillator_[0].set_shape(OSC_SHAPE_SAW);
   analog_oscillator_[1].set_shape(OSC_SHAPE_SQUARE);
   
-  analog_oscillator_[0].Render(sync, buffer, NULL, size);
-  analog_oscillator_[1].Render(sync, temp_buffer_, NULL, size);
+  uint8_t half_size = size >> 1;
+  int16_t* saw_buffer = temp_buffer_;
+  int16_t* square_buffer = temp_buffer_ + half_size;
+  
+  analog_oscillator_[0].Render(sync, saw_buffer, NULL, half_size);
+  analog_oscillator_[1].Render(sync, square_buffer, NULL, half_size);
   
   BEGIN_INTERPOLATE_PARAMETER_1
   
-  int16_t* temp_buffer = temp_buffer_;
+  size_t i = 0;
   while (size--) {
     INTERPOLATE_PARAMETER_1
-    
     uint16_t balance = parameter_1 << 1;
-    int16_t attenuated_square = static_cast<int32_t>(*temp_buffer) * 148 >> 8;
-    *buffer = Mix(*buffer, attenuated_square, balance);
-    buffer++;
-    temp_buffer++;
+    int16_t attenuated_square = static_cast<int32_t>(
+        square_buffer[i >> 1]) * 148 >> 8;
+    *buffer++ = Mix(saw_buffer[i >> 1], attenuated_square, balance);
+    ++i;
   }
 
   END_INTERPOLATE_PARAMETER_1

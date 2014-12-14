@@ -173,7 +173,7 @@ const TrigStrikeSettings trig_strike_settings[] = {
 };
 
 void RenderBlock() {
-  static uint16_t previous_pitch_dac_code = 0;
+  static uint16_t previous_pitch_adc_code = 0;
   static int32_t previous_pitch = 0;
   static int32_t previous_shape = 0;
 
@@ -219,30 +219,30 @@ void RenderBlock() {
   
   // Apply hysteresis to ADC reading to prevent a single bit error to move
   // the quantized pitch up and down the quantization boundary.
-  uint16_t pitch_dac_code = adc.channel(2);
+  uint16_t pitch_adc_code = adc.channel(2);
   if (settings.pitch_quantization()) {
-    if ((pitch_dac_code > previous_pitch_dac_code + 4) ||
-        (pitch_dac_code < previous_pitch_dac_code - 4)) {
-      previous_pitch_dac_code = pitch_dac_code;
+    if ((pitch_adc_code > previous_pitch_adc_code + 4) ||
+        (pitch_adc_code < previous_pitch_adc_code - 4)) {
+      previous_pitch_adc_code = pitch_adc_code;
     } else {
-      pitch_dac_code = previous_pitch_dac_code;
+      pitch_adc_code = previous_pitch_adc_code;
     }
   }
-  int32_t pitch = settings.dac_to_pitch(pitch_dac_code);
+  int32_t pitch = settings.adc_to_pitch(pitch_adc_code);
   if (settings.pitch_quantization() == PITCH_QUANTIZATION_QUARTER_TONE) {
     pitch = (pitch + 32) & 0xffffffc0;
   } else if (settings.pitch_quantization() == PITCH_QUANTIZATION_SEMITONE) {
     pitch = (pitch + 64) & 0xffffff80;
   }
   if (!settings.meta_modulation()) {
-    pitch += settings.dac_to_fm(adc.channel(3));
+    pitch += settings.adc_to_fm(adc.channel(3));
   }
   
   // Check if the pitch has changed to cause an auto-retrigger
   int32_t pitch_delta = pitch - previous_pitch;
   if (settings.data().auto_trig &&
       (pitch_delta >= 0x40 || -pitch_delta >= 0x40)) {
-    trigger_flag = true;
+    trigger_detected_flag = true;
   }
   previous_pitch = pitch;
   

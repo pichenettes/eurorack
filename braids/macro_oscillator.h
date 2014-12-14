@@ -96,6 +96,7 @@ class MacroOscillator {
   uint8_t sync_buffer_[25];
   int16_t temp_buffer_[25];
   int32_t lp_state_;
+  int16_t previous_sample_;
   
   AnalogOscillator analog_oscillator_[3];
   DigitalOscillator digital_oscillator_;
