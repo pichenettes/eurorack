@@ -91,7 +91,7 @@ lookup_tables_signed.append(
 Resonator coefficients
 ----------------------------------------------------------------------------"""
 
-cutoff = 440.0 * 2 ** ((numpy.arange(0, 257) - 69) / 12.0)
+cutoff = 440.0 * 2 ** ((numpy.arange(0, 129) - 69) / 12.0)
 f = cutoff / (sample_rate / 2)
 max_resonance = 0.99985
 f[f > 0.25] = 0.25
@@ -184,8 +184,8 @@ lookup_tables.append(
     ('bowing_friction', friction * 32768.0)
 )
 
-attack = numpy.linspace(0, 1, int(sample_rate * 0.005 / 2)) * 1.3 * 16384
-decay = numpy.linspace(1, 0.8, int(sample_rate * 0.01 / 2)) * 1.3 * 16384
+attack = numpy.linspace(0, 1, int(sample_rate * 0.005 / 4)) * 1.3 * 16384
+decay = numpy.linspace(1, 0.8, int(sample_rate * 0.01 / 4)) * 1.3 * 16384
 blowing_envelope = list(attack) + list(decay)
 # Add a guard to factor the border check out of the sample block loop
 blowing_envelope += [decay[-1]] * 32

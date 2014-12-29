@@ -98,7 +98,7 @@ sine = -numpy.sin(numpy.arange(WAVETABLE_SIZE + 1) / float(WAVETABLE_SIZE) * \
     2 * numpy.pi) * 127.5 + 127.5
 
 # Band limited waveforms.
-num_zones = 20
+num_zones = 15
 bl_pulse_tables = []
 bl_tri_tables = []
 
@@ -118,7 +118,10 @@ waveforms.append(('sine', scale(sine[quadrature])))
 
 for zone in range(num_zones):
   f0 = 440.0 * 2.0 ** ((18 + 8 * zone - 69) / 12.0)
-  f0 = min(f0, SAMPLE_RATE / 2.0)
+  if zone == num_zones - 1:
+    f0 = SAMPLE_RATE / 2.0 - 1
+  else:
+    f0 = min(f0, SAMPLE_RATE / 2.0)
   period = SAMPLE_RATE / f0
   m = 2 * numpy.floor(period / 2) + 1.0
   i = numpy.arange(-WAVETABLE_SIZE / 2, WAVETABLE_SIZE / 2) / \

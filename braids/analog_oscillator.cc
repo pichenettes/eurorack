@@ -37,7 +37,7 @@ namespace braids {
   
 using namespace stmlib;
 
-static const uint8_t kNumZones = 19;
+static const uint8_t kNumZones = 15;
 
 static const uint16_t kHighestNote = 140 * 128;
 static const uint16_t kPitchTableStart = 128 * 128;
@@ -409,12 +409,12 @@ void AnalogOscillator::RenderBuzz(
   uint16_t crossfade = shifted_pitch << 6;
   size_t index = (shifted_pitch >> 10);
   if (index >= kNumZones) {
-    index = kNumZones;
+    index = kNumZones - 1;
   }
   const int16_t* wave_1 = waveform_table[WAV_BANDLIMITED_COMB_0 + index];
   index += 1;
   if (index >= kNumZones) {
-    index = kNumZones;
+    index = kNumZones - 1;
   }
   const int16_t* wave_2 = waveform_table[WAV_BANDLIMITED_COMB_0 + index];
   while (size--) {

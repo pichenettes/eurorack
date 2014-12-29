@@ -31,6 +31,9 @@
 
 #include "stmlib/stmlib.h"
 
+#include "braids/excitation.h"
+#include "braids/svf.h"
+
 #include <cstring>
 
 namespace braids {
@@ -84,7 +87,10 @@ enum DigitalOscillatorShape {
   OSC_SHAPE_GRANULAR_CLOUD,
   OSC_SHAPE_PARTICLE_NOISE,
 
-  OSC_SHAPE_DIGITAL,
+  OSC_SHAPE_DIGITAL_MODULATION,
+  OSC_SHAPE_KICK,
+  OSC_SHAPE_SNARE,
+  OSC_SHAPE_HAT,
 
   OSC_SHAPE_QUESTION_MARK_LAST
 };
@@ -202,6 +208,11 @@ struct ClockedNoiseState {
   int16_t sample;
 };
 
+struct HatState {
+  uint32_t phase[6];
+  uint32_t rng_state;
+};
+
 union DigitalOscillatorState {
   ResoSquareState res;
   VowelSynthesizerState vow;
@@ -217,6 +228,7 @@ union DigitalOscillatorState {
   AdditiveState add;
   DigitalModulationState dmd;
   ClockedNoiseState clk;
+  HatState hat;
   uint32_t modulator_phase;
 };
 
@@ -229,8 +241,16 @@ class DigitalOscillator {
   
   inline void Init() {
     memset(&state_, 0, sizeof(state_));
+    pulse_[0].Init();
+    pulse_[1].Init();
+    pulse_[2].Init();
+    pulse_[3].Init();
+    svf_[0].Init();
+    svf_[1].Init();
+    svf_[2].Init();
     phase_ = 0;
     strike_ = true;
+    init_ = true;
   }
   
   inline void set_shape(DigitalOscillatorShape shape) {
@@ -297,6 +317,9 @@ class DigitalOscillator {
   void RenderParticleNoise(const uint8_t*, int16_t*, uint8_t);
   
   void RenderDigitalModulation(const uint8_t*, int16_t*, uint8_t);
+  void RenderKick(const uint8_t*, int16_t*, uint8_t);
+  void RenderSnare(const uint8_t*, int16_t*, uint8_t);
+  void RenderCymbal(const uint8_t*, int16_t*, uint8_t);
   void RenderQuestionMark(const uint8_t*, int16_t*, uint8_t);
   
   // void RenderYourAlgo(const uint8_t*, int16_t*, uint8_t);
@@ -320,11 +343,15 @@ class DigitalOscillator {
   
   uint8_t active_voice_;
   
+  bool init_;
   bool strike_;
 
   DigitalOscillatorShape shape_;
   DigitalOscillatorShape previous_shape_;
   DigitalOscillatorState state_;
+  
+  Excitation pulse_[4];
+  Svf svf_[3];
   
   union {
     int16_t comb[kCombDelayLength];

@@ -81,13 +81,7 @@ void Settings::Save() {
 }
 
 void Settings::CheckPaques() {
-  uint32_t hash;
-  MurmurHash3_x86_32(
-      data_.marquee_text,
-      strlen(data_.marquee_text),
-      0xcab055ee,
-      &hash);
-  paques_ = hash == 0x3032935a;
+  paques_ = !strcmp(data_.marquee_text, "49");
 }
 
 const char* const boolean_values[] = { "OFF ", "ON " };
@@ -101,6 +95,8 @@ const char* const algo_values[] = {
     "\x8E\x8E\x8E\x8E",
     "\x88\x88x3",
     "\x8C_x3",
+    "/\\x3",
+    "SIx3",
     "RING",
     "\x88\x89\x88\x89",
     "\x88\x88\x8E\x8E",
@@ -115,12 +111,15 @@ const char* const algo_values[] = {
     "FM  ",
     "FBFM",
     "WTFM",
-    "BELL",
-    "DRUM",
     "PLUK",
     "BOWD",
     "BLOW",
     "FLUT",
+    "BELL",
+    "DRUM",
+    "KICK",
+    "CYMB",
+    "SNAR",
     "WTBL",
     "WMAP",
     "WLIN",
@@ -203,7 +202,7 @@ const char* const brightness_values[] = {
 
 /* static */
 const SettingMetadata Settings::metadata_[] = {
-  { 0, MACRO_OSC_SHAPE_DIGITAL_MODULATION, "WAVE", algo_values },
+  { 0, MACRO_OSC_SHAPE_LAST - 2, "WAVE", algo_values },
   { 0, RESOLUTION_LAST - 1, "BITS", bits_values },
   { 0, SAMPLE_RATE_LAST - 1, "RATE", rates_values },
   { 0, 3, "TDST", trig_destination_values },
@@ -221,7 +220,7 @@ const SettingMetadata Settings::metadata_[] = {
   { 0, 0, "CAL.", NULL },
   { 0, 0, "    ", NULL },  // Placeholder for CV tester
   { 0, 0, "    ", NULL },  // Placeholder for marquee
-  { 0, 0, "v1.5", NULL },  // Placeholder for version string
+  { 0, 0, "v1.7", NULL },  // Placeholder for version string
 };
 
 /* static */

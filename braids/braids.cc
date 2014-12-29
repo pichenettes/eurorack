@@ -33,6 +33,7 @@
 #include "braids/drivers/dac.h"
 #include "braids/drivers/debug_pin.h"
 #include "braids/drivers/gate_input.h"
+#include "braids/drivers/internal_adc.h"
 #include "braids/drivers/system.h"
 #include "braids/envelope.h"
 #include "braids/macro_oscillator.h"
@@ -54,6 +55,7 @@ Adc adc;
 Dac dac;
 DebugPin debug_pin;
 GateInput gate_input;
+InternalAdc internal_adc;
 SignatureWaveshaper ws;
 System sys;
 VcoJitterSource jitter_source;
@@ -131,6 +133,7 @@ void Init() {
   osc.Init();
   audio_samples.Init();
   sync_samples.Init();
+  internal_adc.Init();
   
   for (uint16_t i = 0; i < kAudioBufferSize / 2; ++i) {
     audio_samples.Overwrite(0);
@@ -173,11 +176,11 @@ const TrigStrikeSettings trig_strike_settings[] = {
 };
 
 void RenderBlock() {
-  static uint16_t previous_pitch_dac_code = 0;
+  static uint16_t previous_pitch_adc_code = 0;
   static int32_t previous_pitch = 0;
   static int32_t previous_shape = 0;
 
-  debug_pin.High();
+  //debug_pin.High();
   
   const TrigStrikeSettings& trig_strike = \
       trig_strike_settings[settings.GetValue(SETTING_TRIG_AD_SHAPE)];
@@ -199,8 +202,8 @@ void RenderBlock() {
     }
     shape = MACRO_OSC_SHAPE_LAST * shape >> 11;
     shape += settings.shape();
-    if (shape >= MACRO_OSC_SHAPE_DIGITAL_MODULATION) {
-      shape = MACRO_OSC_SHAPE_DIGITAL_MODULATION;
+    if (shape >= MACRO_OSC_SHAPE_CYMBAL) {
+      shape = MACRO_OSC_SHAPE_CYMBAL;
     } else if (shape <= 0) {
       shape = 0;
     }
@@ -219,30 +222,31 @@ void RenderBlock() {
   
   // Apply hysteresis to ADC reading to prevent a single bit error to move
   // the quantized pitch up and down the quantization boundary.
-  uint16_t pitch_dac_code = adc.channel(2);
+  uint16_t pitch_adc_code = adc.channel(2);
   if (settings.pitch_quantization()) {
-    if ((pitch_dac_code > previous_pitch_dac_code + 4) ||
-        (pitch_dac_code < previous_pitch_dac_code - 4)) {
-      previous_pitch_dac_code = pitch_dac_code;
+    if ((pitch_adc_code > previous_pitch_adc_code + 4) ||
+        (pitch_adc_code < previous_pitch_adc_code - 4)) {
+      previous_pitch_adc_code = pitch_adc_code;
     } else {
-      pitch_dac_code = previous_pitch_dac_code;
+      pitch_adc_code = previous_pitch_adc_code;
     }
   }
-  int32_t pitch = settings.dac_to_pitch(pitch_dac_code);
+  int32_t pitch = settings.adc_to_pitch(pitch_adc_code);
   if (settings.pitch_quantization() == PITCH_QUANTIZATION_QUARTER_TONE) {
     pitch = (pitch + 32) & 0xffffffc0;
   } else if (settings.pitch_quantization() == PITCH_QUANTIZATION_SEMITONE) {
     pitch = (pitch + 64) & 0xffffff80;
   }
   if (!settings.meta_modulation()) {
-    pitch += settings.dac_to_fm(adc.channel(3));
+    pitch += settings.adc_to_fm(adc.channel(3));
   }
+  pitch += internal_adc.value() >> 8;
   
   // Check if the pitch has changed to cause an auto-retrigger
   int32_t pitch_delta = pitch - previous_pitch;
   if (settings.data().auto_trig &&
       (pitch_delta >= 0x40 || -pitch_delta >= 0x40)) {
-    trigger_flag = true;
+    trigger_detected_flag = true;
   }
   previous_pitch = pitch;
   
@@ -300,7 +304,7 @@ void RenderBlock() {
     sample = static_cast<int32_t>(sample) * gain >> 16;
     audio_samples.Overwrite(sample + 32768);
   }
-  debug_pin.Low();
+  // debug_pin.Low();
 }
 
 int main(void) {

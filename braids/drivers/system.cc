@@ -39,8 +39,10 @@ void System::Init(uint32_t timer_period, bool application) {
 
   RCC_APB2PeriphClockCmd(
       RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC |
-      RCC_APB2Periph_TIM1 | RCC_APB2Periph_SPI1 | RCC_APB2Periph_USART1, ENABLE);
+      RCC_APB2Periph_TIM1 | RCC_APB2Periph_SPI1 | RCC_APB2Periph_USART1 |
+      RCC_APB2Periph_ADC1, ENABLE);
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
   TIM_TimeBaseInitTypeDef timer_init;
   timer_init.TIM_Period = timer_period;

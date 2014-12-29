@@ -103,7 +103,7 @@ class Ui {
   void OnLongClick();
   void RefreshDisplay();
 
-  stmlib::EventQueue<32> queue_;
+  stmlib::EventQueue<16> queue_;
   
   uint32_t encoder_press_time_;
   bool inhibit_further_switch_events_;
