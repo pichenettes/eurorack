@@ -242,12 +242,11 @@ void MacroOscillator::RenderTripleSawSquare(
 void MacroOscillator::RenderTripleSineTriangle(const uint8_t* sync,
     int16_t* buffer,
     uint8_t size) {
-  ConfigureTriple(shape_ == MACRO_OSC_SHAPE_TRIPLE_TRIANGLE ? OSC_SHAPE_TRIANGLE : OSC_SHAPE_SINE, 0);
-  for (uint8_t j = 0; j < size; ++j) {
-    buffer[j] = 0;
-  }
+  ConfigureTriple(shape_ == MACRO_OSC_SHAPE_TRIPLE_TRIANGLE ?
+      OSC_SHAPE_TRIANGLE : OSC_SHAPE_SINE, 0);
+  std::fill(&buffer[0], &buffer[size], 0);
   for (uint8_t i = 0; i < 3; ++i) {
-    analog_oscillator_[i].Render(sync_buffer_, temp_buffer_, NULL, size);
+    analog_oscillator_[i].Render(sync, temp_buffer_, NULL, size);
     for (uint8_t j = 0; j < size; ++j) {
       buffer[j] += temp_buffer_[j] * 21 >> 6;
     }
