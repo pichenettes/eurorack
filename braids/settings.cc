@@ -70,9 +70,13 @@ Storage<0x8020000, 4> storage;
 
 void Settings::Init() {
   if (!storage.ParsimoniousLoad(&data_, &version_token_)) {
-    memcpy(&data_, &kInitSettings, sizeof(SettingsData));
+    Reset();
   }
   CheckPaques();
+}
+
+void Settings::Reset() {
+  memcpy(&data_, &kInitSettings, sizeof(SettingsData));
 }
 
 void Settings::Save() {

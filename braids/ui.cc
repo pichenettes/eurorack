@@ -34,7 +34,7 @@ namespace braids {
 
 using namespace stmlib;
 
-const uint32_t kEncoderLongPressTime = 600;
+const uint32_t kEncoderLongPressTime = 800;
 
 void Ui::Init() {
   encoder_.Init();
@@ -172,6 +172,9 @@ void Ui::OnLongClick() {
         marquee_dirty_character_ = false;
         uint8_t length = strlen(settings.marquee_text());
         settings.mutable_marquee_text()[length] = '\xA0';
+      } else if (setting_ == SETTING_VERSION) {
+        settings.Reset();
+        settings.Save();
       }
       break;
     

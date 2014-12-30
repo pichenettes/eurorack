@@ -202,6 +202,7 @@ class Settings {
   
   void Init();
   void Save();
+  void Reset();
   
   void SetValue(Setting setting, uint8_t value) {
     uint8_t* data = static_cast<uint8_t*>(static_cast<void*>(&data_));

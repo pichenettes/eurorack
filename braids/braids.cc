@@ -277,7 +277,8 @@ void RenderBlock() {
     trigger_flag = false;
   }
   
-  if (settings.GetValue(SETTING_TRIG_DESTINATION) == 0) {
+  uint8_t destination = settings.GetValue(SETTING_TRIG_DESTINATION);
+  if (destination != 1) {
     for (size_t i = 0; i < kAudioBlockSize; ++i) {
       sync_buffer[i] = sync_samples.ImmediateRead();
     }
