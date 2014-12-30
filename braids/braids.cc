@@ -136,8 +136,8 @@ void Init() {
   internal_adc.Init();
   
   for (uint16_t i = 0; i < kAudioBufferSize / 2; ++i) {
-    audio_samples.Overwrite(0);
     sync_samples.Overwrite(0);
+    audio_samples.Overwrite(0);
   }
   
   envelope.Init();
@@ -311,7 +311,7 @@ void RenderBlock() {
 int main(void) {
   Init();
   while (1) {
-    while (audio_samples.writable() >= kAudioBlockSize) {
+    while (audio_samples.writable() >= kAudioBlockSize && sync_samples.readable() >= kAudioBlockSize) {
       RenderBlock();
     }
     ui.DoEvents();
