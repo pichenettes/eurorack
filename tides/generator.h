@@ -34,6 +34,8 @@
 #include "stmlib/algorithms/pattern_predictor.h"
 #include "stmlib/utils/ring_buffer.h"
 
+// #define WAVETABLE_HACK
+
 namespace tides {
 
 enum GeneratorRange {
@@ -111,9 +113,11 @@ class Generator {
   }
 
   void set_slope(int16_t slope) {
+#ifndef WAVETABLE_HACK
     if (range_ == GENERATOR_RANGE_HIGH) {
       CONSTRAIN(slope, -32512, 32512);
     }
+#endif  // WAVETABLE_HACK
     slope_ = slope;
   }
 
@@ -124,6 +128,7 @@ class Generator {
   void set_frequency_ratio(FrequencyRatio ratio) {
     frequency_ratio_ = ratio;
   }
+  
   void set_waveshaper_antialiasing(bool antialiasing) {
     antialiasing_ = antialiasing;
   }
@@ -133,6 +138,7 @@ class Generator {
       pattern_predictor_.Init();
     }
     sync_ = sync;
+    sync_edges_counter_ = 0;
   }
   
   inline GeneratorMode mode() const { return mode_; }
@@ -158,11 +164,15 @@ class Generator {
   }
   
   inline void FillBuffer() {
+#ifndef WAVETABLE_HACK
     if (range_ == GENERATOR_RANGE_HIGH) {
       FillBufferAudioRate();
     } else {
       FillBufferControlRate();
     }
+#else
+    FillBufferWavetable();
+#endif
   }
   
   uint32_t clock_divider() const {
@@ -174,6 +184,7 @@ class Generator {
   // band-limiting.
   void FillBufferAudioRate();
   void FillBufferControlRate();
+  void FillBufferWavetable();
   int32_t ComputeAntialiasAttenuation(
         int16_t pitch,
         int16_t slope,
@@ -210,6 +221,10 @@ class Generator {
   
   uint32_t phase_;
   uint32_t phase_increment_;
+  uint32_t sub_phase_;
+  uint16_t x_;
+  uint16_t y_;
+  uint16_t z_;
   bool wrap_;
   
   bool sync_;

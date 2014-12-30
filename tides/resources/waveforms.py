@@ -192,7 +192,6 @@ bipolar_fold = sine * window + numpy.arctan(3 * x) * (1 - window)
 bipolar_fold /= numpy.abs(bipolar_fold).max()
 waveforms.append(('bipolar_fold', numpy.round(32767 * bipolar_fold)))
 
-
 x = numpy.arange(0, WAVESHAPER_SIZE + 1) / float(WAVESHAPER_SIZE)
 x[-1] = x[-2]
 sine = numpy.sin(8 * numpy.pi * x)
@@ -200,3 +199,4 @@ window = numpy.exp(-x * x * 4) ** 2
 unipolar_fold = (0.5 * sine + 2 * x) * window + numpy.arctan(4 * x) * (1 - window)
 unipolar_fold /= numpy.abs(unipolar_fold).max()
 waveforms.append(('unipolar_fold', numpy.round(32767 * unipolar_fold)))
+

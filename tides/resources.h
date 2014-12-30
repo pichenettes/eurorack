@@ -50,6 +50,10 @@ extern const uint32_t* lookup_table_32_table[];
 
 extern const int16_t* waveform_table[];
 
+extern const int16_t* wavetable_table[];
+
+extern const int16_t* waveshaper_table[];
+
 extern const uint16_t lut_attenuverter_curve[];
 extern const uint16_t lut_slope_compression[];
 extern const uint32_t lut_increments[];
@@ -84,6 +88,8 @@ extern const int16_t wav_bump_exp_control[];
 extern const int16_t wav_normal_control[];
 extern const int16_t wav_bipolar_fold[];
 extern const int16_t wav_unipolar_fold[];
+extern const int16_t wt_waves[];
+extern const int16_t ws_smooth_bipolar_fold[];
 #define STR_DUMMY 0  // dummy
 #define LUT_ATTENUVERTER_CURVE 0
 #define LUT_ATTENUVERTER_CURVE_SIZE 257
@@ -161,6 +167,10 @@ extern const int16_t wav_unipolar_fold[];
 #define WAV_BIPOLAR_FOLD_SIZE 1025
 #define WAV_UNIPOLAR_FOLD 33
 #define WAV_UNIPOLAR_FOLD_SIZE 1025
+#define WT_WAVES 0
+#define WT_WAVES_SIZE 45746
+#define WS_SMOOTH_BIPOLAR_FOLD 0
+#define WS_SMOOTH_BIPOLAR_FOLD_SIZE 1025
 
 }  // namespace tides
 

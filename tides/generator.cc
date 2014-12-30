@@ -44,6 +44,9 @@ const int16_t kOctave = 12 * 128;
 const uint16_t kSlopeBits = 12;
 const uint32_t kSyncCounterMaxTime = 8 * 48000;
 
+const int32_t kDownsampleCoefficient[4] = { 17162, 19069, 17162, 12140 };
+
+
 /* static */
 const FrequencyRatio Generator::frequency_ratios_[] = {
   { 1, 1 },
@@ -485,6 +488,8 @@ void Generator::FillBufferControlRate() {
     pitch_ = ComputePitch(phase_increment_);
   } else {
     phase_increment_ = ComputePhaseIncrement(pitch_);
+    local_osc_phase_increment_ = phase_increment_;
+    target_phase_increment_ = phase_increment_;
   }
   
   GeneratorSample sample = previous_sample_;
@@ -672,6 +677,164 @@ void Generator::FillBufferControlRate() {
   phase_increment_ = phase_increment;
   wrap_ = wrap;
   smoothed_slope_ = smoothed_slope;
+}
+
+
+void Generator::FillBufferWavetable() {
+  uint8_t size = kBlockSize;
+  
+  GeneratorSample sample = previous_sample_;
+  if (sync_) {
+    pitch_ = ComputePitch(phase_increment_);
+  } else {
+    phase_increment_ = ComputePhaseIncrement(pitch_);
+  }
+
+  uint32_t phase = phase_;
+  uint32_t sub_phase = sub_phase_;
+  uint32_t phase_increment = phase_increment_;
+  
+  // The grid is only 8x8 rather than 9x9 so we need to scale by 7/8.0
+  uint16_t target_x = static_cast<uint16_t>(slope_ + 32768);
+  target_x = target_x * 57344 >> 16;
+  uint16_t x = x_;
+  uint16_t x_increment = (target_x - x) / size;
+
+  uint16_t target_y = static_cast<uint16_t>(shape_ + 32768);
+  target_y = target_y * 57344 >> 16;
+  uint16_t y = y_;
+  uint16_t y_increment = (target_y - y) / size;
+
+  int32_t wf_gain = smoothness_ > 0 ? smoothness_ : 0;
+  wf_gain = wf_gain * wf_gain >> 15;
+  
+  int32_t frequency = ComputeCutoffFrequency(pitch_, smoothness_);
+  int32_t f_a = lut_cutoff[frequency >> 7] >> 16;
+  int32_t f_b = lut_cutoff[(frequency >> 7) + 1] >> 16;
+  int32_t f = f_a + ((f_b - f_a) * (frequency & 0x7f) >> 7);
+  int32_t lp_state_0 = bi_lp_state_[0];
+  int32_t lp_state_1 = bi_lp_state_[1];
+  
+  const int16_t* bank = wt_waves + mode_ * 64 * 257 - (mode_ & 2) * 4 * 257;
+  while (size--) {
+    ++sync_counter_;
+    uint8_t control = input_buffer_.ImmediateRead();
+    
+    // When freeze is high, discard any start/reset command.
+    if (!(control & CONTROL_FREEZE)) {
+      if (control & CONTROL_GATE_RISING) {
+        phase = 0;
+        sub_phase = 0;
+      }
+    }
+    
+    if (control & CONTROL_CLOCK_RISING) {
+      if (sync_) {
+        if (range_ == GENERATOR_RANGE_HIGH) {
+          ++sync_edges_counter_;
+          if (sync_edges_counter_ >= frequency_ratio_.q) {
+            sync_edges_counter_ = 0;
+            if (sync_counter_ < kSyncCounterMaxTime && sync_counter_) {
+              uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
+                  0xffffffff / sync_counter_);
+              if (increment > 0x80000000) {
+                increment = 0x80000000;
+              }
+              target_phase_increment_ = static_cast<uint32_t>(increment);
+              local_osc_phase_ = 0;
+            }
+            sync_counter_ = 0;
+          }
+        } else {
+          if (sync_counter_ >= kSyncCounterMaxTime) {
+            phase = 0;
+          } else if (sync_counter_) {
+            uint32_t predicted_period = sync_counter_ < 480
+                ? sync_counter_
+                : pattern_predictor_.Predict(sync_counter_);
+            uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
+                0xffffffff / (predicted_period * frequency_ratio_.q));
+            if (increment > 0x80000000) {
+              increment = 0x80000000;
+            }
+            phase_increment = static_cast<uint32_t>(increment);
+          }
+          sync_counter_ = 0;
+        }
+      } else {
+        // Normal behaviour: switch banks.
+        uint8_t bank_index = mode_ + 1;
+        if (bank_index > 2) {
+          bank_index = 0;
+        }
+        mode_ = static_cast<GeneratorMode>(bank_index);
+        bank = wt_waves + mode_ * 64 * 257 - (mode_ & 2) * 4 * 257;
+      }
+    }
+    
+    // PLL stuff
+    if (sync_ && range_ == GENERATOR_RANGE_HIGH) {
+      // Fast tracking of the local oscillator to the external oscillator.
+      local_osc_phase_increment_ += static_cast<int32_t>(
+          target_phase_increment_ - local_osc_phase_increment_) >> 8;
+      local_osc_phase_ += local_osc_phase_increment_;
+    
+      // Slow phase realignment between the master oscillator and the local
+      // oscillator.
+      int32_t phase_error = local_osc_phase_ - phase;
+      phase_increment = local_osc_phase_increment_ + (phase_error >> 13);
+    }
+    
+    x += x_increment;
+    y += y_increment;
+  
+    if (control & CONTROL_FREEZE) {
+      output_buffer_.Overwrite(sample);
+      continue;
+    }
+    
+    uint16_t x_integral = x >> 13;
+    uint16_t y_integral = y >> 13;
+    const int16_t* wave_1 = &bank[(x_integral + y_integral * 8) * 257];
+    const int16_t* wave_2 = wave_1 + 257 * 8;
+    uint16_t x_fractional = x << 3;
+    int32_t y_fractional = (y << 2) & 0x7fff;
+
+    int32_t s = 0;
+    for (int32_t subsample = 0; subsample < 4; ++subsample) {
+      int32_t y_1 = Crossfade(wave_1, wave_1 + 257, phase, x_fractional);
+      int32_t y_2 = Crossfade(wave_2, wave_2 + 257, phase, x_fractional);
+      int32_t y_mix = y_1 + ((y_2 - y_1) * y_fractional >> 15);
+      int32_t folded = Interpolate1022(
+          ws_smooth_bipolar_fold, (y_mix + 32768) << 16);
+      y_mix = y_mix + ((folded - y_mix) * wf_gain >> 15);
+      s += y_mix * kDownsampleCoefficient[subsample];
+      phase += (phase_increment >> 2);
+    }
+    
+    lp_state_0 += f * ((s >> 16) - lp_state_0) >> 15;
+    lp_state_1 += f * (lp_state_0 - lp_state_1) >> 15;
+    
+    sample.bipolar = lp_state_1;
+    sample.unipolar = sample.bipolar + 32768;
+    sample.flags = 0;
+    if (sample.unipolar & 0x8000) {
+      sample.flags |= FLAG_END_OF_ATTACK;
+    }
+    if (sub_phase & 0x80000000) {
+      sample.flags |= FLAG_END_OF_RELEASE;
+    }
+    output_buffer_.Overwrite(sample);
+    sub_phase += phase_increment >> 1;
+  }
+  previous_sample_ = sample;
+  phase_ = phase;
+  sub_phase_ = sub_phase;
+  phase_increment_ = phase_increment;
+  x_ = x;
+  y_ = y;
+  bi_lp_state_[0] = lp_state_0;
+  bi_lp_state_[1] = lp_state_1;
 }
 
 }  // namespace tides

@@ -68,6 +68,7 @@ includes = """
 
 import lookup_tables
 import waveforms
+import wavetables
 
 types = ['uint8_t', 'uint16_t']
 create_specialized_manager = True
@@ -79,5 +80,9 @@ resources = [
   (lookup_tables.lookup_tables_32,
    'lookup_table_32', 'LUT', 'uint32_t', int, False),
   (waveforms.waveforms,
-   'waveform', 'WAV', 'int16_t', int, True)
+   'waveform', 'WAV', 'int16_t', int, True),
+  (wavetables.wavetables,
+   'wavetable', 'WT', 'int16_t', int, True),
+  (wavetables.waveshapers,
+   'waveshaper', 'WS', 'int16_t', int, True)
 ]
