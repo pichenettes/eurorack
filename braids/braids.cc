@@ -202,8 +202,8 @@ void RenderBlock() {
     }
     shape = MACRO_OSC_SHAPE_LAST * shape >> 11;
     shape += settings.shape();
-    if (shape >= MACRO_OSC_SHAPE_CYMBAL) {
-      shape = MACRO_OSC_SHAPE_CYMBAL;
+    if (shape >= MACRO_OSC_SHAPE_LAST_ACCESSIBLE_FROM_META) {
+      shape = MACRO_OSC_SHAPE_LAST_ACCESSIBLE_FROM_META;
     } else if (shape <= 0) {
       shape = 0;
     }
