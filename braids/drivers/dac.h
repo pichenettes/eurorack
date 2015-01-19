@@ -43,8 +43,24 @@ class Dac {
   inline void Write(uint16_t value) {
     GPIOB->BSRR = GPIO_Pin_12;
     GPIOB->BRR = GPIO_Pin_12;
-    SPI_I2S_SendData(SPI2, value >> 8);
-    SPI_I2S_SendData(SPI2, value << 8);
+    SPI2->DR = value >> 8;
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    __asm__("nop");
+    SPI2->DR = value << 8;
   }
  
  private:
