@@ -30,6 +30,8 @@
 
 #include <cstring>
 
+#include "stmlib/system/system_clock.h"
+
 namespace braids {
 
 using namespace stmlib;
@@ -48,6 +50,7 @@ void Ui::Init() {
 }
 
 void Ui::Poll() {
+  system_clock.Tick();  // Tick global ms counter.
   ++sub_clock_;
   encoder_.Debounce();
   if (encoder_.just_pressed()) {
@@ -191,7 +194,7 @@ void Ui::OnClick() {
       
     case MODE_MARQUEE_EDITOR:
       {
-        if (marquee_character_ == 62) {
+        if (marquee_character_ == 61) {
           ++marquee_character_;
           settings.mutable_marquee_text()[marquee_character_] = '\0';
         } else if (settings.marquee_text()[marquee_character_] == '\xA0') {

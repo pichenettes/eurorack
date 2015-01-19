@@ -176,7 +176,8 @@ struct SettingsData {
   int32_t pitch_cv_scale;
   int32_t fm_cv_offset;
   
-  char marquee_text[64];
+  char marquee_text[63];
+  char magic_byte;
 };
 
 struct SettingMetadata {

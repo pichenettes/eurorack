@@ -24,6 +24,8 @@
 
 #include <stm32f10x_conf.h>
 
+#include <algorithm>
+
 #include "stmlib/utils/dsp.h"
 #include "stmlib/utils/ring_buffer.h"
 #include "stmlib/system/system_clock.h"
@@ -42,13 +44,13 @@
 #include "braids/ui.h"
 
 using namespace braids;
+using namespace std;
 using namespace stmlib;
 
-const uint16_t kAudioBufferSize = 128;
-const uint16_t kAudioBlockSize = 24;
 
-RingBuffer<uint16_t, kAudioBufferSize> audio_samples;
-RingBuffer<uint8_t, kAudioBufferSize> sync_samples;
+const size_t kNumBlocks = 4;
+const size_t kBlockSize = 24;
+
 MacroOscillator osc;
 Envelope envelope;
 Adc adc;
@@ -61,8 +63,11 @@ System sys;
 VcoJitterSource jitter_source;
 Ui ui;
 
-int16_t render_buffer[kAudioBlockSize];
-uint8_t sync_buffer[kAudioBlockSize];
+size_t current_sample;
+volatile size_t playback_block;
+volatile size_t render_block;
+int16_t audio_samples[kNumBlocks][kBlockSize];
+uint8_t sync_samples[kNumBlocks][kBlockSize];
 
 bool trigger_detected_flag;
 volatile bool trigger_flag;
@@ -84,22 +89,26 @@ void PendSV_Handler(void) { }
 extern "C" {
 
 void SysTick_Handler() {
-  system_clock.Tick();  // Tick global ms counter.
   ui.Poll();
 }
 
 void TIM1_UP_IRQHandler(void) {
-  if (TIM_GetITStatus(TIM1, TIM_IT_Update) == RESET) {
+  if (!(TIM1->SR & TIM_IT_Update)) {
     return;
   }
+  TIM1->SR = (uint16_t)~TIM_IT_Update;
   
-  TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
-  
-  dac.Write(audio_samples.ImmediateRead());
+  dac.Write(audio_samples[playback_block][current_sample] + 32768);
 
   bool trigger_detected = gate_input.raised();
-  sync_samples.Overwrite(trigger_detected);
+  sync_samples[playback_block][current_sample] = trigger_detected;
   trigger_detected_flag = trigger_detected_flag | trigger_detected;
+  
+  current_sample = current_sample + 1;
+  if (current_sample >= kBlockSize) {
+    current_sample = 0;
+    playback_block = (playback_block + 1) % kNumBlocks;
+  }
   
   bool adc_scan_cycle_complete = adc.PipelinedScan();
   if (adc_scan_cycle_complete) {
@@ -128,17 +137,21 @@ void Init() {
   system_clock.Init();
   adc.Init(false);
   gate_input.Init();
-  debug_pin.Init();
+  // debug_pin.Init();
   dac.Init();
   osc.Init();
-  audio_samples.Init();
-  sync_samples.Init();
   internal_adc.Init();
   
-  for (uint16_t i = 0; i < kAudioBufferSize / 2; ++i) {
-    sync_samples.Overwrite(0);
-    audio_samples.Overwrite(0);
+  for (size_t i = 0; i < kNumBlocks; ++i) {
+    fill(&audio_samples[i][0], &audio_samples[i][kBlockSize], 0);
+    fill(&sync_samples[i][0], &sync_samples[i][kBlockSize], 0);
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      audio_samples[i][j] = j * 2730;
+    }
   }
+  playback_block = kNumBlocks / 2;
+  render_block = 0;
+  current_sample = 0;
   
   envelope.Init();
   ws.Init(GetUniqueId(2));
@@ -180,7 +193,7 @@ void RenderBlock() {
   static int32_t previous_pitch = 0;
   static int32_t previous_shape = 0;
 
-  //debug_pin.High();
+  // debug_pin.High();
   
   const TrigStrikeSettings& trig_strike = \
       trig_strike_settings[settings.GetValue(SETTING_TRIG_AD_SHAPE)];
@@ -267,7 +280,6 @@ void RenderBlock() {
     }
     pitch = Interpolate88(lut_vco_detune, pitch << 2);
   }
-
   osc.set_pitch(pitch + settings.pitch_transposition());
 
   if (trigger_flag) {
@@ -278,16 +290,13 @@ void RenderBlock() {
   }
   
   uint8_t destination = settings.GetValue(SETTING_TRIG_DESTINATION);
-  if (destination != 1) {
-    for (size_t i = 0; i < kAudioBlockSize; ++i) {
-      sync_buffer[i] = sync_samples.ImmediateRead();
-    }
-  } else {
-    // Disable hardsync when the shaping envelopes are used.
-    memset(sync_buffer, 0, sizeof(sync_buffer));
+  uint8_t* sync_buffer = sync_samples[render_block];
+  int16_t* render_buffer = audio_samples[render_block];
+  if (destination == 1) {
+    // Disable hardsync when the trigger is used for envelopes.
+    memset(sync_buffer, 0, kBlockSize);
   }
-
-  osc.Render(sync_buffer, render_buffer, kAudioBlockSize);
+  osc.Render(sync_buffer, render_buffer, kBlockSize);
   
   // Copy to DAC buffer with sample rate and bit reduction applied.
   int16_t sample = 0;
@@ -295,23 +304,23 @@ void RenderBlock() {
   uint16_t bit_mask = bit_reduction_masks[settings.data().resolution];
   int32_t gain = settings.GetValue(SETTING_TRIG_DESTINATION) & 2
       ? ad_value : 65535;
-  for (size_t i = 0; i < kAudioBlockSize; ++i) {
+  for (size_t i = 0; i < kBlockSize; ++i) {
     if ((i % decimation_factor) == 0) {
       sample = render_buffer[i] & bit_mask;
       if (settings.signature()) {
         sample = ws.Transform(sample);
       }
     }
-    sample = static_cast<int32_t>(sample) * gain >> 16;
-    audio_samples.Overwrite(sample + 32768);
+    render_buffer[i] = static_cast<int32_t>(sample) * gain >> 16;
   }
+  render_block = (render_block + 1) % kNumBlocks;
   // debug_pin.Low();
 }
 
 int main(void) {
   Init();
   while (1) {
-    while (audio_samples.writable() >= kAudioBlockSize && sync_samples.readable() >= kAudioBlockSize) {
+    while (render_block != playback_block) {
       RenderBlock();
     }
     ui.DoEvents();

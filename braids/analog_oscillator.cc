@@ -113,6 +113,7 @@ void AnalogOscillator::RenderSaw(
     phase_ += phase_increment_;
     if (*sync_in++) {
       phase_ = 0;
+      aux_phase = 0;
     }
     
     bool wrap = phase_ < phase_increment_;

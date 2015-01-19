@@ -72,14 +72,29 @@ void Settings::Init() {
   if (!storage.ParsimoniousLoad(&data_, &version_token_)) {
     Reset();
   }
+  bool settings_within_range = true;
+  for (int32_t i = 0; i <= SETTING_LAST_EDITABLE_SETTING; ++i) {
+    const Setting setting = static_cast<Setting>(i);
+    const SettingMetadata& setting_metadata = metadata(setting);
+    uint8_t value = GetValue(setting);
+    settings_within_range = settings_within_range && \
+        value >= setting_metadata.min_value && \
+        value <= setting_metadata.max_value;
+  }
+  settings_within_range = settings_within_range && data_.magic_byte == 'M';
+  if (!settings_within_range) {
+    Reset();
+  }
   CheckPaques();
 }
 
 void Settings::Reset() {
   memcpy(&data_, &kInitSettings, sizeof(SettingsData));
+  data_.magic_byte = 'M';
 }
 
 void Settings::Save() {
+  data_.magic_byte = 'M';
   storage.ParsimoniousSave(data_, &version_token_);
   CheckPaques();
 }
