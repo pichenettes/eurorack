@@ -78,6 +78,7 @@ void Generator::Init() {
   pattern_predictor_.Init();
   for (uint16_t i = 0; i < kBlockSize; ++i) {
     GeneratorSample s;
+    s.flags = 0;
     s.unipolar = 0;
     s.bipolar = 0;
     output_buffer_.Overwrite(s);
@@ -460,7 +461,11 @@ void Generator::FillBufferAudioRate() {
       sample.flags |= FLAG_END_OF_ATTACK;
     }
     if (!running_ || looped) {
+      eor_counter_ = phase_increment < 44739242 ? 48 : 1;
+    }
+    if (eor_counter_) {
       sample.flags |= FLAG_END_OF_RELEASE;
+      --eor_counter_;
     }
     output_buffer_.Overwrite(sample);
     
@@ -646,7 +651,11 @@ void Generator::FillBufferControlRate() {
       sample.flags |= FLAG_END_OF_ATTACK;
     }
     if (!running_ || looped) {
+      eor_counter_ = phase_increment < 44739242 ? 48 : 1;
+    }
+    if (eor_counter_) {
       sample.flags |= FLAG_END_OF_RELEASE;
+      --eor_counter_;
     }
     // Two special cases for the "pure decay" scenario:
     // END_OF_ATTACK is always true except at the initial trigger.
