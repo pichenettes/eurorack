@@ -8,6 +8,9 @@ Mutable Instruments' Eurorack Modules.
 * Frames: Keyframer/mixer.
 * Tides: Tidal modulator.
 * Yarns: MIDI interface.
+* Peaks: Dual trigger converter.
+* Branches: Dual Bernoulli gate.
+* Shades: Triple attenuverter.
 * Volts: +5V power module.
 
 License
