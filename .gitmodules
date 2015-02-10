@@ -12,4 +12,4 @@
 	url = https://github.com/pichenettes/stm-audio-bootloader.git
 [submodule "avr_audio_bootloader"]
 	path = avr_audio_bootloader
-	url = git@github.com:pichenettes/avr-audio-bootloader.git
+	url = https://github.com/pichenettes/avr-audio-bootloader.git
