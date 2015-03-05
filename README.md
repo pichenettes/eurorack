@@ -1,14 +1,21 @@
 Mutable Instruments' Eurorack Modules.
 
 * Braids: Macro-oscillator.
+* Branches: Dual Bernoulli gate.
+* Clouds: Texture synthesizer.
 * Edges: Quad chiptune digital oscillator.
-* Ripples: Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
+* Elements: Modal synthesizer.
+* Frames: Keyframer/mixer.
 * Grids: Topographic drum sequencer.
 * Links: Utility module - buffer, mixer.
-* Frames: Keyframer/mixer.
+* Peaks: Dual trigger converter.
+* Ripples: Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
+* Shades: Triple attenuverter.
+* Shelves: EQ filter.
+* Streams: Dual dynamics gate.
 * Tides: Tidal modulator.
-* Yarns: MIDI interface.
 * Volts: +5V power module.
+* Yarns: MIDI interface.
 
 License
 =======
