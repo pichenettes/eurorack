@@ -236,6 +236,7 @@ class Generator {
   uint32_t local_osc_phase_;
   uint32_t local_osc_phase_increment_;
   uint32_t target_phase_increment_;
+  uint32_t eor_counter_;
   
   stmlib::PatternPredictor<32, 8> pattern_predictor_;
   
