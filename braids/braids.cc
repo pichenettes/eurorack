@@ -145,9 +145,6 @@ void Init() {
   for (size_t i = 0; i < kNumBlocks; ++i) {
     fill(&audio_samples[i][0], &audio_samples[i][kBlockSize], 0);
     fill(&sync_samples[i][0], &sync_samples[i][kBlockSize], 0);
-    for (size_t j = 0; j < kBlockSize; ++j) {
-      audio_samples[i][j] = j * 2730;
-    }
   }
   playback_block = kNumBlocks / 2;
   render_block = 0;
