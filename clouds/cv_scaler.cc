@@ -76,6 +76,9 @@ void CvScaler::Init(CalibrationData* calibration_data) {
   blend_parameter_ = BLEND_PARAMETER_DRY_WET;
   blend_knob_quantized_ = 0.0f;
   blend_knob_touched_ = false;
+  
+  previous_trigger_ = false;
+  previous_gate_ = false;
 }
 
 void CvScaler::UpdateBlendParameters(float knob_value, float cv) {
@@ -190,8 +193,11 @@ void CvScaler::Read(Parameters* parameters) {
     parameters->freeze = false;
   }
   
-  parameters->trigger = gate_input_.trigger_rising_edge();
-  parameters->gate = gate_input_.gate();
+  parameters->trigger = previous_trigger_;
+  parameters->gate = previous_gate_;
+  
+  previous_trigger_ = gate_input_.trigger_rising_edge();
+  previous_gate_ = gate_input_.gate();
   
   adc_.Convert();
 }

@@ -37,6 +37,7 @@ namespace clouds {
 stmlib::Storage<1> storage;
 
 void Settings::Init() {
+  freshly_baked_ = false;
   if (!storage.ParsimoniousLoad(&data_, &version_token_)) {
     data_.calibration_data.pitch_offset = 66.67f;
     data_.calibration_data.pitch_scale = -84.26f;
@@ -50,6 +51,7 @@ void Settings::Init() {
     data_.state.blend_value[1] = 128;
     data_.state.blend_value[2] = 0;
     data_.state.blend_value[3] = 0;
+    freshly_baked_ = true;
     Save();
   }
 }

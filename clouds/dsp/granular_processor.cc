@@ -263,11 +263,11 @@ void GranularProcessor::Process(
   reverb_amount += feedback * (2.0f - feedback) * freeze_lp_;
   CONSTRAIN(reverb_amount, 0.0f, 1.0f);
   
-  reverb_.set_amount(reverb_amount * 0.53f);
+  reverb_.set_amount(reverb_amount * 0.54f);
   reverb_.set_diffusion(0.7f);
-  reverb_.set_time(0.35f + 0.6f * reverb_amount);
+  reverb_.set_time(0.35f + 0.63f * reverb_amount);
   reverb_.set_input_gain(0.2f);
-  reverb_.set_lp(0.6f + 0.35f * feedback);
+  reverb_.set_lp(0.6f + 0.37f * feedback);
   reverb_.Process(out_, size);
   
   const float post_gain = 1.2f;

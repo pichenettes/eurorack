@@ -29,6 +29,7 @@
 #include "clouds/drivers/leds.h"
 #include "clouds/drivers/switches.h"
 #include "clouds/drivers/system.h"
+#include "clouds/drivers/version.h"
 #include "clouds/meter.h"
 
 #include "stm_audio_bootloader/qpsk/packet_decoder.h"
@@ -161,7 +162,6 @@ void SysTick_Handler() {
 }
 
 size_t discard_samples = 8000;
-
 void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t n) {
   meter.Process(input, n);
   while (n--) {
@@ -216,12 +216,15 @@ void ProgramPage(const uint8_t* data, size_t size) {
 
 void Init() {
   System sys;
+  Version version;
+  
   sys.Init(false);
   leds.Init();
   meter.Init(48000);
   switches.Init();
-  if (!codec.Init(48000, CODEC_PROTOCOL_PHILIPS, CODEC_FORMAT_16_BIT)) { }
-  if (!codec.Start(&FillBuffer)) { }
+  version.Init();
+  if (!codec.Init(!version.revised(), 48000)) { }
+  if (!codec.Start(32, &FillBuffer)) { }
   sys.StartTimers();
 }
 

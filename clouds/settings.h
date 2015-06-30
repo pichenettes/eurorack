@@ -94,7 +94,14 @@ class Settings {
     return data_.state;
   }
   
+  // True when no calibration data has been found on flash sector 1, that is
+  // to say when the module has just been flashed.
+  inline bool freshly_baked() const {
+    return freshly_baked_;
+  }
+  
  private:
+  bool freshly_baked_;
   SettingsData data_;
   uint16_t version_token_;
   

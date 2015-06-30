@@ -125,6 +125,54 @@ enum CodecRegister {
   CODEC_REG_RESET = 0x0f,
 };
 
+enum CodecSettings {
+  CODEC_INPUT_0_DB = 0x17,
+  CODEC_INPUT_UPDATE_BOTH = 0x40,
+  CODEC_HEADPHONES_MUTE = 0x00,
+  CODEC_MIC_BOOST = 0x1,
+  CODEC_MIC_MUTE = 0x2,
+  CODEC_ADC_MIC = 0x4,
+  CODEC_ADC_LINE = 0x0,
+  CODEC_OUTPUT_DAC_ENABLE = 0x10,
+  CODEC_OUTPUT_MONITOR = 0x20,
+  CODEC_DEEMPHASIS_NONE = 0x00,
+  CODEC_DEEMPHASIS_32K = 0x01,
+  CODEC_DEEMPHASIS_44K = 0x02,
+  CODEC_DEEMPHASIS_48K = 0x03,
+  CODEC_SOFT_MUTE = 0x01,
+  CODEC_ADC_HPF = 0x00,
+  
+  CODEC_POWER_DOWN_LINE_IN = 0x01,
+  CODEC_POWER_DOWN_MIC = 0x02,
+  CODEC_POWER_DOWN_ADC = 0x04,
+  CODEC_POWER_DOWN_DAC = 0x08,
+  CODEC_POWER_DOWN_LINE_OUT = 0x10,
+  CODEC_POWER_DOWN_OSCILLATOR = 0x20,
+  CODEC_POWER_DOWN_CLOCK_OUTPUT = 0x40,
+  CODEC_POWER_DOWN_EVERYTHING = 0x80,
+  
+  CODEC_PROTOCOL_MASK_MSB_FIRST = 0x00,
+  CODEC_PROTOCOL_MASK_LSB_FIRST = 0x01,
+  CODEC_PROTOCOL_MASK_PHILIPS = 0x02,
+  CODEC_PROTOCOL_MASK_DSP = 0x03,
+  
+  CODEC_FORMAT_MASK_16_BIT = 0x00 << 2,
+  CODEC_FORMAT_MASK_20_BIT = 0x01 << 2,
+  CODEC_FORMAT_MASK_24_BIT = 0x02 << 2,
+  CODEC_FORMAT_MASK_32_BIT = 0x03 << 2,
+  
+  CODEC_FORMAT_LR_SWAP = 0x20,
+  CODEC_FORMAT_MASTER = 0x40,
+  CODEC_FORMAT_SLAVE = 0x00,
+  CODEC_FORMAT_INVERT_CLOCK = 0x80,
+  
+  CODEC_RATE_48K_48K = 0x00 << 2,
+  CODEC_RATE_8K_8K = 0x03 << 2,
+  CODEC_RATE_96K_96K = 0x07 << 2,
+  CODEC_RATE_32K_32K = 0x06 << 2,
+  CODEC_RATE_44K_44K = 0x08 << 2,
+};
+
 bool Codec::InitializeGPIO() {
   GPIO_InitTypeDef gpio_init;
 
@@ -185,9 +233,8 @@ bool Codec::InitializeControlInterface() {
 }
 
 bool Codec::InitializeAudioInterface(
-    uint32_t sample_rate,
-    CodecProtocol protocol,
-    CodecFormat format) {
+    bool mcu_is_master,
+    int32_t sample_rate) {
   // Configure PLL and I2S master clock.
   RCC_I2SCLKConfig(RCC_I2S2CLKSource_PLLI2S);
   
@@ -219,11 +266,13 @@ bool Codec::InitializeAudioInterface(
   
   SPI_I2S_DeInit(CODEC_I2S);
   i2s_init.I2S_AudioFreq = sample_rate;
-  i2s_init.I2S_Standard = protocol;
-  i2s_init.I2S_DataFormat = format;
+  i2s_init.I2S_Standard = I2S_Standard_Phillips;
+  i2s_init.I2S_DataFormat = I2S_DataFormat_16b;
   i2s_init.I2S_CPOL = I2S_CPOL_Low;
-  i2s_init.I2S_Mode = I2S_Mode_MasterTx;
-  i2s_init.I2S_MCLKOutput = I2S_MCLKOutput_Enable;
+  i2s_init.I2S_Mode = mcu_is_master ? I2S_Mode_MasterTx : I2S_Mode_SlaveTx;
+  i2s_init.I2S_MCLKOutput = mcu_is_master
+      ? I2S_MCLKOutput_Enable
+      : I2S_MCLKOutput_Disable;
 
   // Initialize the I2S main channel for TX
   I2S_Init(CODEC_I2S, &i2s_init);
@@ -260,9 +309,8 @@ bool Codec::WriteControlRegister(uint8_t address, uint16_t data) {
 }
 
 bool Codec::InitializeCodec(
-    uint32_t sample_rate,
-    CodecProtocol protocol,
-    CodecFormat format) {
+    bool mcu_is_master,
+    int32_t sample_rate) {
   bool s = true;  // success;
   s = s && WriteControlRegister(CODEC_REG_RESET, 0);
   // Configure L&R inputs
@@ -282,37 +330,46 @@ bool Codec::InitializeCodec(
   s = s && WriteControlRegister(CODEC_REG_DIGITAL_ROUTING, CODEC_DEEMPHASIS_NONE);
 
   // Configure power management
-  s = s && WriteControlRegister(
-      CODEC_REG_POWER_MANAGEMENT,
-      CODEC_POWER_DOWN_OSCILLATOR | \
-        CODEC_POWER_DOWN_CLOCK_OUTPUT | \
-        CODEC_POWER_DOWN_MIC);
-  
-  uint8_t format_byte = CODEC_FORMAT_SLAVE;
-  if (protocol == CODEC_PROTOCOL_PHILIPS) {
-    format_byte |= CODEC_PROTOCOL_MASK_PHILIPS;
-  } else if (protocol == CODEC_PROTOCOL_MSB_FIRST) {
-    format_byte |= CODEC_PROTOCOL_MASK_MSB_FIRST;
-  } else if (protocol == CODEC_PROTOCOL_LSB_FIRST) {
-    format_byte |= CODEC_PROTOCOL_MASK_LSB_FIRST;
+  uint8_t power_down_reg = CODEC_POWER_DOWN_MIC | CODEC_POWER_DOWN_CLOCK_OUTPUT;
+  if (mcu_is_master) {
+    power_down_reg |= CODEC_POWER_DOWN_OSCILLATOR;
   }
+    
+  s = s && WriteControlRegister(CODEC_REG_POWER_MANAGEMENT, power_down_reg);
   
-  if (format == CODEC_FORMAT_16_BIT) {
-    format_byte |= CODEC_FORMAT_MASK_16_BIT;
-  } else if (format == CODEC_FORMAT_24_BIT) {
-    format_byte |= CODEC_FORMAT_MASK_24_BIT;
-  } else if (format == CODEC_FORMAT_32_BIT) {
-    format_byte |= CODEC_FORMAT_MASK_32_BIT;
-  }
+  uint8_t format_byte = CODEC_PROTOCOL_MASK_PHILIPS | CODEC_FORMAT_MASK_16_BIT;
+  format_byte |= mcu_is_master ? CODEC_FORMAT_SLAVE : CODEC_FORMAT_MASTER;
+
   s = s && WriteControlRegister(CODEC_REG_DIGITAL_FORMAT, format_byte);
   
   uint8_t rate_byte = 0;
-  // According to the WM8731 datasheet, the 32kHz and 96kHz modes require the
-  // master clock to be at 12.288 MHz (384 fs / 128 fs). The STM32F4 I2S clock
-  // is always at 256 fs. So the 32kHz and 96kHz modes are achieved by
-  // pretending that we are doing 48kHz, but with a slower or faster master
-  // clock.
-  rate_byte = sample_rate == 44100 ? CODEC_RATE_44K_44K : CODEC_RATE_48K_48K;
+  if (mcu_is_master) {
+    // According to the WM8731 datasheet, the 32kHz and 96kHz modes require the
+    // master clock to be at 12.288 MHz (384 fs / 128 fs). The STM32F4 I2S clock
+    // is always at 256 fs. So the 32kHz and 96kHz modes are achieved by
+    // pretending that we are doing 48kHz, but with a slower or faster master
+    // clock.
+    rate_byte = sample_rate == 44100 ? CODEC_RATE_44K_44K : CODEC_RATE_48K_48K;
+  } else {
+    switch (sample_rate) {
+      case 8000:
+        rate_byte = CODEC_RATE_8K_8K;
+        break;
+      case 32000:
+        rate_byte = CODEC_RATE_32K_32K;
+        break;
+      case 44100:
+        rate_byte = CODEC_RATE_44K_44K;
+        break;
+      case 96000:
+        rate_byte = CODEC_RATE_96K_96K;
+        break;
+      case 48000:
+      default:
+        rate_byte = CODEC_RATE_48K_48K;
+        break;
+    }
+  }
   s = s && WriteControlRegister(CODEC_REG_SAMPLE_RATE, rate_byte);
 
   // For now codec is not active.
@@ -380,40 +437,36 @@ bool Codec::InitializeDMA() {
 }
 
 bool Codec::Init(
-    uint32_t sample_rate,
-    CodecProtocol protocol,
-    CodecFormat format) {
-  rx_buffer_.Init();
-  tx_buffer_.Init();
-
-  Frame s;
-  s.l = s.r = 0;
-
-  for (size_t i = 0; i < rx_buffer_.capacity() >> 1; ++i) {
-    rx_buffer_.Overwrite(s);
-    tx_buffer_.Overwrite(s);
-  }
-
+    bool mcu_is_master,
+    int32_t sample_rate) {
   instance_ = this;
   callback_ = NULL;
+  
+  sample_rate_ = sample_rate;
+  mcu_is_master_ = mcu_is_master;
 
   return InitializeGPIO() && \
       InitializeControlInterface() && \
-      InitializeAudioInterface(sample_rate, protocol, format) && \
-      InitializeCodec(sample_rate, protocol, format) && \
+      InitializeAudioInterface(mcu_is_master, sample_rate) && \
+      InitializeCodec(mcu_is_master, sample_rate) && \
       InitializeDMA();
 }
 
-bool Codec::Start(FillBufferCallback callback) {
+bool Codec::Start(size_t block_size, FillBufferCallback callback) {
   // Start the codec.
   if (!WriteControlRegister(CODEC_REG_ACTIVE, 0x01)) {
     return false;
   }
+  if (block_size > kMaxCodecBlockSize) {
+    return false;
+  }
+  
+  if (!mcu_is_master_) {
+    while(GPIO_ReadInputDataBit(CODEC_I2S_GPIO, CODEC_I2S_WS_PIN));
+    while(!GPIO_ReadInputDataBit(CODEC_I2S_GPIO, CODEC_I2S_WS_PIN));
+  }
+  
   callback_ = callback;
-  client_tx_ = NULL;
-  client_rx_ = NULL;
-  transmitted_ = 0;
-  processed_ = 0;
   
   // Enable the I2S TX and RX peripherals.
   if ((CODEC_I2S->I2SCFGR & 0x0400) == 0){
@@ -426,8 +479,27 @@ bool Codec::Start(FillBufferCallback callback) {
   dma_init_tx_.DMA_Memory0BaseAddr = (uint32_t)(tx_dma_buffer_);
   dma_init_rx_.DMA_Memory0BaseAddr = (uint32_t)(rx_dma_buffer_);
 
-  dma_init_tx_.DMA_BufferSize = kAudioChunkSize * 2 * 2;
-  dma_init_rx_.DMA_BufferSize = kAudioChunkSize * 2 * 2;
+  size_t stride = 1;
+  if (!mcu_is_master_) {
+    // When the WM8731 is the master, the data is sent with padding.
+    switch (sample_rate_) {
+      case 32000:
+        stride = 3;
+        break;
+      case 48000:
+        stride = 2;
+        break;
+      case 96000:
+        stride = 4;
+        break;
+    }
+  }
+
+  block_size_ = block_size;
+  stride_ = stride;
+
+  dma_init_tx_.DMA_BufferSize = 2 * stride * block_size * 2;
+  dma_init_rx_.DMA_BufferSize = 2 * stride * block_size * 2;
   
   DMA_Init(AUDIO_I2S_DMA_STREAM, &dma_init_tx_);
   DMA_Init(AUDIO_I2S_EXT_DMA_STREAM, &dma_init_rx_);
@@ -442,22 +514,32 @@ void Codec::Stop() {
   DMA_Cmd(AUDIO_I2S_EXT_DMA_STREAM, DISABLE);
 }
 
+bool Codec::set_line_input_gain(int32_t channel, int32_t gain) {
+  return WriteControlRegister(CODEC_REG_LEFT_LINE_IN + channel, gain);
+}
+
+bool Codec::set_line_input_gain(int32_t gain) {
+  return WriteControlRegister(0, gain) && WriteControlRegister(1, gain);
+}
+
 void Codec::Fill(size_t offset) {
-  if (kNumFIFOChunks) {
-    // Write input samples to FIFO, Read output samples from FIFO
-    rx_buffer_.Overwrite(&rx_dma_buffer_[offset], kAudioChunkSize);
-    tx_buffer_.ImmediateRead(&tx_dma_buffer_[offset], kAudioChunkSize);
-  } else if (callback_) {
-    (*callback_)(
-        &rx_dma_buffer_[offset],
-        &tx_dma_buffer_[offset],
-        kAudioChunkSize);
-  } else {
-    // Inform the client that some data is ready, and store pointers to the
-    // valid section of the ring buffer.
-    ++transmitted_;
-    client_rx_ = &rx_dma_buffer_[offset];
-    client_tx_ = &tx_dma_buffer_[offset];
+  if (callback_) {
+    offset *= block_size_ * stride_ * 2;
+    short* in = &rx_dma_buffer_[offset];
+    short* out = &tx_dma_buffer_[offset];
+    if (stride_) {
+      // Undo the padding from the WM8731.
+      for (size_t i = 1; i < block_size_ * 2; ++i) {
+        in[i] = in[i * stride_];
+      }
+    }
+    (*callback_)((Frame*)(in), (Frame*)(out), block_size_);
+    if (stride_) {
+      // Pad for the WM8731.
+      for (size_t i = block_size_ * 2 - 1; i > 0; --i) {
+        out[i * stride_] = out[i];
+      }
+    }
   }
 }
 
@@ -471,7 +553,7 @@ extern "C" {
 void DMA1_Stream3_IRQHandler(void) {
   if (AUDIO_I2S_EXT_DMA_REG->AUDIO_I2S_EXT_DMA_ISR & AUDIO_I2S_EXT_DMA_FLAG_TC) {
     AUDIO_I2S_EXT_DMA_REG->AUDIO_I2S_EXT_DMA_IFCR = AUDIO_I2S_EXT_DMA_FLAG_TC;
-    clouds::Codec::GetInstance()->Fill(clouds::kAudioChunkSize);
+    clouds::Codec::GetInstance()->Fill(1);
   }
   if (AUDIO_I2S_EXT_DMA_REG->AUDIO_I2S_EXT_DMA_ISR & AUDIO_I2S_EXT_DMA_FLAG_HT) {
     AUDIO_I2S_EXT_DMA_REG->AUDIO_I2S_EXT_DMA_IFCR = AUDIO_I2S_EXT_DMA_FLAG_HT;

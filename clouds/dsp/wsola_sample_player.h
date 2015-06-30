@@ -47,7 +47,7 @@
 
 namespace clouds {
 
-const int32_t kMaxWSOLASize = 8192;
+const int32_t kMaxWSOLASize = 4096;
 
 using namespace stmlib;
 
@@ -74,7 +74,7 @@ class WSOLASamplePlayer {
     search_source_ = 0;
     search_target_ = 0;
     
-    window_size_ = 4096;
+    window_size_ = kMaxWSOLASize / 2;
     env_phase_ = 0.0f;
     env_phase_increment_ = 0.5f;
     elapsed_ = 0;
@@ -173,13 +173,7 @@ class WSOLASamplePlayer {
     if (correlator_loaded_) {
       return;
     }
-    float size_factor = SemitonesToRatio((size_factor_ - 1.0f) * 72.0f);
-    int32_t new_window_size = static_cast<int32_t>(size_factor * kMaxWSOLASize);
-    new_window_size -= new_window_size % 2;
-    if (abs(new_window_size - window_size_) > 64) {
-      window_size_ = new_window_size;
-    }
-    float stride = new_window_size / 2048.0f;
+    float stride = window_size_ / 2048.0f;
     CONSTRAIN(stride, 1.0f, 2.0f);
     stride *= 65536.0f;
     int32_t increment = static_cast<int32_t>(
@@ -242,10 +236,21 @@ class WSOLASamplePlayer {
     float inv_pitch_ratio = SemitonesToRatio(-smoothed_pitch_);
     next_pitch_ratio_ = pitch_ratio;
     
+    float size_factor = SemitonesToRatio((size_factor_ - 1.0f) * 60.0f);
+    int32_t new_window_size = static_cast<int32_t>(size_factor * kMaxWSOLASize);
+    if (abs(new_window_size - window_size_) > 64) {
+      int32_t error = (new_window_size - window_size_) >> 5;
+      new_window_size = window_size_ + error;
+      window_size_ = new_window_size - (new_window_size % 4);
+    }
+    
     // The center offset of the window we want to mix in.
     int32_t limit = buffer->size();
     limit -= static_cast<int32_t>(2.0f * window_size_ * inv_pitch_ratio);
     limit -= 2 * window_size_;
+    if (limit < 0) {
+      limit = 0;
+    }
     
     float position = position_;
     int32_t target_position = buffer->head();

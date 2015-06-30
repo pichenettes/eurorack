@@ -30,7 +30,7 @@ FAMILY         = f4xx
 # USB            = enabled
 
 # Preferred upload command
-UPLOAD_COMMAND  = upload_jtag
+UPLOAD_COMMAND  = upload_jtag_erase_first
 
 # Packages to build
 TARGET         = clouds_bootloader

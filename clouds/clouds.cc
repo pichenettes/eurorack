@@ -27,6 +27,7 @@
 #include "clouds/drivers/debug_pin.h"
 #include "clouds/drivers/debug_port.h"
 #include "clouds/drivers/system.h"
+#include "clouds/drivers/version.h"
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/meter.h"
 #include "clouds/resources.h"
@@ -70,10 +71,12 @@ extern "C" {
 
 void SysTick_Handler() {
   ui.Poll();
-  if (debug_port.readable()) {
-    uint8_t command = debug_port.Read();
-    uint8_t response = ui.HandleFactoryTestingRequest(command);
-    debug_port.Write(response);
+  if (settings.freshly_baked()) {
+    if (debug_port.readable()) {
+      uint8_t command = debug_port.Read();
+      uint8_t response = ui.HandleFactoryTestingRequest(command);
+      debug_port.Write(response);
+    }
   }
 }
 
@@ -87,8 +90,10 @@ void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t n) {
 
 void Init() {
   System sys;
+  Version version;
 
   sys.Init(true);
+  version.Init();
 
   // Init granular processor.
   processor.Init(
@@ -100,14 +105,16 @@ void Init() {
   meter.Init(32000);
   ui.Init(&settings, &cv_scaler, &processor, &meter);
 
-  if (!codec.Init(32000, CODEC_PROTOCOL_PHILIPS, CODEC_FORMAT_16_BIT)) {
+  bool master = !version.revised();
+  if (!codec.Init(master, 32000)) {
     ui.Panic();
   }
-  if (!codec.Start(&FillBuffer)) {
+  if (!codec.Start(32, &FillBuffer)) {
     ui.Panic();
   }
-  // DebugPin::Init();
-  debug_port.Init();
+  if (settings.freshly_baked()) {
+    debug_port.Init();
+  }
   sys.StartTimers();
 }
 

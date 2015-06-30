@@ -136,6 +136,9 @@ class CvScaler {
 
   float cv_c1_;
   
+  bool previous_trigger_;
+  bool previous_gate_;
+  
   DISALLOW_COPY_AND_ASSIGN(CvScaler);
 };
 

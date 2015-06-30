@@ -127,9 +127,10 @@ void Ui::PaintLeds() {
   switch (mode_) {
     case UI_MODE_SPLASH:
       {
+        uint8_t index = ((system_clock.milliseconds() >> 8) + 1) & 3;
         uint8_t fade = (system_clock.milliseconds() >> 2);
         fade = fade <= 127 ? (fade << 1) : 255 - (fade << 1);
-        leds_.set_intensity((system_clock.milliseconds() >> 8) & 3, fade);
+        leds_.set_intensity(3 - index, fade);
       }
       break;
       

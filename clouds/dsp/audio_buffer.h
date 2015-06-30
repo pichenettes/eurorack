@@ -218,6 +218,8 @@ class AudioBuffer {
       integral -= size_;
     }
     
+    // assert(integral >= 0 && integral < size_);
+    
     float x0, x1, scale;
     float t = static_cast<float>(fractional) / 65536.0f;
     if (resolution == RESOLUTION_16_BIT) {
@@ -241,7 +243,7 @@ class AudioBuffer {
       integral -= size_;
     }
     
-    //assert(integral >= 0 || integral < size_);
+    // assert(integral >= 0 && integral < size_);
     
     float xm1, x0, x1, x2, scale;
     float t = static_cast<float>(fractional) / 65536.0f;
