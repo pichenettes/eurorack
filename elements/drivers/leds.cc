@@ -73,9 +73,11 @@ void Leds::Init() {
   
   TIM_OCStructInit(&output_compare_init);
   output_compare_init.TIM_OCMode = TIM_OCMode_PWM1;
-  output_compare_init.TIM_OutputNState = TIM_OutputState_Enable;
+  output_compare_init.TIM_OutputState = TIM_OutputState_Enable;
+  output_compare_init.TIM_OutputNState = TIM_OutputNState_Disable;
   output_compare_init.TIM_Pulse = 0x00;
   output_compare_init.TIM_OCPolarity = TIM_OCPolarity_High;
+  output_compare_init.TIM_OCNPolarity = TIM_OCNPolarity_High;
   TIM_OC1Init(TIM1, &output_compare_init);
   TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
   
