@@ -20,10 +20,25 @@ SYSEX_FLAGS    = --page_size=64 --device_id=9
 EXTRA_DEFINES  = -DDISABLE_DEFAULT_UART_RX_ISR
 
 LFUSE          = ff
-HFUSE          = dc
+HFUSE          = d8
 EFUSE          = 05
 LOCK           = 2f
 
 include avrlib/makefile.mk
 
 include $(DEP_FILE)
+
+# Rule for building the firmware update file
+wav:  $(TARGET_BIN)
+	python avr_audio_bootloader/fsk/encoder.py \
+		-s 40000 -b 16 -n 8 -z 4 -p 128 -g 128 -k 10 \
+		$(TARGET_BIN)
+
+bootstrap_all:
+		make -f grids/makefile
+		make -f grids/bootloader/makefile
+		make -f grids/bootloader/makefile fuses
+		$(AVRDUDE) -B 1 $(AVRDUDE_COM_OPTS) $(AVRDUDE_ISP_OPTS) \
+			-U flash:w:build/grids/grids.hex:i \
+			-U flash:w:build/grids_bootloader/grids_bootloader.hex:i \
+			-U lock:w:0x2f:m
