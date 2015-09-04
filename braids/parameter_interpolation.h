@@ -95,4 +95,17 @@
 #define END_INTERPOLATE_PARAMETER \
   previous_parameter_ = parameter_;
 
+#define BEGIN_INTERPOLATE_PHASE_INCREMENT \
+  uint32_t phase_increment = previous_phase_increment_; \
+  uint32_t phase_increment_increment = \
+      previous_phase_increment_ < phase_increment_ \
+      ? (phase_increment_ - previous_phase_increment_) / size \
+      : ~((previous_phase_increment_ - phase_increment_) / size);
+
+#define INTERPOLATE_PHASE_INCREMENT \
+  phase_increment += phase_increment_increment;
+  
+#define END_INTERPOLATE_PHASE_INCREMENT \
+  previous_phase_increment_ = phase_increment;
+
 #endif // BRAIDS_PARAMETER_INTERPOLATION_H_

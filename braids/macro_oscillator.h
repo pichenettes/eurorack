@@ -42,7 +42,7 @@ namespace braids {
   
 class MacroOscillator {
  public:
-  typedef void (MacroOscillator::*RenderFn)(const uint8_t*, int16_t*, uint8_t);
+  typedef void (MacroOscillator::*RenderFn)(const uint8_t*, int16_t*, size_t);
 
   MacroOscillator() { }
   ~MacroOscillator() { }
@@ -50,7 +50,16 @@ class MacroOscillator {
   inline void Init() {
     analog_oscillator_[0].Init();
     analog_oscillator_[1].Init();
+    analog_oscillator_[2].Init();
+    analog_oscillator_[3].Init();
+    analog_oscillator_[4].Init();
+    analog_oscillator_[5].Init();
     digital_oscillator_.Init();
+    lp_state_ = 0;
+    bp_state_ = 0;
+    previous_sample_ = 0;
+    previous_parameter_[0] = 0;
+    previous_parameter_[1] = 0;
   }
   
   inline void set_shape(MacroOscillatorShape shape) {
@@ -77,20 +86,19 @@ class MacroOscillator {
     digital_oscillator_.Strike();
   }
   
-  void Render(const uint8_t* sync_buffer, int16_t* buffer, uint8_t size);
+  void Render(const uint8_t* sync_buffer, int16_t* buffer, size_t size);
   
  private:
-  void RenderCSaw(const uint8_t*, int16_t*, uint8_t);
-  void RenderMorph(const uint8_t*, int16_t*, uint8_t);
-  void RenderSawSquare(const uint8_t*, int16_t*, uint8_t);
-  void RenderSquareSync(const uint8_t*, int16_t*, uint8_t);
-  void RenderSineTriangle(const uint8_t*, int16_t*, uint8_t);
-  void RenderBuzz(const uint8_t*, int16_t*, uint8_t);
-  void RenderDigital(const uint8_t*, int16_t*, uint8_t);
-  void RenderSawComb(const uint8_t*, int16_t*, uint8_t);
-  void RenderTripleSawSquare(const uint8_t*, int16_t*, uint8_t);
-  void RenderTripleSineTriangle(const uint8_t*, int16_t*, uint8_t);
-  void ConfigureTriple(AnalogOscillatorShape shape, int32_t transposition);
+  void RenderCSaw(const uint8_t*, int16_t*, size_t);
+  void RenderMorph(const uint8_t*, int16_t*, size_t);
+  void RenderSawSquare(const uint8_t*, int16_t*, size_t);
+  void RenderDualSync(const uint8_t*, int16_t*, size_t);
+  void RenderSineTriangle(const uint8_t*, int16_t*, size_t);
+  void RenderBuzz(const uint8_t*, int16_t*, size_t);
+  void RenderDigital(const uint8_t*, int16_t*, size_t);
+  void RenderSawComb(const uint8_t*, int16_t*, size_t);
+  void RenderTriple(const uint8_t*, int16_t*, size_t);
+  void ConfigureTriple(AnalogOscillatorShape shape);
   
 
   int16_t parameter_[2];
@@ -99,9 +107,10 @@ class MacroOscillator {
   uint8_t sync_buffer_[25];
   int16_t temp_buffer_[25];
   int32_t lp_state_;
+  int32_t bp_state_;
   int16_t previous_sample_;
   
-  AnalogOscillator analog_oscillator_[3];
+  AnalogOscillator analog_oscillator_[6];
   DigitalOscillator digital_oscillator_;
   
   MacroOscillatorShape shape_;

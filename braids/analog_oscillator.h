@@ -32,15 +32,15 @@
 #include "stmlib/stmlib.h"
 
 #include <cstring>
+#include <cstdio>
 
 #include "braids/resources.h"
 
 namespace braids {
 
-static const size_t kNumBleps = 2;
-
 enum AnalogOscillatorShape {
   OSC_SHAPE_SAW,
+  OSC_SHAPE_VARIABLE_SAW,
   OSC_SHAPE_CSAW,
   OSC_SHAPE_SQUARE,
   OSC_SHAPE_TRIANGLE,
@@ -56,34 +56,26 @@ enum SyncMode {
   OSCILLATOR_SYNC_MODE_SLAVE
 };
 
-struct Blep {
-  uint32_t phase;  // The blep table is not interpolated.
-  int32_t scale;
-};
-
-struct AnalogOscillatorState {
-  size_t lru_blep;
-  bool up;
-  Blep blep_pool[kNumBleps];
-  uint32_t aux_phase;
-  uint32_t phase_remainder;
-  int16_t aux_shift;
-};
-
 class AnalogOscillator {
  public:
   typedef void (AnalogOscillator::*RenderFn)(
       const uint8_t*,
       int16_t*,
       uint8_t*,
-      uint8_t);
+      size_t);
 
   AnalogOscillator() { }
   ~AnalogOscillator() { }
   
   inline void Init() {
-    memset(&state_, 0, sizeof(state_));
     phase_ = 0;
+    phase_increment_ = 1;
+    high_ = false;
+    parameter_ = previous_parameter_ = 0;
+    aux_parameter_ = 0;
+    discontinuity_depth_ = -16383;
+    pitch_ = 60 << 7;
+    next_sample_ = 0;
   }
   
   inline void set_shape(AnalogOscillatorShape shape) {
@@ -114,46 +106,53 @@ class AnalogOscillator {
       const uint8_t* sync_in,
       int16_t* buffer,
       uint8_t* sync_out,
-      uint8_t size);
+      size_t size);
   
  private:
-  void RenderSquare(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderSaw(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderCSaw(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderTriangle(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderSine(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderTriangleFold(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderSineFold(const uint8_t*, int16_t*, uint8_t*, uint8_t);
-  void RenderBuzz(const uint8_t*, int16_t*, uint8_t*, uint8_t);
+  void RenderSquare(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderSaw(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderVariableSaw(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderCSaw(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderTriangle(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderSine(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderTriangleFold(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderSineFold(const uint8_t*, int16_t*, uint8_t*, size_t);
+  void RenderBuzz(const uint8_t*, int16_t*, uint8_t*, size_t);
   
   uint32_t ComputePhaseIncrement(int16_t midi_pitch);
-   
-  inline void AddBlep(
-      uint32_t phase_residue,
-      uint32_t phase_increment,
-      int32_t scale)
-  __attribute__((always_inline)) {
-    uint32_t blep_phase = phase_residue / (phase_increment >> 8);
-    if (blep_phase < LUT_BLEP_SIZE) {
-      state_.lru_blep = (state_.lru_blep + 1) % kNumBleps;
-      Blep& blep = state_.blep_pool[state_.lru_blep];
-      blep.phase = blep_phase;
-      blep.scale = scale;
+  
+  inline int32_t ThisBlepSample(uint32_t t) {
+    if (t > 65535) {
+      t = 65535;
     }
+    return t * t >> 18;
   }
-
+  
+  inline int32_t NextBlepSample(uint32_t t) {
+    if (t > 65535) {
+      t = 65535;
+    }
+    t = 65535 - t;
+    return -static_cast<int32_t>(t * t >> 18);
+  }
+   
   uint32_t phase_;
   uint32_t phase_increment_;
-  uint32_t delay_;
+  uint32_t previous_phase_increment_;
+  bool high_;
 
   int16_t parameter_;
   int16_t previous_parameter_;
   int16_t aux_parameter_;
+  int16_t discontinuity_depth_;
   int16_t pitch_;
+  
+  int32_t next_sample_;
   
   AnalogOscillatorShape shape_;
   AnalogOscillatorShape previous_shape_;
-  AnalogOscillatorState state_;
+  
+  float master_phase_;
   
   static RenderFn fn_table_[];
   

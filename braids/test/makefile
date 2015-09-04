@@ -2,21 +2,22 @@ PACKAGES       = braids/test stmlib/utils braids
 
 VPATH          = $(PACKAGES)
 
-TARGET         = oscillator_test
+TARGET         = braids_test
 BUILD_ROOT     = build/
 BUILD_DIR      = $(BUILD_ROOT)$(TARGET)/
 CC_FILES       = analog_oscillator.cc \
 		digital_oscillator.cc \
-		resources.cc \
 		macro_oscillator.cc \
-		oscillator_test.cc \
+		braids_test.cc \
+		quantizer.cc \
+		resources.cc \
 		random.cc
 OBJ_FILES      = $(CC_FILES:.cc=.o)
 OBJS           = $(patsubst %,$(BUILD_DIR)%,$(OBJ_FILES)) $(STARTUP_OBJ)
 DEPS           = $(OBJS:.o=.d)
 DEP_FILE       = $(BUILD_DIR)depends.mk
 
-all:  oscillator_test
+all:  braids_test
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -27,7 +28,7 @@ $(BUILD_DIR)%.o: %.cc
 $(BUILD_DIR)%.d: %.cc
 	g++ -MM -DTEST -I. $< -MF $@ -MT $(@:.d=.o)
 
-oscillator_test:  $(OBJS)
+braids_test:  $(OBJS)
 	g++ -o $(TARGET) $(OBJS)
 
 depends:  $(DEPS)

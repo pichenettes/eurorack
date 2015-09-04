@@ -1,4 +1,4 @@
-// Copyright 2012 Olivier Gillet.
+// Copyright 2015 Olivier Gillet.
 //
 // Author: Olivier Gillet (ol.gillet@gmail.com)
 //
@@ -24,57 +24,50 @@
 //
 // -----------------------------------------------------------------------------
 //
-// A noise source used to add jitter to the VCO.
+// Note quantizer
 
-#ifndef BRAIDS_VCO_JITTER_SOURCE_H_
-#define BRAIDS_VCO_JITTER_SOURCE_H_
+#ifndef BRAIDS_QUANTIZER_H_
+#define BRAIDS_QUANTIZER_H_
 
 #include "stmlib/stmlib.h"
 
-#include <cstring>
-
-#include "braids/resources.h"
-#include "stmlib/utils/dsp.h"
-#include "stmlib/utils/random.h"
-
 namespace braids {
+  
+struct Scale {
+  int16_t span;
+  size_t num_notes;
+  int16_t notes[16];
+};
 
-using namespace stmlib;
-
-class VcoJitterSource {
+class Quantizer {
  public:
-  VcoJitterSource() { }
-  ~VcoJitterSource() { }
+  Quantizer() { }
+  ~Quantizer() { }
   
-  inline void Init() {
-    external_temperature_ = 0;
-    room_temperature_ = 0;
-    phase_ = 0;
-    phase_step_ = 0;
+  void Init();
+  
+  int32_t Process(int32_t pitch) {
+    return Process(pitch, 0);
   }
   
-  inline int16_t Render(int32_t intensity) {
-    // External temperature change, with 1-order filtering.
-    uint16_t external_temperature_toss = Random::GetWord();
-    if (external_temperature_toss == 0) {
-      phase_step_ = phase_step_ * 1664525L + 1013904223L;
-      phase_ += (phase_step_ >> 16) * (phase_step_ >> 16);
-      external_temperature_ = wav_sine[phase_ >> 24] << 8;
-    }
-    room_temperature_ += (external_temperature_ - room_temperature_) >> 16;
-    int32_t pitch_noise = room_temperature_ * intensity >> 19;
-    return pitch_noise;
-  }
+  int32_t Process(int32_t pitch, int32_t root);
   
+  void Configure(const Scale& scale) {
+    Configure(scale.notes, scale.span, scale.num_notes);
+  }
+  void set_offset(int32_t offset);
+
  private:
-  uint32_t phase_step_;
-  uint32_t phase_;
-  int32_t external_temperature_;
-  int32_t room_temperature_;
-   
-  DISALLOW_COPY_AND_ASSIGN(VcoJitterSource);
+  void Configure(const int16_t* notes, int16_t span, size_t num_notes);
+  bool enabled_;
+  int16_t codebook_[128];
+  int32_t codeword_;
+  int32_t previous_boundary_;
+  int32_t next_boundary_;
+  
+  DISALLOW_COPY_AND_ASSIGN(Quantizer);
 };
 
 }  // namespace braids
 
-#endif // BRAIDS_VCO_JITTER_SOURCE_H_
+#endif // BRAIDS_QUANTIZER_H_

@@ -34,7 +34,7 @@
 
 namespace braids {
 
-const uint8_t kNumChannels = 4;
+const size_t kNumChannels = 4;
 
 class Adc {
  public:
@@ -78,8 +78,8 @@ class Adc {
  
  private:
   uint16_t rx_word_;
-  uint8_t active_channel_;
-  uint8_t acquisition_stage_;
+  size_t active_channel_;
+  size_t acquisition_stage_;
   uint16_t channels_[kNumChannels];
 
   DISALLOW_COPY_AND_ASSIGN(Adc);

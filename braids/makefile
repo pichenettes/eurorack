@@ -42,6 +42,8 @@ TARGET         = braids
 PACKAGES       = braids braids/drivers stmlib/utils stmlib/system
 RESOURCES      = braids/resources
 
+TOOLCHAIN_PATH ?= /usr/local/arm-4.8.3/
+
 include stmlib/makefile.inc
 
 # Rule for building the firmware update file

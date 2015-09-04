@@ -19,7 +19,8 @@
 #include <cstdlib>
 
 #include "braids/macro_oscillator.h"
-#include "braids/signature_waveshaper.h"
+#include "braids/quantizer.h"
+#include "stmlib/test/wav_writer.h"
 #include "stmlib/utils/dsp.h"
 
 using namespace braids;
@@ -28,58 +29,44 @@ using namespace stmlib;
 const uint32_t kSampleRate = 96000;
 const uint16_t kAudioBlockSize = 24;
 
-void write_wav_header(FILE* fp, int num_samples) {
-  uint32_t l;
-  uint16_t s;
-  
-  fwrite("RIFF", 4, 1, fp);
-  l = 36 + num_samples * 2;
-  fwrite(&l, 4, 1, fp);
-  fwrite("WAVE", 4, 1, fp);
-  
-  fwrite("fmt ", 4, 1, fp);
-  l = 16;
-  fwrite(&l, 4, 1, fp);
-  s = 1;
-  fwrite(&s, 2, 1, fp);
-  fwrite(&s, 2, 1, fp);
-  l = kSampleRate;
-  fwrite(&l, 4, 1, fp);
-  l = static_cast<uint32_t>(kSampleRate) * 2;
-  fwrite(&l, 4, 1, fp);
-  s = 2;
-  fwrite(&s, 2, 1, fp);
-  s = 16;
-  fwrite(&s, 2, 1, fp);
-  
-  fwrite("data", 4, 1, fp);
-  l = num_samples * 2;
-  fwrite(&l, 4, 1, fp);
+void TestAudioRendering() {
+  MacroOscillator osc;
+  WavWriter wav_writer(1, kSampleRate, 5);
+  wav_writer.Open("oscillator.wav");
+
+  osc.Init();
+  osc.set_shape(MACRO_OSC_SHAPE_CSAW);
+
+  for (uint32_t i = 0; i < kSampleRate * 5 / kAudioBlockSize; ++i) {
+    /*if ((i % 2000) == 0) {
+      osc.Strike();
+    }*/
+    int16_t buffer[kAudioBlockSize];
+    uint8_t sync_buffer[kAudioBlockSize];
+    uint16_t tri = (i * 3);
+    uint16_t tri2 = (i * 11);
+    uint16_t ramp = i * 150;
+    tri = tri > 32767 ? 65535 - tri : tri;
+    tri2 = tri2 > 32767 ? 65535 - tri2 : tri2;
+    osc.set_parameters(tri, 32767);
+    memset(sync_buffer, 0, sizeof(sync_buffer));
+    //sync_buffer[0] = (i % 32) == 0 ? 1 : 0;
+    osc.set_pitch((32 << 7));
+    osc.Render(sync_buffer, buffer, kAudioBlockSize);
+    wav_writer.WriteFrames(buffer, kAudioBlockSize);
+  }
+}
+
+void TestQuantizer() {
+  Quantizer q;
+  q.Init();
+  for (int16_t i = 0; i < 16384; ++i) {
+    int32_t pitch = i;
+    printf("%d quantized to %d\n", i, q.Process(i, 60 << 7));
+  }
 }
 
 int main(void) {
-  MacroOscillator osc;
-  FILE* fp = fopen("sound.wav", "wb");
-  write_wav_header(fp, kSampleRate * 5);
-  
-  osc.Init();
-  osc.set_shape(MACRO_OSC_SHAPE_SINE_TRIANGLE);
-  osc.set_parameters(16000, 24000);
-  
-  for (uint32_t i = 0; i < kSampleRate * 5 / kAudioBlockSize; ++i) {
-    int16_t buffer[kAudioBlockSize];
-    uint8_t sync_buffer[kAudioBlockSize];
-    uint16_t tri = i * 3;
-    uint16_t ramp = i * 150;
-    tri = tri > 32767 ? 65535 - tri : tri;
-    /*if ((i % ((kSampleRate / 4) / kAudioBlockSize)) == 0) {
-      osc.Strike();
-    }*/
-    osc.set_parameters(tri, 32767);
-    memset(sync_buffer, 0, sizeof(sync_buffer));
-    osc.set_pitch((48 << 7));
-    osc.Render(sync_buffer, buffer, kAudioBlockSize);
-    fwrite(buffer, sizeof(int16_t), kAudioBlockSize, fp);
-  }
-  fclose(fp);
+  // TestQuantizer();
+  TestAudioRendering();
 }
