@@ -105,7 +105,7 @@ void TIM1_UP_IRQHandler(void) {
   }
   TIM1->SR = (uint16_t)~TIM_IT_Update;
   
-  dac.Write(audio_samples[playback_block][current_sample] + 32768);
+  dac.Write(-audio_samples[playback_block][current_sample] + 32768);
 
   bool trigger_detected = gate_input.raised();
   sync_samples[playback_block][current_sample] = trigger_detected;

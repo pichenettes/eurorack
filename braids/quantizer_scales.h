@@ -66,6 +66,12 @@ const Scale scales[] = {
   { 12 << 7, 5, { 0, 128, 640, 896, 1024} },
   // Gamelan (From midipal/BitT source code)
   { 12 << 7, 5, { 0, 128, 384, 896, 1024} },
+  // Gypsy
+  { 12 << 7, 7, { 0, 256, 384, 768, 896, 1024, 1408} }, 
+  // Arabian
+  { 12 << 7, 7, { 0, 128, 512, 640, 896, 1024, 1408} }, 
+  // Flamenco
+  { 12 << 7, 7, { 0, 128, 512, 640, 896, 1024, 1280} },
   // Whole tone (From midipal/BitT source code)
   { 12 << 7, 6, { 0, 256, 512, 768, 1024, 1280} },
   // pythagorean (From yarns source code)

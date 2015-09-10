@@ -55,8 +55,6 @@ class Quantizer {
   void Configure(const Scale& scale) {
     Configure(scale.notes, scale.span, scale.num_notes);
   }
-  void set_offset(int32_t offset);
-
  private:
   void Configure(const int16_t* notes, int16_t span, size_t num_notes);
   bool enabled_;
