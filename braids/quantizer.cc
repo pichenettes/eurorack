@@ -54,7 +54,7 @@ void Quantizer::Configure(
     int16_t root = 0;
     for (int32_t i = 0; i < 64; ++i) {
       int32_t up = root + notes[note] + span * octave;
-      int32_t down = root + notes[num_notes - 1 - note] + (-octave-1) * span;
+      int32_t down = root + notes[num_notes - 1 - note] + (-octave - 1) * span;
       CLIP(up)
       CLIP(down)
       codebook_[64 + i] = up;

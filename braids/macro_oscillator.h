@@ -56,8 +56,6 @@ class MacroOscillator {
     analog_oscillator_[5].Init();
     digital_oscillator_.Init();
     lp_state_ = 0;
-    bp_state_ = 0;
-    previous_sample_ = 0;
     previous_parameter_[0] = 0;
     previous_parameter_[1] = 0;
   }
@@ -99,18 +97,15 @@ class MacroOscillator {
   void RenderSawComb(const uint8_t*, int16_t*, size_t);
   void RenderTriple(const uint8_t*, int16_t*, size_t);
   void ConfigureTriple(AnalogOscillatorShape shape);
-  
 
   int16_t parameter_[2];
   int16_t previous_parameter_[2];
   int16_t pitch_;
-  uint8_t sync_buffer_[25];
-  int16_t temp_buffer_[25];
+  uint8_t sync_buffer_[24];
+  int16_t temp_buffer_[24];
   int32_t lp_state_;
-  int32_t bp_state_;
-  int16_t previous_sample_;
   
-  AnalogOscillator analog_oscillator_[6];
+  AnalogOscillator analog_oscillator_[3];
   DigitalOscillator digital_oscillator_;
   
   MacroOscillatorShape shape_;

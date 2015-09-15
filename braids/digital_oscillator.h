@@ -179,18 +179,11 @@ struct Grain {
   uint32_t envelope_phase_increment;
 };
 
-struct Fof {
-  uint32_t phase;
-  uint32_t phase_increment;
-  uint16_t amplitude;
-};
-
 struct FofState {
-  Fof fof[kNumOverlappingFof][kNumFormants];
-  uint32_t envelope_phase[kNumOverlappingFof];
-  uint32_t envelope_phase_increment[kNumOverlappingFof];
-  uint8_t lru_fof;
-  int16_t prevous_sample;
+  int32_t next_saw_sample;
+  int16_t previous_sample;
+  int32_t svf_lp[kNumFormants];
+  int32_t svf_bp[kNumFormants];
 };
 
 struct ToyState {

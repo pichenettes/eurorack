@@ -105,7 +105,7 @@ void TIM1_UP_IRQHandler(void) {
   }
   TIM1->SR = (uint16_t)~TIM_IT_Update;
   
-  dac.Write(audio_samples[playback_block][current_sample] + 32768);
+  dac.Write(-audio_samples[playback_block][current_sample] + 32768);
 
   bool trigger_detected = gate_input.raised();
   sync_samples[playback_block][current_sample] = trigger_detected;
@@ -177,25 +177,23 @@ const uint16_t bit_reduction_masks[] = {
 
 const uint16_t decimation_factors[] = { 24, 12, 6, 4, 3, 2, 1 };
 
-uint16_t gain_lp;
-
 void RenderBlock() {
-  static int32_t previous_pitch = 0;
-  static int32_t previous_shape = 0;
+  static int16_t previous_pitch = 0;
+  static int16_t previous_shape = 0;
+  static uint16_t gain_lp;
 
 #ifdef PROFILE_RENDER
   debug_pin.High();
 #endif
   envelope.Update(
       settings.GetValue(SETTING_AD_ATTACK) * 8,
-      settings.GetValue(SETTING_AD_DECAY) * 8,
-      0, 0);
+      settings.GetValue(SETTING_AD_DECAY) * 8);
   uint32_t ad_value = envelope.Render();
   
   if (ui.paques()) {
     osc.set_shape(MACRO_OSC_SHAPE_QUESTION_MARK);
   } else if (settings.meta_modulation()) {
-    int32_t shape = adc.channel(3);
+    int16_t shape = adc.channel(3);
     shape -= settings.data().fm_cv_offset;
     if (shape > previous_shape + 2 || shape < previous_shape - 2) {
       previous_shape = shape;

@@ -72,7 +72,6 @@ extern const uint16_t lut_flute_body_filter[];
 extern const uint16_t lut_fm_frequency_quantizer[];
 extern const uint16_t lut_vco_detune[];
 extern const uint16_t lut_bell[];
-extern const uint16_t lut_fof_envelope[];
 extern const uint16_t lut_env_expo[];
 extern const int16_t lut_blowing_jet[];
 extern const uint32_t lut_oscillator_increments[];
@@ -133,9 +132,7 @@ extern const uint16_t chr_characters[];
 #define LUT_VCO_DETUNE_SIZE 257
 #define LUT_BELL 13
 #define LUT_BELL_SIZE 257
-#define LUT_FOF_ENVELOPE 14
-#define LUT_FOF_ENVELOPE_SIZE 1025
-#define LUT_ENV_EXPO 15
+#define LUT_ENV_EXPO 14
 #define LUT_ENV_EXPO_SIZE 257
 #define LUT_BLOWING_JET 0
 #define LUT_BLOWING_JET_SIZE 257

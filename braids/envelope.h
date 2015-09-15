@@ -29,9 +29,7 @@ using namespace stmlib;
 enum EnvelopeSegment {
   ENV_SEGMENT_ATTACK = 0,
   ENV_SEGMENT_DECAY = 1,
-  ENV_SEGMENT_SUSTAIN = 2,
-  ENV_SEGMENT_RELEASE = 3,
-  ENV_SEGMENT_DEAD = 4,
+  ENV_SEGMENT_DEAD = 2,
   ENV_NUM_SEGMENTS,
 };
 
@@ -42,10 +40,8 @@ class Envelope {
 
   void Init() {
     target_[ENV_SEGMENT_ATTACK] = 65535;
-    target_[ENV_SEGMENT_RELEASE] = 0;
+    target_[ENV_SEGMENT_DECAY] = 0;
     target_[ENV_SEGMENT_DEAD] = 0;
-    
-    increment_[ENV_SEGMENT_SUSTAIN] = 0;
     increment_[ENV_SEGMENT_DEAD] = 0;
   }
 
@@ -53,12 +49,9 @@ class Envelope {
     return static_cast<EnvelopeSegment>(segment_);
   }
 
-  inline void Update(int32_t a, int32_t d, int32_t s, int32_t r) {
+  inline void Update(int32_t a, int32_t d) {
     increment_[ENV_SEGMENT_ATTACK] = lut_env_portamento_increments[a];
     increment_[ENV_SEGMENT_DECAY] = lut_env_portamento_increments[d];
-    increment_[ENV_SEGMENT_RELEASE] = lut_env_portamento_increments[r];
-    target_[ENV_SEGMENT_DECAY] = s << 9;
-    target_[ENV_SEGMENT_SUSTAIN] = target_[ENV_SEGMENT_DECAY];
   }
   
   inline void Trigger(EnvelopeSegment segment) {
@@ -93,9 +86,6 @@ class Envelope {
   // Value that needs to be reached at the end of each segment.
   uint16_t target_[ENV_NUM_SEGMENTS];
   
-  // Pointer to the shape table.
-  const uint16_t* shape_[ENV_NUM_SEGMENTS];
-  
   // Current segment.
   size_t segment_;
   
@@ -103,8 +93,6 @@ class Envelope {
   uint16_t a_;
   uint16_t b_;
   uint16_t value_;
-
-  uint32_t phase_increment_;
   uint32_t phase_;
 
   DISALLOW_COPY_AND_ASSIGN(Envelope);

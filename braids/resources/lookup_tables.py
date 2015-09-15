@@ -245,7 +245,6 @@ def bell(size, ratio):
   return bell
 
 lookup_tables.append(('bell', bell(256, 16)))
-lookup_tables.append(('fof_envelope', bell(1024, 8)))
 
 
 """----------------------------------------------------------------------------

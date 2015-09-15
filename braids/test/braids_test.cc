@@ -35,7 +35,7 @@ void TestAudioRendering() {
   wav_writer.Open("oscillator.wav");
 
   osc.Init();
-  osc.set_shape(MACRO_OSC_SHAPE_CSAW);
+  osc.set_shape(MACRO_OSC_SHAPE_VOWEL_FOF);
 
   for (uint32_t i = 0; i < kSampleRate * 5 / kAudioBlockSize; ++i) {
     /*if ((i % 2000) == 0) {
@@ -48,10 +48,10 @@ void TestAudioRendering() {
     uint16_t ramp = i * 150;
     tri = tri > 32767 ? 65535 - tri : tri;
     tri2 = tri2 > 32767 ? 65535 - tri2 : tri2;
-    osc.set_parameters(tri, 32767);
+    osc.set_parameters(tri, 0);
     memset(sync_buffer, 0, sizeof(sync_buffer));
     //sync_buffer[0] = (i % 32) == 0 ? 1 : 0;
-    osc.set_pitch((32 << 7));
+    osc.set_pitch((48 << 7));
     osc.Render(sync_buffer, buffer, kAudioBlockSize);
     wav_writer.WriteFrames(buffer, kAudioBlockSize);
   }

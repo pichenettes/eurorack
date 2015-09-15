@@ -152,8 +152,6 @@ class AnalogOscillator {
   AnalogOscillatorShape shape_;
   AnalogOscillatorShape previous_shape_;
   
-  float master_phase_;
-  
   static RenderFn fn_table_[];
   
   DISALLOW_COPY_AND_ASSIGN(AnalogOscillator);
