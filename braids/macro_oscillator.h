@@ -51,9 +51,6 @@ class MacroOscillator {
     analog_oscillator_[0].Init();
     analog_oscillator_[1].Init();
     analog_oscillator_[2].Init();
-    analog_oscillator_[3].Init();
-    analog_oscillator_[4].Init();
-    analog_oscillator_[5].Init();
     digital_oscillator_.Init();
     lp_state_ = 0;
     previous_parameter_[0] = 0;
