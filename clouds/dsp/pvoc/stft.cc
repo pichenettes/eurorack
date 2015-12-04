@@ -131,9 +131,9 @@ void STFT::Buffer() {
   
   // Compute FFT. fft_in is lost.
   if (fft_size_ != FFT::max_size) {
-    fft_->Direct(fft_in_, fft_out_, fft_in_, fft_num_passes_);
+    fft_->Direct(fft_in_, fft_out_, fft_num_passes_);
   } else {
-    fft_->Direct(fft_in_, fft_out_, fft_in_);
+    fft_->Direct(fft_in_, fft_out_);
   }
   
   // Process in the frequency domain.
@@ -145,9 +145,9 @@ void STFT::Buffer() {
   
   // Compute IFFT. ifft_in is lost.
   if (fft_size_ != FFT::max_size) {
-    fft_->Inverse(ifft_in_, ifft_out_, ifft_in_, fft_num_passes_);
+    fft_->Inverse(ifft_in_, ifft_out_, fft_num_passes_);
   } else {
-    fft_->Inverse(ifft_in_, ifft_out_, ifft_in_);
+    fft_->Inverse(ifft_in_, ifft_out_);
   }
   
   size_t destination_ptr = process_ptr_;
