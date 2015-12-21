@@ -74,7 +74,6 @@ types = ['uint8_t', 'uint16_t']
 create_specialized_manager = True
 
 resources = [
-  ('dummy', 'string', 'STR', 'char', str, False),
   (lookup_tables.lookup_tables,
    'lookup_table', 'LUT', 'uint16_t', int, False),
   (lookup_tables.lookup_tables_32,

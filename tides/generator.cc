@@ -29,15 +29,15 @@
 #include "tides/generator.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "stmlib/utils/dsp.h"
 
 #include "tides/resources.h"
 
-// #define CORE_ONLY
-
 namespace tides {
 
+using namespace std;
 using namespace stmlib;
 
 const int16_t kOctave = 12 * 128;
@@ -73,19 +73,20 @@ void Generator::Init() {
   clock_divider_ = 1;
   phase_ = 0;
   set_pitch(60 << 7);
-  output_buffer_.Init();
-  input_buffer_.Init();
   pattern_predictor_.Init();
-  for (uint16_t i = 0; i < kBlockSize; ++i) {
-    GeneratorSample s;
-    s.flags = 0;
-    s.unipolar = 0;
-    s.bipolar = 0;
-    output_buffer_.Overwrite(s);
-    input_buffer_.Overwrite(0);
-  }
   
-  antialiasing_ = true;
+  GeneratorSample s;
+  s.flags = 0;
+  s.unipolar = 0;
+  s.bipolar = 0;
+  for (size_t i = 0; i < kNumBlocks; ++i) {
+    fill(&output_samples_[i][0], &output_samples_[i][kBlockSize], s);
+    fill(&input_samples_[i][0], &input_samples_[i][kBlockSize], 0);
+  }
+  playback_block_ = kNumBlocks / 2;
+  render_block_ = 0;
+  current_sample_ = 0;
+  
   shape_ = 0;
   slope_ = 0;
   smoothed_slope_ = 0;
@@ -178,7 +179,7 @@ int16_t Generator::ComputePitch(uint32_t phase_increment) {
 }
 
 int32_t Generator::ComputeCutoffFrequency(int16_t pitch, int16_t smoothness) {
-  uint8_t shifts = clock_divider_;
+  size_t shifts = clock_divider_;
   while (shifts > 1) {
     shifts >>= 1;
     pitch += kOctave;
@@ -206,11 +207,11 @@ int32_t Generator::ComputeAntialiasAttenuation(
     int16_t pitch,
     int16_t slope,
     int16_t shape,
-    int16_t smoothness) {
-  pitch += 128;
+    int16_t smoothness) const {
+  pitch += 12 * 128;
   if (pitch < 0) pitch = 0;
-  if (slope < 0) slope = -slope;
-  if (shape < 0) shape = -shape;
+  if (slope < 0) slope = ~slope;
+  if (shape < 0) shape = ~shape;
   if (smoothness < 0) smoothness = 0;
 
   int32_t p = 252059;
@@ -233,90 +234,8 @@ int32_t Generator::ComputeAntialiasAttenuation(
   return p;
 }
 
-// There are to our knowledge three ways of generating an "asymmetric" ramp:
-//
-// 1. Use the difference between two parabolic waves.
-//
-// + Anti-aliasing is easy with wavetables of band-limited parabolic waves.
-// + Slope modulation does not cause discontinuities.
-// - Does not allow a different waveshape to be used for the A and D segments.
-// - Needs gain compensation at the extreme settings of the slope parameter.
-// - Does not traverse the full 0 .. 65535 range due to inaccuracies in gain
-//   factor.
-//
-// 2. Use different phase increments for the A and D segments.
-//
-// + Slope modulation does not cause discontinuities.
-// + Traverses the full 0 .. 65535 range.
-// - Due to rounding errors, the duration of the A+D segment is not preserved
-//   exactly when the slope is modulated.
-// - No anti-aliasing.
-// 
-// 3. Generate a ramp and waveshape it (phase distortion).
-//
-// + Duration of A+D segment is preserved.
-// + Traverses the full 0 .. 65535 range.
-// - No anti-aliasing.
-// - Slope modulations causes waveform discontinuities.
-//
-// 
-// We use 1. for the highest range (audio rates); and 3 for the two other ranges
-// (control rates extending into audio territory). To compensate for the slope
-// modulation discontinuities, we low-pass filter digitally the slope value.
-// 2. has a terrible behaviour in the audio range, because it causes audible FM
-// when the slope parameter is modulated by a LFO.
-
-void Generator::FillBufferAudioRate() {
-  uint8_t size = kBlockSize;
-  
-  GeneratorSample sample = previous_sample_;
-  if (sync_) {
-    pitch_ = ComputePitch(phase_increment_);
-  } else {
-    phase_increment_ = ComputePhaseIncrement(pitch_);
-    local_osc_phase_increment_ = phase_increment_;
-    target_phase_increment_ = phase_increment_;
-  }
-  if (pitch_ < 0) {
-    pitch_ = 0;
-  }
-
-#ifndef CORE_ONLY
-  // Load wavetable pointers for bandlimiting - they depend on pitch value.
-  uint16_t xfade = pitch_ << 6;
-  uint16_t index = pitch_ >> 10;
-  if (pitch_ < 0) {
-    index = 0;
-    xfade = 0;
-  }
-  
-  const int16_t* wave_1 = waveform_table[WAV_BANDLIMITED_PARABOLA_0 + index];
-  const int16_t* wave_2 = waveform_table[WAV_BANDLIMITED_PARABOLA_0 + index + 1];
-
-  int32_t gain = slope_;
-  gain = (32768 - (gain * gain >> 15)) * 3 >> 1;
-  gain = 32768 * 1024 / gain;
-  
-  uint32_t phase_offset_a_bi = (slope_ - (slope_ >> 1)) << 16;
-  uint32_t phase_offset_b_bi = (32768 - (slope_ >> 1)) << 16;
-  uint32_t phase_offset_a_uni = 49152 << 16;
-  uint32_t phase_offset_b_uni = (32768 + 49152 - slope_) << 16;
-  
-  int32_t attenuation = 32767;
-  if (antialiasing_) {
-    attenuation = ComputeAntialiasAttenuation(
-          pitch_,
-          slope_,
-          shape_,
-          smoothness_);
-  }
-
-  uint16_t shape = static_cast<uint16_t>((shape_ * attenuation >> 15) + 32768);
-  uint16_t wave_index = WAV_INVERSE_TAN_AUDIO + (shape >> 14);
-  const int16_t* shape_1 = waveform_table[wave_index];
-  const int16_t* shape_2 = waveform_table[wave_index + 1];
-  uint16_t shape_xfade = shape << 2;
-  
+void Generator::ProcessFilterWavefolder(
+    GeneratorSample* in_out, size_t size) {
   int32_t frequency = ComputeCutoffFrequency(pitch_, smoothness_);
   int32_t f_a = lut_cutoff[frequency >> 7] >> 16;
   int32_t f_b = lut_cutoff[(frequency >> 7) + 1] >> 16;
@@ -324,11 +243,74 @@ void Generator::FillBufferAudioRate() {
   int32_t wf_gain = 2048;
   int32_t wf_balance = 0;
   if (smoothness_ > 0) {
-    int16_t attenuated_smoothness = smoothness_ * attenuation >> 15;
+    int16_t attenuated_smoothness = smoothness_ * attenuation_ >> 15;
     wf_gain += attenuated_smoothness * (32767 - 1024) >> 14;
     wf_balance = attenuated_smoothness;
   }
-#endif  // CORE_ONLY  
+  
+  int32_t uni_lp_state_0 = uni_lp_state_[0];
+  int32_t uni_lp_state_1 = uni_lp_state_[1];
+  int32_t bi_lp_state_0 = bi_lp_state_[0];
+  int32_t bi_lp_state_1 = bi_lp_state_[1];
+  
+  while (size--) {
+    int32_t original, folded;
+    
+    // Run through LPF.
+    bi_lp_state_0 += f * (in_out->bipolar - bi_lp_state_0) >> 15;
+    bi_lp_state_1 += f * (bi_lp_state_0 - bi_lp_state_1) >> 15;
+    
+    // Fold.
+    original = bi_lp_state_1;
+    folded = Interpolate1022(wav_bipolar_fold, original * wf_gain + (1UL << 31));
+    in_out->bipolar = original + ((folded - original) * wf_balance >> 15);
+
+    // Run through LPF.
+    uni_lp_state_0 += f * (in_out->unipolar - uni_lp_state_0) >> 15;
+    uni_lp_state_1 += f * (uni_lp_state_0 - uni_lp_state_1) >> 15;
+    
+    // Fold.
+    original = uni_lp_state_1 << 1;
+    folded = Interpolate1022(wav_unipolar_fold, original * wf_gain) << 1;
+    in_out->unipolar = original + ((folded - original) * wf_balance >> 15);
+    
+    uni_lp_state_[0] = uni_lp_state_0;
+    uni_lp_state_[1] = uni_lp_state_1;
+    bi_lp_state_[0] = bi_lp_state_0;
+    bi_lp_state_[1] = bi_lp_state_1;
+    in_out++;
+  }
+  uni_lp_state_[0] = uni_lp_state_0;
+  uni_lp_state_[1] = uni_lp_state_1;
+  bi_lp_state_[0] = bi_lp_state_0;
+  bi_lp_state_[1] = bi_lp_state_1;
+}
+
+void Generator::ProcessAudioRate(
+    const uint8_t* in, GeneratorSample* out, size_t size) {
+  GeneratorSample sample = previous_sample_;
+  
+  if (sync_) {
+    pitch_ = ComputePitch(phase_increment_);
+    CONSTRAIN(pitch_, 0, 120 << 7);
+  } else {
+    CONSTRAIN(pitch_, 0, 120 << 7);
+    phase_increment_ = ComputePhaseIncrement(pitch_);
+    local_osc_phase_increment_ = phase_increment_;
+    target_phase_increment_ = phase_increment_;
+  }
+
+  attenuation_ = ComputeAntialiasAttenuation(
+      pitch_,
+      slope_,
+      shape_,
+      smoothness_);
+
+  uint16_t shape = static_cast<uint16_t>((shape_ * attenuation_ >> 15) + 32768);
+  uint16_t wave_index = WAV_INVERSE_TAN_AUDIO + (shape >> 14);
+  const int16_t* shape_1 = waveform_table[wave_index];
+  const int16_t* shape_2 = waveform_table[wave_index + 1];
+  uint16_t shape_xfade = shape << 2;
   
   uint32_t end_of_attack = (static_cast<uint32_t>(slope_ + 32768) << 16);
   
@@ -337,10 +319,6 @@ void Generator::FillBufferAudioRate() {
   uint32_t phase = phase_;
   uint32_t phase_increment = phase_increment_;
   bool wrap = wrap_;
-  int32_t uni_lp_state_0 = uni_lp_state_[0];
-  int32_t uni_lp_state_1 = uni_lp_state_[1];
-  int32_t bi_lp_state_0 = bi_lp_state_[0];
-  int32_t bi_lp_state_1 = bi_lp_state_[1];
   
   // Enforce that the EOA pulse is at least 1 sample wide.
   if (end_of_attack >= phase_increment) {
@@ -350,9 +328,12 @@ void Generator::FillBufferAudioRate() {
     end_of_attack = phase_increment;
   }
   
+  uint32_t mid_point = mid_point_;
+  int32_t next_sample = next_sample_;
+  
   while (size--) {
     ++sync_counter_;
-    uint8_t control = input_buffer_.ImmediateRead();
+    uint8_t control = *in++;
 
     // When freeze is high, discard any start/reset command.
     if (!(control & CONTROL_FREEZE)) {
@@ -373,8 +354,8 @@ void Generator::FillBufferAudioRate() {
           if (sync_counter_ < kSyncCounterMaxTime && sync_counter_) {
             uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
                 0xffffffff / sync_counter_);
-            if (increment > 0x80000000) {
-              increment = 0x80000000;
+            if (increment > 0x20000000) {
+              increment = 0x20000000;
             }
             target_phase_increment_ = static_cast<uint32_t>(increment);
             local_osc_phase_ = 0;
@@ -394,7 +375,7 @@ void Generator::FillBufferAudioRate() {
     }
     
     if (control & CONTROL_FREEZE) {
-      output_buffer_.Overwrite(sample);
+      *out++ = sample;
       continue;
     }
     
@@ -405,56 +386,47 @@ void Generator::FillBufferAudioRate() {
     if (sustained) {
       phase = 1L << 31;
     }
-
-#ifndef CORE_ONLY
-    // Bipolar version ---------------------------------------------------------
-    int32_t ramp_a, ramp_b, saw;
-    int32_t original, folded;
-    ramp_a = Crossfade1022(wave_1, wave_2, phase + phase_offset_a_bi, xfade);
-    ramp_b = Crossfade1022(wave_1, wave_2, phase + phase_offset_b_bi, xfade);
-    saw = (ramp_b - ramp_a) * gain >> 10;
-    CLIP(saw);
     
-    // Appy shape waveshaper.
-    saw = Crossfade115(shape_1, shape_2, saw + 32768, shape_xfade);
-    if (!running_ && !sustained) {
-      saw = 0;
+    mid_point = (mid_point >> 5) * 31;
+    mid_point += (end_of_attack >> 5);
+    uint32_t min_mid_point = 2 * phase_increment;
+    uint32_t max_mid_point = 0xffffffff - min_mid_point;
+    CONSTRAIN(mid_point, min_mid_point, max_mid_point);
+    CONSTRAIN(mid_point, 0x10000, 0xffff0000);
+
+    int32_t slope_up = static_cast<int32_t>(0xffffffff / (mid_point >> 16));
+    int32_t slope_down = static_cast<int32_t>(0xffffffff / (~mid_point >> 16));
+
+    int32_t this_sample = next_sample;
+    next_sample = 0;
+    // Process reset discontinuity.
+    if (phase < phase_increment) {
+      slope_up_ = true;
+      uint32_t t = phase / (phase_increment >> 16);
+      int32_t discontinuity = slope_up + slope_down;
+      discontinuity = (discontinuity * (phase_increment >> 18)) >> 14;
+      this_sample += ThisIntegratedBlepSample(t) * discontinuity >> 16;
+      next_sample += NextIntegratedBlepSample(t) * discontinuity >> 16;
+    } else {
+      // Process transition discontinuity.
+      if (slope_up_ ^ (phase < mid_point)) {
+        slope_up_ = phase < mid_point;
+        uint32_t t = (phase - mid_point) / (phase_increment >> 16);
+        int32_t discontinuity = slope_up + slope_down;
+        discontinuity = (discontinuity * (phase_increment >> 18)) >> 14;
+        this_sample -= ThisIntegratedBlepSample(t) * discontinuity >> 16;
+        next_sample -= NextIntegratedBlepSample(t) * discontinuity >> 16;
+      }
     }
-
-    // Run through LPF.
-    bi_lp_state_0 += f * (saw - bi_lp_state_0) >> 15;
-    bi_lp_state_1 += f * (bi_lp_state_0 - bi_lp_state_1) >> 15;
     
-    // Fold.
-    original = bi_lp_state_1;
-    folded = Interpolate1022(wav_bipolar_fold, original * wf_gain + (1UL << 31));
-    sample.bipolar = original + ((folded - original) * wf_balance >> 15);
+    next_sample += slope_up_
+        ? ((phase >> 16) * slope_up) >> 16
+        : 65535 - (((phase - mid_point) >> 16) * slope_down >> 16);
+    CONSTRAIN(this_sample, 0, 65535);
 
-    // Unipolar version --------------------------------------------------------
-    ramp_a = Crossfade1022(wave_1, wave_2, phase + phase_offset_a_uni, xfade);
-    ramp_b = Crossfade1022(wave_1, wave_2, phase + phase_offset_b_uni, xfade);
-    saw = (ramp_b - ramp_a) * gain >> 10;
-    CLIP(saw)
-    
-    // Appy shape waveshaper.
-    saw = Crossfade115(shape_1, shape_2, (saw >> 1) + 32768 + 16384,
+    sample.bipolar = Crossfade115(shape_1, shape_2, this_sample, shape_xfade);
+    sample.unipolar = Crossfade115(shape_1, shape_2, (this_sample >> 1) + 32768,
                        shape_xfade);
-    if (!running_ && !sustained) {
-      saw = 0;
-    }
-    // Run through LPF.
-    uni_lp_state_0 += f * (saw - uni_lp_state_0) >> 15;
-    uni_lp_state_1 += f * (uni_lp_state_0 - uni_lp_state_1) >> 15;
-    
-    // Fold.
-    original = uni_lp_state_1 << 1;
-    folded = Interpolate1022(wav_unipolar_fold, original * wf_gain) << 1;
-    sample.unipolar = original + ((folded - original) * wf_balance >> 15);
-#else    
-    sample.bipolar = (phase >> 16) - 32768;
-    sample.unipolar = phase >> 16;
-#endif  // CORE_ONLY
-    
     sample.flags = 0;
     bool looped = mode_ == GENERATOR_MODE_LOOPING && wrap;
     if (phase >= end_of_attack || !running_) {
@@ -467,28 +439,27 @@ void Generator::FillBufferAudioRate() {
       sample.flags |= FLAG_END_OF_RELEASE;
       --eor_counter_;
     }
-    output_buffer_.Overwrite(sample);
-    
+    *out++ = sample;
     if (running_ && !sustained) {
       phase += phase_increment;
       wrap = phase < phase_increment;
     }
+    if (!running_ && !sustained) {
+      sample.bipolar = 0;
+      sample.unipolar = 0;
+    }
   }
-  
-  uni_lp_state_[0] = uni_lp_state_0;
-  uni_lp_state_[1] = uni_lp_state_1;
-  bi_lp_state_[0] = bi_lp_state_0;
-  bi_lp_state_[1] = bi_lp_state_1;
   
   previous_sample_ = sample;
   phase_ = phase;
   phase_increment_ = phase_increment;
   wrap_ = wrap;
+  next_sample_ = next_sample;
+  mid_point_ = mid_point;
 }
 
-void Generator::FillBufferControlRate() {
-  uint8_t size = kBlockSize;
-  
+void Generator::ProcessControlRate(
+    const uint8_t* in, GeneratorSample* out, size_t size) {
   if (sync_) {
     pitch_ = ComputePitch(phase_increment_);
   } else {
@@ -497,9 +468,10 @@ void Generator::FillBufferControlRate() {
     target_phase_increment_ = phase_increment_;
   }
   
+  attenuation_ = 32767;
+  
   GeneratorSample sample = previous_sample_;
 
-#ifndef CORE_ONLY  
   uint16_t shape = static_cast<uint16_t>(shape_ + 32768);
   shape = (shape >> 2) * 3;
   uint16_t wave_index = WAV_REVERSED_CONTROL + (shape >> 13);
@@ -507,28 +479,12 @@ void Generator::FillBufferControlRate() {
   const int16_t* shape_2 = waveform_table[wave_index + 1];
   uint16_t shape_xfade = shape << 3;
   
-  int64_t frequency = ComputeCutoffFrequency(pitch_, smoothness_);
-  int64_t f_a = lut_cutoff[frequency >> 7];
-  int64_t f_b = lut_cutoff[(frequency >> 7) + 1];
-  int64_t f = f_a + ((f_b - f_a) * (frequency & 0x7f) >> 7);
-  int32_t wf_gain = 2048;
-  int32_t wf_balance = 0;
-  if (smoothness_ > 0) {
-    wf_gain += smoothness_ * (32767 - 1024) >> 14;
-    wf_balance = smoothness_;
-  }
-#endif  // CORE_ONLY  
-
   // Load state into registers - saves some memory load/store inside the
   // rendering loop.
   uint32_t phase = phase_;
   uint32_t phase_increment = phase_increment_;
   bool wrap = wrap_;
   int32_t smoothed_slope = smoothed_slope_;
-  int64_t uni_lp_state_0 = uni_lp_state_[0];
-  int64_t uni_lp_state_1 = uni_lp_state_[1];
-  int64_t bi_lp_state_0 = bi_lp_state_[0];
-  int64_t bi_lp_state_1 = bi_lp_state_[1];
   int32_t previous_smoothed_slope = 0x7fffffff;
   uint32_t end_of_attack = 1UL << 31;
   uint32_t attack_factor = 1 << kSlopeBits;
@@ -539,7 +495,7 @@ void Generator::FillBufferControlRate() {
     // Low-pass filter the slope parameter.
     smoothed_slope += (slope_ - smoothed_slope) >> 4;
     
-    uint8_t control = input_buffer_.ImmediateRead();
+    uint8_t control = *in++;
 
     // When freeze is high, discard any start/reset command.
     if (!(control & CONTROL_FREEZE)) {
@@ -556,11 +512,13 @@ void Generator::FillBufferControlRate() {
       if (sync_counter_ >= kSyncCounterMaxTime) {
         phase = 0;
       } else {
-        uint32_t predicted_period = pattern_predictor_.Predict(sync_counter_);
+        uint32_t predicted_period = sync_counter_ < 480
+            ? sync_counter_
+            : pattern_predictor_.Predict(sync_counter_);
         uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
             0xffffffff / (predicted_period * frequency_ratio_.q));
-        if (increment > 0x80000000) {
-          increment = 0x80000000;
+        if (increment > 0x20000000) {
+          increment = 0x20000000;
         }
         phase_increment = static_cast<uint32_t>(increment);
       }
@@ -568,7 +526,7 @@ void Generator::FillBufferControlRate() {
     }
     
     if (control & CONTROL_FREEZE) {
-      output_buffer_.Overwrite(sample);
+      *out++ = sample;
       continue;
     }
     
@@ -604,38 +562,18 @@ void Generator::FillBufferControlRate() {
       phase = end_of_attack + 1;
     }
 
-#ifndef CORE_ONLY  
-    int32_t original, folded;
-    int32_t unipolar = Crossfade115(
+    sample.unipolar = Crossfade115(
         shape_1,
         shape_2,
         skewed_phase >> 16, shape_xfade);
-    uni_lp_state_0 += f * ((unipolar << 16) - uni_lp_state_0) >> 31;
-    uni_lp_state_1 += f * (uni_lp_state_0 - uni_lp_state_1) >> 31;
-    
-    original = uni_lp_state_1 >> 15;
-    folded = Interpolate1022(wav_unipolar_fold, original * wf_gain) << 1;
-    sample.unipolar = original + ((folded - original) * wf_balance >> 15);
-    
-    int32_t bipolar = Crossfade115(
+
+    sample.bipolar = Crossfade115(
         shape_1,
         shape_2,
         skewed_phase >> 15, shape_xfade);
     if (skewed_phase >= (1UL << 31)) {
-      bipolar = -bipolar;
+      sample.bipolar = -sample.bipolar;
     }
-    
-    bi_lp_state_0 += f * ((bipolar << 16) - bi_lp_state_0) >> 31;
-    bi_lp_state_1 += f * (bi_lp_state_0 - bi_lp_state_1) >> 31;
-    
-    original = bi_lp_state_1 >> 16;
-    folded = Interpolate1022(wav_bipolar_fold, original * wf_gain + (1UL << 31));
-    sample.bipolar = original + ((folded - original) * wf_balance >> 15);
-
-#else    
-    sample.bipolar = (skewed_phase >> 16) - 32768;
-    sample.unipolar = skewed_phase >> 16;
-#endif  // CORE_ONLY
 
     uint32_t adjusted_end_of_attack = end_of_attack;
     if (adjusted_end_of_attack >= phase_increment) {
@@ -667,7 +605,7 @@ void Generator::FillBufferControlRate() {
       sample.flags &= ~FLAG_END_OF_ATTACK;
     }
     
-    output_buffer_.Overwrite(sample);
+    *out++ = sample;
     if (running_ && !sustained) {
       phase += phase_increment;
       wrap = phase < phase_increment;
@@ -676,11 +614,6 @@ void Generator::FillBufferControlRate() {
     }
   }
 
-  uni_lp_state_[0] = uni_lp_state_0;
-  uni_lp_state_[1] = uni_lp_state_1;
-  bi_lp_state_[0] = bi_lp_state_0;
-  bi_lp_state_[1] = bi_lp_state_1;
-  
   previous_sample_ = sample;
   phase_ = phase;
   phase_increment_ = phase_increment;
@@ -689,9 +622,8 @@ void Generator::FillBufferControlRate() {
 }
 
 
-void Generator::FillBufferWavetable() {
-  uint8_t size = kBlockSize;
-  
+void Generator::ProcessWavetable(
+    const uint8_t* in, GeneratorSample* out, size_t size) {
   GeneratorSample sample = previous_sample_;
   if (sync_) {
     pitch_ = ComputePitch(phase_increment_);
@@ -700,7 +632,6 @@ void Generator::FillBufferWavetable() {
   }
 
   uint32_t phase = phase_;
-  uint32_t sub_phase = sub_phase_;
   uint32_t phase_increment = phase_increment_;
   
   // The grid is only 8x8 rather than 9x9 so we need to scale by 7/8.0
@@ -727,13 +658,12 @@ void Generator::FillBufferWavetable() {
   const int16_t* bank = wt_waves + mode_ * 64 * 257 - (mode_ & 2) * 4 * 257;
   while (size--) {
     ++sync_counter_;
-    uint8_t control = input_buffer_.ImmediateRead();
+    uint8_t control = *in++;
     
     // When freeze is high, discard any start/reset command.
     if (!(control & CONTROL_FREEZE)) {
       if (control & CONTROL_GATE_RISING) {
         phase = 0;
-        sub_phase = 0;
       }
     }
     
@@ -746,8 +676,8 @@ void Generator::FillBufferWavetable() {
             if (sync_counter_ < kSyncCounterMaxTime && sync_counter_) {
               uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
                   0xffffffff / sync_counter_);
-              if (increment > 0x80000000) {
-                increment = 0x80000000;
+              if (increment > 0x20000000) {
+                increment = 0x20000000;
               }
               target_phase_increment_ = static_cast<uint32_t>(increment);
               local_osc_phase_ = 0;
@@ -763,8 +693,8 @@ void Generator::FillBufferWavetable() {
                 : pattern_predictor_.Predict(sync_counter_);
             uint64_t increment = frequency_ratio_.p * static_cast<uint64_t>(
                 0xffffffff / (predicted_period * frequency_ratio_.q));
-            if (increment > 0x80000000) {
-              increment = 0x80000000;
+            if (increment > 0x20000000) {
+              increment = 0x20000000;
             }
             phase_increment = static_cast<uint32_t>(increment);
           }
@@ -798,7 +728,7 @@ void Generator::FillBufferWavetable() {
     y += y_increment;
   
     if (control & CONTROL_FREEZE) {
-      output_buffer_.Overwrite(sample);
+      *out++ = sample;
       continue;
     }
     
@@ -811,34 +741,33 @@ void Generator::FillBufferWavetable() {
 
     int32_t s = 0;
     for (int32_t subsample = 0; subsample < 4; ++subsample) {
-      int32_t y_1 = Crossfade(wave_1, wave_1 + 257, phase, x_fractional);
-      int32_t y_2 = Crossfade(wave_2, wave_2 + 257, phase, x_fractional);
+      int32_t y_1 = Crossfade(wave_1, wave_1 + 257, phase << 1, x_fractional);
+      int32_t y_2 = Crossfade(wave_2, wave_2 + 257, phase << 1, x_fractional);
       int32_t y_mix = y_1 + ((y_2 - y_1) * y_fractional >> 15);
       int32_t folded = Interpolate1022(
           ws_smooth_bipolar_fold, (y_mix + 32768) << 16);
       y_mix = y_mix + ((folded - y_mix) * wf_gain >> 15);
       s += y_mix * kDownsampleCoefficient[subsample];
-      phase += (phase_increment >> 2);
+      phase += (phase_increment >> 3);
     }
     
     lp_state_0 += f * ((s >> 16) - lp_state_0) >> 15;
     lp_state_1 += f * (lp_state_0 - lp_state_1) >> 15;
     
+    uint8_t flags = 0;
     sample.bipolar = lp_state_1;
     sample.unipolar = sample.bipolar + 32768;
-    sample.flags = 0;
     if (sample.unipolar & 0x8000) {
-      sample.flags |= FLAG_END_OF_ATTACK;
+      flags |= FLAG_END_OF_ATTACK;
     }
-    if (sub_phase & 0x80000000) {
-      sample.flags |= FLAG_END_OF_RELEASE;
+    if (phase & 0x80000000) {
+      flags |= FLAG_END_OF_RELEASE;
     }
-    output_buffer_.Overwrite(sample);
-    sub_phase += phase_increment >> 1;
+    sample.flags = flags;
+    *out++ = sample;
   }
   previous_sample_ = sample;
   phase_ = phase;
-  sub_phase_ = sub_phase;
   phase_increment_ = phase_increment;
   x_ = x;
   y_ = y;

@@ -262,4 +262,4 @@ sine = numpy.sin(2 * numpy.pi * x)
 window = numpy.exp(-x * x * 1.5) ** 2
 bipolar_fold = sine * window + numpy.arctan(2 * x) * (1 - window)
 bipolar_fold /= numpy.abs(bipolar_fold).max()
-waveshapers.append(('smooth_bipolar_fold', numpy.round(32767 * bipolar_fold)))
+waveshapers.append(('smooth_bipolar_foldIN_RAM', numpy.round(32767 * bipolar_fold)))

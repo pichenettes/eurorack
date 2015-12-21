@@ -70,7 +70,8 @@ struct GeneratorSample {
   uint8_t flags;
 };
 
-const uint16_t kBlockSize = 16;
+const size_t kNumBlocks = 2;
+const size_t kBlockSize = 16;
 
 struct FrequencyRatio {
   uint32_t p;
@@ -113,11 +114,6 @@ class Generator {
   }
 
   void set_slope(int16_t slope) {
-#ifndef WAVETABLE_HACK
-    if (range_ == GENERATOR_RANGE_HIGH) {
-      CONSTRAIN(slope, -32512, 32512);
-    }
-#endif  // WAVETABLE_HACK
     slope_ = slope;
   }
 
@@ -127,10 +123,6 @@ class Generator {
   
   void set_frequency_ratio(FrequencyRatio ratio) {
     frequency_ratio_ = ratio;
-  }
-  
-  void set_waveshaper_antialiasing(bool antialiasing) {
-    antialiasing_ = antialiasing;
   }
   
   void set_sync(bool sync) {
@@ -145,34 +137,37 @@ class Generator {
   inline GeneratorRange range() const { return range_; }
   inline bool sync() const { return sync_; }
   
-  inline GeneratorSample Process(uint8_t control) {
-    input_buffer_.Overwrite(control);
-    return output_buffer_.ImmediateRead();
+  inline const GeneratorSample& Process(uint8_t control) {
+    input_samples_[playback_block_][current_sample_] = control;
+    const GeneratorSample& out = output_samples_[playback_block_][current_sample_];
+    current_sample_ = current_sample_ + 1;
+    if (current_sample_ >= kBlockSize) {
+      current_sample_ = 0;
+      playback_block_ = (playback_block_ + 1) % kNumBlocks;
+    }
+    return out;
   }
   
   inline bool writable_block() const {
-    return output_buffer_.writable() >= kBlockSize;
+    return render_block_ != playback_block_;
   }
   
-  inline bool FillBufferSafe() {
-    if (!writable_block()) {
-      return false;
-    } else {
-      FillBuffer();
-      return true;
+  inline void Process() {
+    while (render_block_ != playback_block_) {
+      uint8_t* in = input_samples_[render_block_];
+      GeneratorSample* out = output_samples_[render_block_];
+  #ifndef WAVETABLE_HACK
+      if (range_ == GENERATOR_RANGE_HIGH) {
+        ProcessAudioRate(in, out, kBlockSize);
+      } else {
+        ProcessControlRate(in, out, kBlockSize);
+      }
+      ProcessFilterWavefolder(out, kBlockSize);
+  #else
+      ProcessWavetable(in, out, kBlockSize);
+  #endif
+      render_block_ = (render_block_ + 1) % kNumBlocks;
     }
-  }
-  
-  inline void FillBuffer() {
-#ifndef WAVETABLE_HACK
-    if (range_ == GENERATOR_RANGE_HIGH) {
-      FillBufferAudioRate();
-    } else {
-      FillBufferControlRate();
-    }
-#else
-    FillBufferWavetable();
-#endif
   }
   
   uint32_t clock_divider() const {
@@ -182,14 +177,16 @@ class Generator {
  private:
   // There are two versions of the rendering code, one optimized for audio, with
   // band-limiting.
-  void FillBufferAudioRate();
-  void FillBufferControlRate();
-  void FillBufferWavetable();
+  void ProcessAudioRate(const uint8_t* in, GeneratorSample* out, size_t size);
+  void ProcessControlRate(const uint8_t* in, GeneratorSample* out, size_t size);
+  void ProcessWavetable(const uint8_t* in, GeneratorSample* out, size_t size);
+  void ProcessFilterWavefolder(GeneratorSample* in_out, size_t size);
+
   int32_t ComputeAntialiasAttenuation(
         int16_t pitch,
         int16_t slope,
         int16_t shape,
-        int16_t smoothness);
+        int16_t smoothness) const;
   
   inline void ClearFilterState() {
     uni_lp_state_[0] = uni_lp_state_[1] = 0;
@@ -201,12 +198,37 @@ class Generator {
   int32_t ComputeCutoffFrequency(int16_t pitch, int16_t smoothness);
   void ComputeFrequencyRatio(int16_t pitch);
   
-  stmlib::RingBuffer<uint8_t, kBlockSize * 2> input_buffer_;
-  stmlib::RingBuffer<GeneratorSample, kBlockSize * 2> output_buffer_;
-   
+  inline int32_t NextIntegratedBlepSample(uint32_t t) const {
+    if (t >= 65535) {
+      t = 65535;
+    }
+    const int32_t t1 = t >> 1;
+    const int32_t t2 = t1 * t1 >> 16;
+    const int32_t t4 = t2 * t2 >> 16;
+    return 12288 - t1 + (3 * t2 >> 1) - t4;
+  }
+
+  inline int32_t ThisIntegratedBlepSample(uint32_t t) const {
+    if (t >= 65535) {
+      t = 65535;
+    }
+    t = 65535 - t;
+    const int32_t t1 = t >> 1;
+    const int32_t t2 = t1 * t1 >> 16;
+    const int32_t t4 = t2 * t2 >> 16;
+    return 12288 - t1 + (3 * t2 >> 1) - t4;
+  }
+  
+  GeneratorSample output_samples_[kNumBlocks][kBlockSize];
+  uint8_t input_samples_[kNumBlocks][kBlockSize];
+  size_t current_sample_;
+  volatile size_t playback_block_;
+  volatile size_t render_block_;
+  
   GeneratorMode mode_;
   GeneratorRange range_;
   GeneratorSample previous_sample_;
+  GeneratorSample buffer_[kBlockSize];
   
   uint32_t clock_divider_;
   
@@ -217,11 +239,10 @@ class Generator {
   int16_t slope_;
   int32_t smoothed_slope_;
   int16_t smoothness_;
-  bool antialiasing_;
+  int16_t attenuation_;
   
   uint32_t phase_;
   uint32_t phase_increment_;
-  uint32_t sub_phase_;
   uint16_t x_;
   uint16_t y_;
   uint16_t z_;
@@ -244,6 +265,11 @@ class Generator {
   int64_t bi_lp_state_[2];
   
   bool running_;
+  
+  // Polyblep status.
+  int32_t next_sample_;
+  bool slope_up_;
+  uint32_t mid_point_;
   
   static const FrequencyRatio frequency_ratios_[];
   static const int16_t num_frequency_ratios_;
