@@ -56,7 +56,6 @@ class Limiter {
       SLOPE(peak_, fabs(s), 0.05f, 0.00002f);
       float gain = (peak_ <= 1.0f ? 1.0f : 1.0f / peak_);
       *in_out++ = stmlib::SoftLimit(s * gain * 0.8f);
-      ++in_out;
     }
   }
 
