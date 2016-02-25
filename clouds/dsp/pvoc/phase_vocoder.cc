@@ -45,7 +45,6 @@ void PhaseVocoder::Init(
     int32_t num_channels,
     int32_t resolution,
     float sample_rate) {
-  fft_.Init();
   num_channels_ = num_channels;
 
   size_t fft_size = largest_fft_size;

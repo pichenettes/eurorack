@@ -28,8 +28,9 @@
 
 #include "clouds/dsp/pvoc/stft.h"
 
-#include "clouds/dsp/pvoc/frame_transformation.h"
+#include <algorithm>
 
+#include "clouds/dsp/pvoc/frame_transformation.h"
 #include "stmlib/dsp/dsp.h"
 
 namespace clouds {
@@ -55,7 +56,11 @@ void STFT::Init(
   buffer_size_ = fft_size_ + hop_size_;
   
   fft_ = fft;
+#ifdef USE_ARM_FFT
+  arm_rfft_fast_init_f32(fft_, fft_size);
+#else
   fft_->Init();
+#endif  // USE_ARM_FFT
   
   analysis_ = &analysis_synthesis_buffer[0];
   synthesis_ = &analysis_synthesis_buffer[buffer_size_];
@@ -64,7 +69,7 @@ void STFT::Init(
   ifft_out_ = fft_out_ = ifft_buffer;
   
   window_ = window_lut;
-  window_stride_ = FFT::max_size / fft_size;
+  window_stride_ = LUT_SINE_WINDOW_4096_SIZE / fft_size;
   modifier_ = modifier;
   
   parameters_ = NULL;
@@ -130,12 +135,21 @@ void STFT::Buffer() {
   }
   
   // Compute FFT. fft_in is lost.
+#ifdef USE_ARM_FFT
+  arm_rfft_fast_f32(fft_, fft_in_, fft_out_, 0);
+  copy(&fft_out_[0], &fft_out_[fft_size_], &fft_in_[0]);
+  // Re-arrange data.
+  for (size_t i = 0; i < fft_size_ / 2; ++i) {
+    fft_out_[i] = fft_in_[2 * i];
+    fft_out_[i + fft_size_ / 2] = fft_in_[2 * i + 1];
+  }
+#else
   if (fft_size_ != FFT::max_size) {
     fft_->Direct(fft_in_, fft_out_, fft_num_passes_);
   } else {
     fft_->Direct(fft_in_, fft_out_);
   }
-  
+#endif  // USE_ARM_FFT
   // Process in the frequency domain.
   if (modifier_ != NULL && parameters_ != NULL) {
     modifier_->Process(*parameters_, &fft_out_[0], &ifft_in_[0]);
@@ -144,16 +158,31 @@ void STFT::Buffer() {
   }
   
   // Compute IFFT. ifft_in is lost.
+#ifdef USE_ARM_FFT
+  // Re-arrange data.
+  copy(&ifft_in_[0], &ifft_in_[fft_size_], &ifft_out_[0]);
+  for (size_t i = 0; i < fft_size_ / 2; ++i) {
+    ifft_in_[2 * i] = ifft_out_[i];
+    ifft_in_[2 * i + 1] = ifft_out_[i + fft_size_ / 2];
+  }
+  arm_rfft_fast_f32(fft_, ifft_in_, ifft_out_, 1);
+#else
   if (fft_size_ != FFT::max_size) {
     fft_->Inverse(ifft_in_, ifft_out_, fft_num_passes_);
   } else {
     fft_->Inverse(ifft_in_, ifft_out_);
   }
+#endif  // USE_ARM_FFT
   
   size_t destination_ptr = process_ptr_;
+#ifdef USE_ARM_FFT
+  float inverse_window_size = 1.0f / \
+      float(fft_size_ / hop_size_ >> 1);
+#else
   float inverse_window_size = 1.0f / \
       float(fft_size_ * fft_size_ / hop_size_ >> 1);
-  
+#endif  // USE_ARM_FFT
+    
   w = window_;
   for (size_t i = 0; i < fft_size_; ++i) {
     float s = ifft_out_[i] * w[0] * inverse_window_size;

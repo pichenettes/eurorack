@@ -55,6 +55,8 @@ extern const float src_filter_1x_2_91[];
 extern const int16_t lut_db[];
 extern const float lut_sin[];
 extern const float lut_window[];
+extern const float lut_xfade_in[];
+extern const float lut_xfade_out[];
 extern const float lut_sine_window_4096[];
 extern const float lut_cutoff[];
 extern const float lut_grain_size[];
@@ -73,13 +75,17 @@ extern const float lut_quantized_pitch[];
 #define LUT_SIN_SIZE 1281
 #define LUT_WINDOW 1
 #define LUT_WINDOW_SIZE 4097
-#define LUT_SINE_WINDOW_4096 2
+#define LUT_XFADE_IN 2
+#define LUT_XFADE_IN_SIZE 17
+#define LUT_XFADE_OUT 3
+#define LUT_XFADE_OUT_SIZE 17
+#define LUT_SINE_WINDOW_4096 4
 #define LUT_SINE_WINDOW_4096_SIZE 4096
-#define LUT_CUTOFF 3
+#define LUT_CUTOFF 5
 #define LUT_CUTOFF_SIZE 257
-#define LUT_GRAIN_SIZE 4
+#define LUT_GRAIN_SIZE 6
 #define LUT_GRAIN_SIZE_SIZE 257
-#define LUT_QUANTIZED_PITCH 5
+#define LUT_QUANTIZED_PITCH 7
 #define LUT_QUANTIZED_PITCH_SIZE 1025
 
 }  // namespace clouds

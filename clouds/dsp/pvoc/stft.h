@@ -30,14 +30,25 @@
 #define CLOUDS_DSP_PVOC_STFT_H_
 
 #include "stmlib/stmlib.h"
-#include "stmlib/fft/shy_fft.h"
+
+// #define USE_ARM_FFT
+
+#ifdef USE_ARM_FFT
+  #include <arm_math.h>
+#else
+  #include "stmlib/fft/shy_fft.h"
+#endif  // USE_ARM_FFT
 
 namespace clouds {
 
 struct Parameters;
 
 const size_t kMaxFftSize = 4096;
-typedef stmlib::ShyFFT<float, kMaxFftSize, stmlib::RotationPhasor> FFT;
+#ifdef USE_ARM_FFT
+  typedef arm_rfft_fast_instance_f32 FFT;
+#else
+  typedef stmlib::ShyFFT<float, kMaxFftSize, stmlib::RotationPhasor> FFT;
+#endif  // USE_ARM_FFT
 
 typedef class FrameTransformation Modifier;
 

@@ -43,7 +43,9 @@ PACKAGES       = clouds \
 		clouds/dsp/pvoc \
 		stmlib/dsp \
 		stmlib/utils \
-		stmlib/system
+		stmlib/system \
+		stmlib/third_party/STM/CMSIS/DSP_Lib/CommonTables \
+		stmlib/third_party/STM/CMSIS/DSP_Lib/TransformFunctions
 RESOURCES      = clouds/resources
 
 TOOLCHAIN_PATH ?= /usr/local/arm-4.8.3/

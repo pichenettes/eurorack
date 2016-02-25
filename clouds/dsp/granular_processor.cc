@@ -32,6 +32,7 @@
 
 #include "clouds/drivers/debug_pin.h"
 
+#include "stmlib/dsp/parameter_interpolator.h"
 #include "stmlib/utils/buffer_allocator.h"
 
 #include "clouds/resources.h"
@@ -271,18 +272,18 @@ void GranularProcessor::Process(
   reverb_.Process(out_, size);
   
   const float post_gain = 1.2f;
-  float dry_wet = dry_wet_;
-  float dry_wet_increment = (parameters_.dry_wet - dry_wet) / static_cast<float>(size);
+  ParameterInterpolator dry_wet_mod(&dry_wet_, parameters_.dry_wet, size);
   for (size_t i = 0; i < size; ++i) {
-    dry_wet += dry_wet_increment;
-    int32_t dry_wet_int = dry_wet * 32767.0f;
-    int32_t l = SoftConvert(out_[i].l * post_gain);
-    int32_t r = SoftConvert(out_[i].r * post_gain);
-    output[i].l = input[i].l + ((l - input[i].l) * dry_wet_int >> 15);
-    output[i].r = input[i].r + ((r - input[i].r) * dry_wet_int >> 15);
+    float dry_wet = dry_wet_mod.Next();
+    float fade_in = Interpolate(lut_xfade_in, dry_wet, 16.0f);
+    float fade_out = Interpolate(lut_xfade_out, dry_wet, 16.0f);
+    float l = static_cast<float>(input[i].l) / 32768.0f * fade_out;
+    float r = static_cast<float>(input[i].r) / 32768.0f * fade_out;
+    l += out_[i].l * post_gain * fade_in;
+    r += out_[i].r * post_gain * fade_in;
+    output[i].l = SoftConvert(l);
+    output[i].r = SoftConvert(r);
   }
-  dry_wet_ = dry_wet;
-  // TOC
 }
 
 void GranularProcessor::PreparePersistentData() {
