@@ -35,7 +35,7 @@
 namespace yarns {
 
 const uint16_t kNumOctaves = 11;
-const size_t kAudioBlockSize = 32;
+const size_t kAudioBlockSize = 64;
 
 enum TriggerShape {
   TRIGGER_SHAPE_SQUARE,
@@ -52,6 +52,51 @@ enum AudioMode {
   AUDIO_MODE_SQUARE,
   AUDIO_MODE_TRIANGLE,
   AUDIO_MODE_SINE
+};
+
+class Oscillator {
+ public:
+  Oscillator() { }
+  ~Oscillator() { }
+  void Init(int32_t scale, int32_t offset);
+  void Render(uint8_t mode, int16_t note, bool gate);
+  inline uint16_t ReadSample() {
+    return audio_buffer_.ImmediateRead();
+  }
+
+ private:
+  uint32_t ComputePhaseIncrement(int16_t pitch);
+  
+  void RenderSilence();
+  void RenderNoise();
+  void RenderSine(uint32_t phase_increment);
+  void RenderSaw(uint32_t phase_increment);
+  void RenderSquare(uint32_t phase_increment, uint32_t pw, bool integrate);
+
+  inline int32_t ThisBlepSample(uint32_t t) {
+    if (t > 65535) {
+      t = 65535;
+    }
+    return t * t >> 18;
+  }
+  
+  inline int32_t NextBlepSample(uint32_t t) {
+    if (t > 65535) {
+      t = 65535;
+    }
+    t = 65535 - t;
+    return -static_cast<int32_t>(t * t >> 18);
+  }
+  
+  int32_t scale_;
+  int32_t offset_;
+  uint32_t phase_;
+  int32_t next_sample_;
+  int32_t integrator_state_;
+  bool high_;
+  stmlib::RingBuffer<uint16_t, kAudioBlockSize * 2> audio_buffer_;
+  
+  DISALLOW_COPY_AND_ASSIGN(Oscillator);
 };
 
 class Voice {
@@ -120,6 +165,8 @@ class Voice {
   inline uint16_t aux_cv_dac_code() const { 
     return DacCodeFrom16BitValue(mod_aux_[aux_cv_source_]);
   }
+  
+  inline bool gate_on() const { return gate_; }
 
   inline bool gate() const { return gate_ && !retrigger_delay_; }
   inline bool trigger() const  {
@@ -149,13 +196,10 @@ class Voice {
     return audio_mode_;
   }
   inline void RenderAudio() {
-    if (!audio_mode_ || audio_buffer_.writable() < kAudioBlockSize) {
-      return;
-    }
-    FillAudioBuffer();
+    oscillator_.Render(audio_mode_, note_, gate_);
   }
   inline uint16_t ReadSample() {
-    return audio_buffer_.ImmediateRead();
+    return oscillator_.ReadSample();
   }
   
   void TapLfo(uint32_t target_phase) {
@@ -173,9 +217,8 @@ class Voice {
   
  private:
   uint16_t NoteToDacCode(int32_t note) const;
-  uint32_t ComputePhaseIncrement(int16_t pitch);
   void FillAudioBuffer();
-   
+
   int32_t note_source_;
   int32_t note_target_;
   int32_t note_portamento_;
@@ -204,6 +247,7 @@ class Voice {
   uint32_t lfo_phase_;
   uint32_t portamento_phase_;
   uint32_t portamento_phase_increment_;
+  bool portamento_exponential_shape_;
   
   // This counter is used to artificially create a 500µs dip at LOW level when
   // the gate is currently HIGH and a new note arrive with a retrigger command.
@@ -221,10 +265,8 @@ class Voice {
   uint32_t lfo_pll_previous_phase_;
   
   uint8_t audio_mode_;
-  int16_t osc_pitch_;
-  uint32_t phase_;
-  stmlib::RingBuffer<uint16_t, kAudioBlockSize * 2> audio_buffer_;
-  
+  Oscillator oscillator_;
+
   DISALLOW_COPY_AND_ASSIGN(Voice);
 };
 

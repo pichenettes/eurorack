@@ -50,7 +50,8 @@ const char* const boolean_values[] = {
 };
 
 const char* const voicing_allocation_mode_values[] = {
-  "MONO", "POLY", "CYCLIC", "RANDOM", "VELO"
+  "MONO", "POLY", "CYCLIC", "RANDOM", "VELO", "SORTED", "U1 UNISON",
+  "U2 UNISON 2"
 };
 
 const char* const sequencer_arp_direction_values[] = {
@@ -228,7 +229,7 @@ const Setting Settings::settings_[] = {
   {
     "PO", "PORTAMENTO",
     SETTING_DOMAIN_PART, { PART_VOICING_PORTAMENTO, 0 },
-    SETTING_UNIT_UINT8, 0, 99, NULL,
+    SETTING_UNIT_PORTAMENTO, 0, 101, NULL,
     5, 10,
   },
   {
@@ -872,6 +873,17 @@ void Settings::Print(const Setting& setting, char* buffer) const {
         PrintInteger(buffer, value);
       } else {
         strcpy(buffer, clock_division_values[value - 100]);
+      }
+      break;
+      
+    case SETTING_UNIT_PORTAMENTO:
+      if (value <= 50) {
+        PrintInteger(buffer, value);
+      } else {
+        PrintInteger(buffer, value - 51);
+      }
+      if (buffer[0] == ' ') {
+        buffer[0] = (value <= 50) ? 'T' : 'R';
       }
       break;
       

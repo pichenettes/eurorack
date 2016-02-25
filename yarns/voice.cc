@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 #include "stmlib/midi/midi.h"
 #include "stmlib/utils/dsp.h"
@@ -59,14 +60,16 @@ void Voice::Init() {
   
   lfo_phase_ = portamento_phase_ = 0;
   portamento_phase_increment_ = 1U << 31;
+  portamento_exponential_shape_ = false;
   
   trigger_duration_ = 2;
   for (uint8_t i = 0; i < kNumOctaves; ++i) {
     calibrated_dac_code_[i] = 54586 - 5133 * i;
   }
   dirty_ = false;
-  
-  audio_buffer_.Init();
+  oscillator_.Init(
+    calibrated_dac_code_[3] - calibrated_dac_code_[8],
+    calibrated_dac_code_[3]);
 }
 
 void Voice::Calibrate(uint16_t* calibrated_dac_code) {
@@ -110,7 +113,9 @@ void Voice::Refresh() {
     portamento_phase_increment_ = 0;
     note_source_ = note_target_;
   }
-  uint16_t portamento_level = Interpolate824(lut_env_expo, portamento_phase_);
+  uint16_t portamento_level = portamento_exponential_shape_
+      ? Interpolate824(lut_env_expo, portamento_phase_)
+      : portamento_phase_ >> 16;
   int32_t note = note_source_ + \
       ((note_target_ - note_source_) * portamento_level >> 16);
 
@@ -167,8 +172,17 @@ void Voice::NoteOn(
   if (!portamento) {
     note_source_ = note_target_;
   }
-  portamento_phase_increment_ = lut_portamento_increments[portamento];
   portamento_phase_ = 0;
+  if (portamento <= 50) {
+    portamento_phase_increment_ = lut_portamento_increments[portamento << 1];
+    portamento_exponential_shape_ = true;
+  } else {
+    uint32_t base_increment = lut_portamento_increments[(portamento - 51) << 1];
+    uint32_t delta = abs(note_target_ - note_source_) + 1;
+    portamento_phase_increment_ = (1536 * (base_increment >> 11) / delta) << 11;
+    CONSTRAIN(portamento_phase_increment_, 1, 2147483647);
+    portamento_exponential_shape_ = false;
+  }
 
   mod_velocity_ = velocity;
 
@@ -233,9 +247,19 @@ uint16_t Voice::trigger_dac_code() const {
 
 static const uint16_t kHighestNote = 128 * 128;
 static const uint16_t kPitchTableStart = 116 * 128;
-static const uint8_t kNumZones = 6;
 
-uint32_t Voice::ComputePhaseIncrement(int16_t midi_pitch) {
+
+void Oscillator::Init(int32_t scale, int32_t offset) {
+  audio_buffer_.Init();
+  phase_ = 0;
+  next_sample_ = 0;
+  high_ = false;
+  scale_ = scale;
+  offset_ = offset;
+  integrator_state_ = 0;
+}
+
+uint32_t Oscillator::ComputePhaseIncrement(int16_t midi_pitch) {
   if (midi_pitch >= kHighestNote) {
     midi_pitch = kHighestNote - 1;
   }
@@ -257,65 +281,125 @@ uint32_t Voice::ComputePhaseIncrement(int16_t midi_pitch) {
   return phase_increment;
 }
 
-struct Wavetable {
-  ResourceId first;
-  uint16_t num_zones;
-};
-
-const Wavetable wavetables[] = {
-  { WAV_BANDLIMITED_SAW_0, 7 },
-  { WAV_BANDLIMITED_PULSE_0, 7 },
-  { WAV_BANDLIMITED_SQUARE_0, 7 },
-  { WAV_BANDLIMITED_TRIANGLE_0, 7 },
-  { WAV_SINE, 1 },
-  { WAV_SINE, 1 },
-};
-
-void Voice::FillAudioBuffer() {
-  uint32_t phase = phase_;
-  uint32_t phase_increment = ComputePhaseIncrement(note_);
-  
-  // Fill with blank if the note is off
-  if ((audio_mode_ & 0x80) && !gate_) {
-    size_t size = kAudioBlockSize;
-    while (size--) {
-      audio_buffer_.Overwrite(calibrated_dac_code_[3]);
-    }
-    return;
-  }
-  uint8_t wavetable_index = (audio_mode_ & 0x0f) - 1;
-  const Wavetable& wavetable = wavetables[wavetable_index];
-  
-  int16_t note = note_ - (12 << 7);
-  if (note < 0) {
-    note = 0;
-  }
-  uint16_t crossfade = note << 5;
-  int16_t first_zone = note >> 11;
-  if (first_zone >= wavetable.num_zones) {
-    first_zone = wavetable.num_zones - 1;
-  }
-  
-  int16_t second_zone = first_zone + 1;
-  if (second_zone >= wavetable.num_zones) {
-    second_zone = wavetable.num_zones - 1;
-  }
-  
-  const int16_t* wave_1 = waveform_table[wavetable.first + first_zone];
-  const int16_t* wave_2 = waveform_table[wavetable.first + second_zone];
-
-  int32_t scale = calibrated_dac_code_[3] - calibrated_dac_code_[8];
-  int32_t offset = calibrated_dac_code_[3];
+void Oscillator::RenderSilence() {
   size_t size = kAudioBlockSize;
   while (size--) {
-    phase += phase_increment;
-    int32_t sample = wavetable_index == 5 ?
-        static_cast<int16_t>(Random::GetSample()) :
-        Crossfade1022(wave_1, wave_2, phase, crossfade);
-    uint16_t value = offset - (scale * sample >> 16);
-    audio_buffer_.Overwrite(value);
+    audio_buffer_.Overwrite(offset_);
   }
+}
+
+void Oscillator::RenderSine(uint32_t phase_increment) {
+  size_t size = kAudioBlockSize;
+  while (size--) {
+    phase_ += phase_increment;
+    int32_t sample = Interpolate1022(wav_sine, phase_);
+    audio_buffer_.Overwrite(offset_ - (scale_ * sample >> 16));
+  }
+}
+
+void Oscillator::RenderNoise() {
+  size_t size = kAudioBlockSize;
+  while (size--) {
+    int16_t sample = Random::GetSample();
+    audio_buffer_.Overwrite(offset_ - (scale_ * sample >> 16));
+  }
+}
+
+void Oscillator::RenderSaw(uint32_t phase_increment) {
+  uint32_t phase = phase_;
+  int32_t next_sample = next_sample_;
+  size_t size = kAudioBlockSize;
+
+  while (size--) {
+    int32_t this_sample = next_sample;
+    next_sample = 0;
+    phase += phase_increment;
+    if (phase < phase_increment) {
+      uint32_t t = phase / (phase_increment >> 16);
+      this_sample -= ThisBlepSample(t);
+      next_sample -= NextBlepSample(t);
+    }
+    next_sample += phase >> 17;
+    this_sample = (this_sample - 16384) << 1;
+    audio_buffer_.Overwrite(offset_ - (scale_ * this_sample >> 16));
+  }
+  next_sample_ = next_sample;
   phase_ = phase;
+}
+
+void Oscillator::RenderSquare(
+    uint32_t phase_increment,
+    uint32_t pw,
+    bool integrate) {
+  uint32_t phase = phase_;
+  int32_t next_sample = next_sample_;
+  int32_t integrator_state = integrator_state_;
+  int16_t integrator_coefficient = phase_increment >> 18;
+  size_t size = kAudioBlockSize;
+
+  while (size--) {
+    int32_t this_sample = next_sample;
+    next_sample = 0;
+    phase += phase_increment;
+
+    if (!high_) {
+      if (phase >= pw) {
+        uint32_t t = (phase - pw) / (phase_increment >> 16);
+        this_sample += ThisBlepSample(t);
+        next_sample += NextBlepSample(t);
+        high_ = true;
+      }
+    }
+    if (high_ && (phase < phase_increment)) {
+      uint32_t t = phase / (phase_increment >> 16);
+      this_sample -= ThisBlepSample(t);
+      next_sample -= NextBlepSample(t);
+      high_ = false;
+    }
+    next_sample += phase < pw ? 0 : 32767;
+    this_sample = (this_sample - 16384) << 1;
+    if (integrate) {
+      integrator_state += integrator_coefficient * (this_sample - integrator_state) >> 15;
+      this_sample = integrator_state << 3;
+    }
+    audio_buffer_.Overwrite(offset_ - (scale_ * this_sample >> 16));
+  }
+  integrator_state_ = integrator_state;
+  next_sample_ = next_sample;
+  phase_ = phase;
+}
+
+void Oscillator::Render(uint8_t mode, int16_t note, bool gate) {
+  if (mode == 0 || audio_buffer_.writable() < kAudioBlockSize) {
+    return;
+  }
+  
+  if ((mode & 0x80) && !gate) {
+    RenderSilence();
+    return;
+  }
+  
+  uint32_t phase_increment = ComputePhaseIncrement(note);
+  switch ((mode & 0x0f) - 1) {
+    case 0:
+      RenderSaw(phase_increment);
+      break;
+    case 1:
+      RenderSquare(phase_increment, 0x40000000, false);
+      break;
+    case 2:
+      RenderSquare(phase_increment, 0x80000000, false);
+      break;
+    case 3:
+      RenderSquare(phase_increment, 0x80000000, true);
+      break;
+    case 4:
+      RenderSine(phase_increment);
+      break;
+    default:
+      RenderNoise();
+      break;
+  }
 }
 
 }  // namespace yarns

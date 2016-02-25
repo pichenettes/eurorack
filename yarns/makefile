@@ -43,6 +43,8 @@ TARGET         = yarns
 PACKAGES       = yarns yarns/drivers stmlib/utils stmlib/system
 RESOURCES      = yarns/resources
 
+TOOLCHAIN_PATH ?= /usr/local/arm-4.8.3/
+
 include stmlib/makefile.inc
 
 

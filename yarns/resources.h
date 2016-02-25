@@ -91,28 +91,6 @@ extern const int16_t wav_ring[];
 extern const int16_t wav_steps[];
 extern const int16_t wav_noise[];
 extern const int16_t wav_sine[];
-extern const int16_t wav_bandlimited_pulse_0[];
-extern const int16_t wav_bandlimited_pulse_1[];
-extern const int16_t wav_bandlimited_pulse_2[];
-extern const int16_t wav_bandlimited_pulse_3[];
-extern const int16_t wav_bandlimited_pulse_4[];
-extern const int16_t wav_bandlimited_pulse_5[];
-extern const int16_t wav_bandlimited_square_0[];
-extern const int16_t wav_bandlimited_square_1[];
-extern const int16_t wav_bandlimited_square_2[];
-extern const int16_t wav_bandlimited_square_3[];
-extern const int16_t wav_bandlimited_square_4[];
-extern const int16_t wav_bandlimited_square_5[];
-extern const int16_t wav_bandlimited_saw_0[];
-extern const int16_t wav_bandlimited_saw_1[];
-extern const int16_t wav_bandlimited_saw_2[];
-extern const int16_t wav_bandlimited_saw_3[];
-extern const int16_t wav_bandlimited_saw_4[];
-extern const int16_t wav_bandlimited_saw_5[];
-extern const int16_t wav_bandlimited_triangle_0[];
-extern const int16_t wav_bandlimited_triangle_3[];
-extern const int16_t wav_bandlimited_triangle_4[];
-extern const int16_t wav_bandlimited_triangle_5[];
 extern const uint32_t lut_lfo_increments[];
 extern const uint32_t lut_portamento_increments[];
 extern const uint32_t lut_oscillator_increments[];
@@ -197,62 +175,6 @@ extern const uint16_t chr_characters[];
 #define WAV_NOISE_SIZE 257
 #define WAV_SINE 4
 #define WAV_SINE_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_0 5
-#define WAV_BANDLIMITED_PULSE_0_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_1 6
-#define WAV_BANDLIMITED_PULSE_1_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_2 7
-#define WAV_BANDLIMITED_PULSE_2_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_3 8
-#define WAV_BANDLIMITED_PULSE_3_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_4 9
-#define WAV_BANDLIMITED_PULSE_4_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_5 10
-#define WAV_BANDLIMITED_PULSE_5_SIZE 1025
-#define WAV_BANDLIMITED_PULSE_6 11
-#define WAV_BANDLIMITED_PULSE_6_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_0 12
-#define WAV_BANDLIMITED_SQUARE_0_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_1 13
-#define WAV_BANDLIMITED_SQUARE_1_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_2 14
-#define WAV_BANDLIMITED_SQUARE_2_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_3 15
-#define WAV_BANDLIMITED_SQUARE_3_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_4 16
-#define WAV_BANDLIMITED_SQUARE_4_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_5 17
-#define WAV_BANDLIMITED_SQUARE_5_SIZE 1025
-#define WAV_BANDLIMITED_SQUARE_6 18
-#define WAV_BANDLIMITED_SQUARE_6_SIZE 1025
-#define WAV_BANDLIMITED_SAW_0 19
-#define WAV_BANDLIMITED_SAW_0_SIZE 1025
-#define WAV_BANDLIMITED_SAW_1 20
-#define WAV_BANDLIMITED_SAW_1_SIZE 1025
-#define WAV_BANDLIMITED_SAW_2 21
-#define WAV_BANDLIMITED_SAW_2_SIZE 1025
-#define WAV_BANDLIMITED_SAW_3 22
-#define WAV_BANDLIMITED_SAW_3_SIZE 1025
-#define WAV_BANDLIMITED_SAW_4 23
-#define WAV_BANDLIMITED_SAW_4_SIZE 1025
-#define WAV_BANDLIMITED_SAW_5 24
-#define WAV_BANDLIMITED_SAW_5_SIZE 1025
-#define WAV_BANDLIMITED_SAW_6 25
-#define WAV_BANDLIMITED_SAW_6_SIZE 1025
-#define WAV_BANDLIMITED_TRIANGLE_0 26
-#define WAV_BANDLIMITED_TRIANGLE_0_SIZE 1025
-#define WAV__BANDLIMITED_TRIANGLE_0 27
-#define WAV__BANDLIMITED_TRIANGLE_0_SIZE 1025
-#define WAV___BANDLIMITED_TRIANGLE_0 28
-#define WAV___BANDLIMITED_TRIANGLE_0_SIZE 1025
-#define WAV_BANDLIMITED_TRIANGLE_3 29
-#define WAV_BANDLIMITED_TRIANGLE_3_SIZE 1025
-#define WAV_BANDLIMITED_TRIANGLE_4 30
-#define WAV_BANDLIMITED_TRIANGLE_4_SIZE 1025
-#define WAV_BANDLIMITED_TRIANGLE_5 31
-#define WAV_BANDLIMITED_TRIANGLE_5_SIZE 1025
-#define WAV_BANDLIMITED_TRIANGLE_6 32
-#define WAV_BANDLIMITED_TRIANGLE_6_SIZE 1025
 #define LUT_LFO_INCREMENTS 0
 #define LUT_LFO_INCREMENTS_SIZE 128
 #define LUT_PORTAMENTO_INCREMENTS 1

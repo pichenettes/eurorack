@@ -34,7 +34,7 @@
 
 namespace yarns {
 
-const int16_t kOctave = 12 << 7;
+const int kOctave = 12 << 7;
 
 void JustIntonationProcessor::Init() {
   write_ptr_ = 0;
@@ -48,32 +48,26 @@ void JustIntonationProcessor::Init() {
   std::fill(&history_[0], &history_[kHistorySize], e);
 }
 
-int16_t JustIntonationProcessor::TuneInternal(uint8_t note) {
-  uint32_t best_score = 0xffffffff;
-  int16_t best_pitch = 0;
-  for (int16_t correction = -64; correction <= 64; ++correction) {
-    uint32_t score = lut_consonance[
+int JustIntonationProcessor::Tune(int note, int min, int max, int step) {
+  int best_score = 0x7fffffff;
+  int best_correction = 0;
+  for (int correction = min; correction <= max; correction += step) {
+    int score = lut_consonance[
         correction >= 0 ? correction : (kOctave + correction)];
-    int16_t pitch = correction + (note << 7);
-    for (uint8_t i = 0; i < kHistorySize; ++i) {
-      int16_t interval = pitch - history_[i].pitch;
-      while (interval < 0) {
-        interval += kOctave;
-      }
-      while (interval > kOctave) {
-        interval -= kOctave;
-      }
+    int pitch = correction + note;
+    for (size_t i = 0; i < kHistorySize; ++i) {
+      int interval = (pitch - history_[i].pitch + kOctave * 12) % kOctave;
       score += lut_consonance[interval] * history_[i].weight;
       if (score > best_score) {
         break;
       }
     }
     if (score < best_score) {
-      best_pitch = pitch;
+      best_correction = correction;
       best_score = score;
     }
   }
-  return best_pitch;
+  return best_correction;
 }
 
 /* extern */
