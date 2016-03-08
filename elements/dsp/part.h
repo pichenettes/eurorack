@@ -78,6 +78,9 @@ class Part {
 
   inline bool easter_egg() const { return easter_egg_; }
   inline void set_easter_egg(bool easter_egg) { easter_egg_ = easter_egg; }
+
+  inline ResonatorModel resonator_model() const { return resonator_model_; }
+  inline void set_resonator_model(ResonatorModel r) { resonator_model_ = r; }
   
  private:
   Patch patch_;
@@ -104,6 +107,8 @@ class Part {
   float resonator_level_;
   
   Reverb reverb_;
+  
+  ResonatorModel resonator_model_;
   
   DISALLOW_COPY_AND_ASSIGN(Part);
 };

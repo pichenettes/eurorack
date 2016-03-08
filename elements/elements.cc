@@ -32,7 +32,7 @@
 #include "elements/cv_scaler.h"
 #include "elements/ui.h"
 
-#include "stmlib/dsp/dsp.h"
+// #define PROFILE_INTERRUPT 1
 
 using namespace elements;
 using namespace stmlib;
@@ -77,6 +77,9 @@ float strike_in_level = 0.0f;
 float blow_in_level = 0.0f;
 
 void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t n) {
+#ifdef PROFILE_INTERRUPT
+  TIC
+#endif  // PROFILE_INTERRUPT
   PerformanceState s;
   cv_scaler.Read(part.mutable_patch(), &s);
   s.gate |= ui.gate();
@@ -102,6 +105,9 @@ void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t n) {
     output[i].r = SoftConvert(out[i]);
     output[i].l = SoftConvert(aux[i]);
   }
+#ifdef PROFILE_INTERRUPT
+  TOC
+#endif  // PROFILE_INTERRUPT
 }
 
 void Init() {
@@ -122,8 +128,14 @@ void Init() {
   if (!codec.Start(&FillBuffer)) {
     ui.Panic();
   }
-  // DebugPin::Init();
-  debug_port.Init();
+  
+  if (cv_scaler.freshly_baked()) {
+#ifdef PROFILE_INTERRUPT
+    DebugPin::Init();
+#else
+    debug_port.Init();
+#endif  // PROFILE_INTERRUPT
+  }
   sys.StartTimers();
 }
 

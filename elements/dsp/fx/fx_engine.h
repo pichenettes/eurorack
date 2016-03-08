@@ -259,7 +259,7 @@ class FxEngine {
   };
   
   inline void SetLFOFrequency(LFOIndex index, float frequency) {
-    lfo_[index].Init<stmlib::COSINE_OSCILLATOR_APPROXIMATE>(frequency * 32.0f);
+    lfo_[index].template Init<stmlib::COSINE_OSCILLATOR_APPROXIMATE>(frequency * 32.0f);
   }
   
   inline void Start(Context* c) {

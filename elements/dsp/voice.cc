@@ -29,6 +29,7 @@
 #include "elements/dsp/voice.h"
 
 #include "stmlib/dsp/dsp.h"
+#include "stmlib/dsp/units.h"
 
 #include <algorithm>
 
@@ -58,12 +59,33 @@ void Voice::Init() {
   strength_ = 0.0f;
   exciter_level_ = 0.0f;
   envelope_value_ = 0.0f;
+  chord_index_ = 0.0f;
+  
+  resonator_model_ = RESONATOR_MODEL_MODAL;
 }
 
 void Voice::ResetResonator() {
   resonator_.Init();
+  for (size_t i = 0; i < kNumStrings; ++i) {
+    string_[i].Init(true);
+  }
+  dc_blocker_.Init(1.0f - 10.0f / kSampleRate);
   resonator_.set_resolution(52);  // Runs with 56 extremely tightly.
 }
+
+float chords[11][5] = {
+    { 0.0f, -12.0f, 0.0f, 0.01f, 12.0f },
+    { 0.0f, -12.0f, 3.0f, 7.0f,  10.0f },
+    { 0.0f, -12.0f, 3.0f, 7.0f,  12.0f },
+    { 0.0f, -12.0f, 3.0f, 7.0f,  14.0f },
+    { 0.0f, -12.0f, 3.0f, 7.0f,  17.0f },
+    { 0.0f, -12.0f, 7.0f, 12.0f, 19.0f },
+    { 0.0f, -12.0f, 4.0f, 7.0f,  17.0f },
+    { 0.0f, -12.0f, 4.0f, 7.0f,  14.0f },
+    { 0.0f, -12.0f, 4.0f, 7.0f,  12.0f },
+    { 0.0f, -12.0f, 4.0f, 7.0f,  11.0f },
+    { 0.0f, -12.0f, 5.0f, 7.0f,  12.0f },
+};
 
 void Voice::Process(
     const Patch& patch,
@@ -187,16 +209,57 @@ void Voice::Process(
   }
 
   // Configure resonator.
-  resonator_.set_frequency(frequency);
-  resonator_.set_geometry(patch.resonator_geometry);
-  resonator_.set_brightness(patch.resonator_brightness);
-  resonator_.set_position(patch.resonator_position);
-  resonator_.set_damping(damping);
-  resonator_.set_modulation_frequency(patch.resonator_modulation_frequency);
-  resonator_.set_modulation_offset(patch.resonator_modulation_offset);
+  if (resonator_model_ == RESONATOR_MODEL_MODAL) {
+    resonator_.set_frequency(frequency);
+    resonator_.set_geometry(patch.resonator_geometry);
+    resonator_.set_brightness(patch.resonator_brightness);
+    resonator_.set_position(patch.resonator_position);
+    resonator_.set_damping(damping);
+    resonator_.set_modulation_frequency(patch.resonator_modulation_frequency);
+    resonator_.set_modulation_offset(patch.resonator_modulation_offset);
 
-  // Process through resonator.
-  resonator_.Process(bow_strength_buffer_, raw, center, sides, size);
+    // Process through resonator.
+    resonator_.Process(bow_strength_buffer_, raw, center, sides, size);
+  } else {
+    size_t num_notes = resonator_model_ == RESONATOR_MODEL_STRING
+        ? 1
+        : kNumStrings;
+    
+    float normalization = 1.0f / static_cast<float>(num_notes);
+    dc_blocker_.Process(raw, size);
+    for (size_t i = 0; i < size; ++i) {
+      raw[i] *= normalization;
+    }
+    
+    float chord = patch.resonator_geometry * 10.0f;
+    float hysteresis = chord > chord_index_ ? -0.1f : 0.1f;
+    int chord_index = static_cast<int>(chord + hysteresis + 0.5f);
+    CONSTRAIN(chord_index, 0, 10);
+    chord_index_ = static_cast<float>(chord_index);
+
+    fill(&center[0], &center[size], 0.0f);
+    fill(&sides[0], &sides[size], 0.0f);
+    for (size_t i = 0; i < num_notes; ++i) {
+      float transpose = chords[chord_index][i];
+      string_[i].set_frequency(frequency * SemitonesToRatio(transpose));
+      string_[i].set_brightness(patch.resonator_brightness);
+      string_[i].set_position(patch.resonator_position);
+      string_[i].set_damping(damping);
+      if (num_notes == 1) {
+        string_[i].set_dispersion(patch.resonator_geometry);
+      } else {
+        float b = patch.resonator_brightness;
+        string_[i].set_dispersion(b < 0.5f ? 0.0f : (b - 0.5f) * -0.4f);
+      }
+      string_[i].Process(raw, center, sides, size);
+    }
+    for (size_t i = 0; i < size; ++i) {
+      float left = center[i];
+      float right = sides[i];
+      center[i] = left - right;
+      sides[i] = left + right;
+    }
+  }
 
   // This is where the raw mallet signal bleeds through the exciter output.
   for (size_t i = 0; i < size; ++i) {

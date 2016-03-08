@@ -38,11 +38,20 @@
 #include "elements/dsp/multistage_envelope.h"
 #include "elements/dsp/patch.h"
 #include "elements/dsp/resonator.h"
+#include "elements/dsp/string.h"
 #include "elements/dsp/tube.h"
 
 #include "elements/dsp/fx/diffuser.h"
 
 namespace elements {
+
+const size_t kNumStrings = 5;
+
+enum ResonatorModel {
+  RESONATOR_MODEL_MODAL,
+  RESONATOR_MODEL_STRING,
+  RESONATOR_MODEL_STRINGS,
+};
 
 class Voice {
  public:
@@ -65,6 +74,9 @@ class Voice {
   inline float exciter_level() const { return exciter_level_; }
   void Panic() {
     ResetResonator();
+  }
+  void set_resonator_model(ResonatorModel resonator_model) {
+    resonator_model_ = resonator_model;
   }
   
  private:
@@ -90,6 +102,8 @@ class Voice {
   Exciter strike_;
   Diffuser diffuser_;
   Resonator resonator_;
+  String string_[kNumStrings];
+  stmlib::DCBlocker dc_blocker_;
   
   float strength_;
   float envelope_value_;
@@ -105,6 +119,9 @@ class Voice {
   float diffuser_buffer_[1024];
   
   bool previous_gate_;
+  
+  ResonatorModel resonator_model_;
+  float chord_index_;
   
   DISALLOW_COPY_AND_ASSIGN(Voice);
 };
