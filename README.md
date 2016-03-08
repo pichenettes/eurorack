@@ -9,12 +9,14 @@ Mutable Instruments' Eurorack Modules.
 * Grids: Topographic drum sequencer.
 * Links: Utility module - buffer, mixer.
 * Peaks: Dual trigger converter.
+* Rings: Resonator.
 * Ripples: Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
 * Shades: Triple attenuverter.
 * Shelves: EQ filter.
 * Streams: Dual dynamics gate.
 * Tides: Tidal modulator.
 * Volts: +5V power module.
+* Warps: Meta-modulator.
 * Yarns: MIDI interface.
 
 License
