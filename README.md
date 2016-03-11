@@ -33,7 +33,7 @@ By: Olivier Gillet (olivier@mutable-instruments.net)
 Guidelines for derivative works
 ===============================
 
-** Mutable Instruments is a registered trademark.**
+**Mutable Instruments is a registered trademark.**
 
 The name "Mutable Instruments" should not be used on any of the derivative works you create from these files.
 
