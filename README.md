@@ -1,23 +1,23 @@
 Mutable Instruments' Eurorack Modules.
 
-* Braids: Macro-oscillator.
-* Branches: Dual Bernoulli gate.
-* Clouds: Texture synthesizer.
-* Edges: Quad chiptune digital oscillator.
-* Elements: Modal synthesizer.
-* Frames: Keyframer/mixer.
-* Grids: Topographic drum sequencer.
-* Links: Utility module - buffer, mixer.
-* Peaks: Dual trigger converter.
-* Rings: Resonator.
-* Ripples: Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
-* Shades: Triple attenuverter.
-* Shelves: EQ filter.
-* Streams: Dual dynamics gate.
-* Tides: Tidal modulator.
-* Volts: +5V power module.
-* Warps: Meta-modulator.
-* Yarns: MIDI interface.
+* [Braids](http://mutable-instruments.net/modules/braids): Macro-oscillator.
+* [Branches](http://mutable-instruments.net/modules/branches): Dual Bernoulli gate.
+* [Clouds](http://mutable-instruments.net/modules/clouds): Texture synthesizer.
+* [Edges](http://mutable-instruments.net/modules/edges): Quad chiptune digital oscillator.
+* [Elements](http://mutable-instruments.net/modules/elements): Modal synthesizer.
+* [Frames](http://mutable-instruments.net/modules/frames): Keyframer/mixer.
+* [Grids](http://mutable-instruments.net/modules/grids): Topographic drum sequencer.
+* [Links](http://mutable-instruments.net/modules/links): Utility module - buffer, mixer.
+* [Peaks](http://mutable-instruments.net/modules/peaks): Dual trigger converter.
+* [Rings](http://mutable-instruments.net/modules/rings): Resonator.
+* [Ripples](http://mutable-instruments.net/modules/ripples): Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
+* [Shades](http://mutable-instruments.net/modules/shades): Triple attenuverter.
+* [Shelves](http://mutable-instruments.net/modules/shelves): EQ filter.
+* [Streams](http://mutable-instruments.net/modules/streams): Dual dynamics gate.
+* [Tides](http://mutable-instruments.net/modules/tides): Tidal modulator.
+* [Volts](http://mutable-instruments.net/modules/volts): +5V power module.
+* [Warps](http://mutable-instruments.net/modules/warps): Meta-modulator.
+* [Yarns](http://mutable-instruments.net/modules/yarns): MIDI interface.
 
 License
 =======
