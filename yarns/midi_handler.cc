@@ -31,7 +31,9 @@
 #include <algorithm>
 
 #include "yarns/multi.h"
+#ifndef TEST
 #include "yarns/storage_manager.h"
+#endif // TEST
 
 namespace yarns {
 
@@ -155,6 +157,7 @@ enum SysExCommand {
 
 /* static */
 void MidiHandler::HandleYarnsSpecificMessage() {
+#ifndef TEST
   uint8_t command = sysex_rx_buffer_[6];
   if (command == SYSEX_COMMAND_DUMP_PACKET) {
     uint8_t packet_index = sysex_rx_buffer_[7];
@@ -216,6 +219,7 @@ void MidiHandler::HandleYarnsSpecificMessage() {
       storage_manager.SaveCalibration();
     }
   }
+#endif  // TEST
 }
 
 /* static */

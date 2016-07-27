@@ -110,13 +110,15 @@ class Multi {
     layout_configurator_.RegisterNote(channel, note);
 
     bool thru = true;
+    bool received = false;
     for (uint8_t i = 0; i < num_active_parts_; ++i) {
       if (part_[i].accepts(channel, note, velocity)) {
+        received = true;
         thru = part_[i].NoteOn(channel, note, velocity) && thru;
       }
     }
     
-    if (!running() && internal_clock()) {
+    if (received && !running() && internal_clock()) {
       // Start the arpeggiators.
       Start(true);
     }
@@ -170,36 +172,6 @@ class Multi {
     for (uint8_t i = 0; i < num_active_parts_; ++i) {
       if (part_[i].accepts(channel)) {
         thru = part_[i].Aftertouch(channel, velocity) && thru;
-      }
-    }
-    return thru;
-  }
-  
-  bool AllSoundOff(uint8_t channel) {
-    bool thru = true;
-    for (uint8_t i = 0; i < num_active_parts_; ++i) {
-      if (part_[i].accepts(channel)) {
-        thru = part_[i].AllSoundOff(channel) && thru;
-      }
-    }
-    return thru;
-  }
-
-  bool ResetAllControllers(uint8_t channel) {
-    bool thru = true;
-    for (uint8_t i = 0; i < num_active_parts_; ++i) {
-      if (part_[i].accepts(channel)) {
-        thru = part_[i].ResetAllControllers(channel) && thru;
-      }
-    }
-    return thru;
-  }
-  
-  bool AllNotesOff(uint8_t channel) {
-    bool thru = true;
-    for (uint8_t i = 0; i < num_active_parts_; ++i) {
-      if (part_[i].accepts(channel)) {
-        thru = part_[i].AllNotesOff(channel) && thru;
       }
     }
     return thru;
@@ -327,9 +299,9 @@ class Multi {
   inline bool running() const { return running_; }
   inline bool latched() const { return latched_; }
   inline bool recording() const { return recording_; }
-  inline bool clock() const { return clock_pulse_duration_ > 0; }
+  inline bool clock() const { return clock_pulse_counter_ > 0; }
   inline bool reset() const {
-    return (clock_pulse_duration_ > 0) && reset_flag_;
+    return reset_pulse_counter_ > 0;
   }
   inline bool reset_or_playing_flag() const {
     return reset() || ((settings_.clock_bar_duration == 0) && running_);
@@ -443,8 +415,8 @@ class Multi {
   uint16_t bar_position_;
   uint8_t stop_count_down_;
   
-  uint16_t clock_pulse_duration_;
-  bool reset_flag_;
+  uint16_t clock_pulse_counter_;
+  uint16_t reset_pulse_counter_;
   
   // Indicates that a setting has been changed and that the multi should
   // be saved in memory.

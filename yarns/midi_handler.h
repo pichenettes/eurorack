@@ -96,24 +96,6 @@ class MidiHandler {
     }
   }
 
-  static void AllSoundOff(uint8_t channel) {
-    if (multi.AllSoundOff(channel) && !multi.direct_thru()) {
-      Send3(0xb0 | channel, 0x78, 0x00);
-    }
-  }
-  
-  static void ResetAllControllers(uint8_t channel) {
-    if (multi.ResetAllControllers(channel) && !multi.direct_thru()) {
-      Send3(0xb0 | channel, 0x79, 0x00);
-    }
-  }
-  
-  static void AllNotesOff(uint8_t channel) {
-    if (multi.AllNotesOff(channel) && !multi.direct_thru()) {
-      Send3(0xb0 | channel, 0x7b, 0x00);
-    }
-  }
-  
   static void SysExStart() {
     sysex_rx_write_ptr_ = 0;
     ProcessSysExByte(0xf0);

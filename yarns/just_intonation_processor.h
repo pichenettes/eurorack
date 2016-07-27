@@ -55,7 +55,7 @@ struct HistoryEntry {
   int16_t pitch;
 };
 
-const uint8_t kHistorySize = 16;
+const size_t kHistorySize = 16;
 
 class JustIntonationProcessor {
  public:
@@ -76,11 +76,11 @@ class JustIntonationProcessor {
     if (note != cached_note_) {
       // Skip the computationally expensive routine on expensive notes.
       cached_note_ = note;
-      cached_pitch_ = TuneInternal(note);
+      cached_pitch_ = Tune(static_cast<int>(note) << 7);
     }
     // Decay the weight of the previous notes - except those that are still
     // playing.
-    for (uint8_t i = 0; i < kHistorySize; ++i) {
+    for (size_t i = 0; i < kHistorySize; ++i) {
       if (history_[i].weight != 255) {
         history_[i].weight = (history_[i].weight * 3) >> 2;
       }
@@ -96,11 +96,16 @@ class JustIntonationProcessor {
   }
   
  private:
-  int16_t TuneInternal(uint8_t note);
-   
-  uint8_t write_ptr_;
-  uint8_t cached_note_;
+  int Tune(int note, int min, int max, int steps);
+  
+  int16_t Tune(int note) {
+    int coarse = Tune(note, -32, 32, 4);
+    return int16_t(note + Tune(note, coarse - 6, coarse + 6, 1));
+  }
+
+  size_t write_ptr_;
   int16_t cached_pitch_;
+  uint8_t cached_note_;
   HistoryEntry history_[kHistorySize];
   
   DISALLOW_COPY_AND_ASSIGN(JustIntonationProcessor);

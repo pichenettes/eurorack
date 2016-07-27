@@ -75,7 +75,6 @@ void Part::AllocateVoices(Voice* voice, uint8_t num_voices, bool polychain) {
   }
   poly_allocator_.Clear();
   poly_allocator_.set_size(num_voices_ * (polychain ? 2 : 1));
-  
   TouchVoices();
 }
 
@@ -166,6 +165,30 @@ bool Part::ControlChange(uint8_t channel, uint8_t controller, uint8_t value) {
         }
       }
       break;
+    
+    case 0x70:
+      if (seq_recording_) {
+        RecordStep(SEQUENCER_STEP_TIE);
+      }
+      break;
+    
+    case 0x71:
+      if (seq_recording_) {
+        RecordStep(SEQUENCER_STEP_REST);
+      }
+      break;
+    
+    case 0x78:
+      AllNotesOff();
+      break;
+      
+    case 0x79:
+      ResetAllControllers();
+      break;
+      
+    case 0x7b:
+      AllNotesOff();
+      break;
   }
   return midi_.out_mode != MIDI_OUT_MODE_OFF;
 }
@@ -202,22 +225,6 @@ bool Part::Aftertouch(uint8_t channel, uint8_t velocity) {
   for (uint8_t i = 0; i < num_voices_; ++i) {
     voice_[i]->Aftertouch(velocity);
   }
-  return midi_.out_mode != MIDI_OUT_MODE_OFF;
-}
-
-bool Part::AllNotesOff(uint8_t channel) {
-  AllNotesOff();
-  return midi_.out_mode != MIDI_OUT_MODE_OFF;
-}
-
-bool Part::AllSoundOff(uint8_t channel) {
-  AllNotesOff();
-  return midi_.out_mode != MIDI_OUT_MODE_OFF;
-}
-
-
-bool Part::ResetAllControllers(uint8_t channel) {
-  ResetAllControllers();
   return midi_.out_mode != MIDI_OUT_MODE_OFF;
 }
 
@@ -444,7 +451,7 @@ void Part::ResetAllControllers() {
 }
 
 void Part::AllNotesOff() {
-  poly_allocator_.Clear();
+  poly_allocator_.ClearNotes();
   mono_allocator_.Clear();
   pressed_keys_.Clear();
   for (uint8_t i = 0; i < num_voices_; ++i) {
@@ -463,6 +470,29 @@ void Part::ReleaseLatchedNotes() {
     NoteEntry* e = pressed_keys_.mutable_note(i);
     if (e->velocity & 0x80) {
       NoteOff(tx_channel(), e->note);
+    }
+  }
+}
+
+void Part::DispatchSortedNotes(bool unison) {
+  uint8_t n = mono_allocator_.size();
+  for (uint8_t i = 0; i < num_voices_; ++i) {
+    uint8_t index = 0xff;
+    if (unison) {
+      index = n ? (i * n / num_voices_) : 0xff;
+    } else {
+      index = i < mono_allocator_.size() ? i : 0xff;
+    }
+    if (index != 0xff) {
+      voice_[i]->NoteOn(
+          Tune(mono_allocator_.sorted_note(index).note),
+          mono_allocator_.sorted_note(index).velocity,
+          voicing_.portamento,
+          !voice_[i]->gate_on());
+      active_note_[i] = mono_allocator_.sorted_note(index).note;
+    } else {
+      voice_[i]->NoteOff();
+      active_note_[i] = VOICE_ALLOCATION_NOT_FOUND;
     }
   }
 }
@@ -490,6 +520,12 @@ void Part::InternalNoteOn(uint8_t note, uint8_t velocity) {
             !voicing_.legato_mode || !legato);
       }
     }
+  } else if (voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_SORTED ||
+             voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_UNISON_1 ||
+             voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_UNISON_2) {
+    mono_allocator_.NoteOn(note, velocity);
+    DispatchSortedNotes(
+        voicing_.allocation_mode != VOICE_ALLOCATION_MODE_POLY_SORTED);
   } else {
     uint8_t voice_index = 0;
     switch (voicing_.allocation_mode) {
@@ -519,15 +555,7 @@ void Part::InternalNoteOn(uint8_t note, uint8_t velocity) {
     
     if (voice_index < num_voices_) {
       // Prevent the same note from being simultaneously played on two channels.
-      while (true) {
-        uint8_t index = FindVoiceForNote(note);
-        if (index != VOICE_ALLOCATION_NOT_FOUND) {
-          voice_[index]->NoteOff();
-          active_note_[index] = VOICE_ALLOCATION_NOT_FOUND;
-        } else {
-          break;
-        }
-      }
+      KillAllInstancesOfNote(note);
       voice_[voice_index]->NoteOn(
           Tune(note),
           velocity,
@@ -538,7 +566,18 @@ void Part::InternalNoteOn(uint8_t note, uint8_t velocity) {
       // Polychaining forwarding.
       midi_handler.OnInternalNoteOn(tx_channel(), note, velocity);
     }
-    
+  }
+}
+
+void Part::KillAllInstancesOfNote(uint8_t note) {
+  while (true) {
+    uint8_t index = FindVoiceForNote(note);
+    if (index != VOICE_ALLOCATION_NOT_FOUND) {
+      voice_[index]->NoteOff();
+      active_note_[index] = VOICE_ALLOCATION_NOT_FOUND;
+    } else {
+      break;
+    }
   }
 }
 
@@ -572,6 +611,14 @@ void Part::InternalNoteOff(uint8_t note) {
             voicing_.portamento,
             !voicing_.legato_mode);
       }
+    }
+  } else if (voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_SORTED ||
+             voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_UNISON_1 ||
+             voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_UNISON_2) {
+    mono_allocator_.NoteOff(note);
+    KillAllInstancesOfNote(note);
+    if (voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_UNISON_1) {
+      DispatchSortedNotes(true);
     }
   } else {
     uint8_t voice_index = \

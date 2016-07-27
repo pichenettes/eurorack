@@ -112,9 +112,14 @@ class CvScaler {
   inline bool blend_knob_touched() const {
     return blend_knob_touched_;
   }
+  
+  void UnlockBlendKnob() {
+    previous_blend_knob_value_ = -1.0f;
+  }
 
  private:
   void UpdateBlendParameters(float knob, float cv);
+  static const int kAdcLatency = 5;
   
   Adc adc_;
   GateInput gate_input_;
@@ -136,8 +141,8 @@ class CvScaler {
 
   float cv_c1_;
   
-  bool previous_trigger_;
-  bool previous_gate_;
+  bool previous_trigger_[kAdcLatency];
+  bool previous_gate_[kAdcLatency];
   
   DISALLOW_COPY_AND_ASSIGN(CvScaler);
 };

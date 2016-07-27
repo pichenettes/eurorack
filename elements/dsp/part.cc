@@ -35,30 +35,26 @@ namespace elements {
 using namespace std;
 using namespace stmlib;
 
-const Patch kInitPatch = {
-  .exciter_envelope_shape = 1.0f,
-  .exciter_bow_level = 0.0f,
-  .exciter_bow_timbre = 0.5f,
-  .exciter_blow_level = 0.0f,
-  .exciter_blow_meta = 0.5f,
-  .exciter_blow_timbre = 0.5f,
-  .exciter_strike_level = 0.8f,
-  .exciter_strike_meta = 0.5f,
-  .exciter_strike_timbre = 0.5f,
-  .exciter_signature = 0.0f,
-  .resonator_geometry = 0.2f,
-  .resonator_brightness = 0.5f,
-  .resonator_damping = 0.25f,
-  .resonator_position = 0.3f,
-  .resonator_modulation_frequency = 0.5f / kSampleRate,
-  .resonator_modulation_offset = 0.1f,
-  .reverb_diffusion = 0.625f,
-  .reverb_lp = 0.7f,
-  .space = 0.5f,
-};
-
 void Part::Init(uint16_t* reverb_buffer) {
-  patch_ = kInitPatch;
+  patch_.exciter_envelope_shape = 1.0f;
+  patch_.exciter_bow_level = 0.0f;
+  patch_.exciter_bow_timbre = 0.5f;
+  patch_.exciter_blow_level = 0.0f;
+  patch_.exciter_blow_meta = 0.5f;
+  patch_.exciter_blow_timbre = 0.5f;
+  patch_.exciter_strike_level = 0.8f;
+  patch_.exciter_strike_meta = 0.5f;
+  patch_.exciter_strike_timbre = 0.5f;
+  patch_.exciter_signature = 0.0f;
+  patch_.resonator_geometry = 0.2f;
+  patch_.resonator_brightness = 0.5f;
+  patch_.resonator_damping = 0.25f;
+  patch_.resonator_position = 0.3f;
+  patch_.resonator_modulation_frequency = 0.5f / kSampleRate;
+  patch_.resonator_modulation_offset = 0.1f;
+  patch_.reverb_diffusion = 0.625f;
+  patch_.reverb_lp = 0.7f;
+  patch_.space = 0.5f;
   previous_gate_ = false;
   active_voice_ = 0;
   
@@ -77,6 +73,8 @@ void Part::Init(uint16_t* reverb_buffer) {
   resonator_level_ = 0.0f;
   
   bypass_ = false;
+  
+  resonator_model_ = RESONATOR_MODEL_MODAL;
 }
 
 void Part::Seed(uint32_t* seed, size_t size) {
@@ -180,7 +178,7 @@ void Part::Process(
       } else if (pitch >= 65535) {
         pitch = 65535;
       }
-    
+      voice_[i].set_resonator_model(resonator_model_);
       // Render the voice signal.
       voice_[i].Process(
           patch_,

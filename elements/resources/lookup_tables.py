@@ -236,3 +236,13 @@ scale.append(scale[-1])
 lookup_tables.append(
     ('detune_quantizer', scale)
 )
+
+
+
+"""----------------------------------------------------------------------------
+Delay compensation factor for SVF
+----------------------------------------------------------------------------"""
+
+ratio = 2.0 ** (numpy.arange(0, 257) / 12.0)
+svf_shift = 2.0 * numpy.arctan(1.0 / ratio) / (2.0 * numpy.pi)
+lookup_tables += [('svf_shift', svf_shift)]

@@ -370,7 +370,7 @@ void Ui::PrintFactoryTesting() {
 }
 
 void Ui::PrintVersionNumber() {
-  display_.Print("02");
+  display_.Print(".2");
 }
 
 // Generic Handlers
@@ -499,7 +499,7 @@ void Ui::OnIncrementParameterEdit(const stmlib::Event& e) {
 void Ui::OnIncrementCalibrationAdjustment(const stmlib::Event& e) {
   Voice* voice = multi.mutable_voice(calibration_voice_);
   int32_t code = voice->calibration_dac_code(calibration_note_);
-  code -= e.data;
+  code -= e.data * (switches_.pressed(2) ? 32 : 1);
   CONSTRAIN(code, 0, 65535);
   voice->set_calibration_dac_code(calibration_note_, code);
 }

@@ -79,6 +79,7 @@ void CvScaler::Init() {
   cv_.Init(false);
   gate_input_.Init();
   
+  freshly_baked_ = false;
   if (!storage.ParsimoniousLoad(&calibration_settings_, &version_token_)) {
     calibration_settings_.pitch_offset = 66.67f;
     calibration_settings_.pitch_scale = -84.26f;
@@ -86,8 +87,12 @@ void CvScaler::Init() {
       calibration_settings_.offset[i] = 10.0f * 20.0f / 120.0f / 3.3f;
     }
     calibration_settings_.boot_in_easter_egg_mode = false;
+    calibration_settings_.resonator_model = 0;
+    freshly_baked_ = true;
     SaveCalibration();
   }
+  
+  CONSTRAIN(calibration_settings_.resonator_model, 0, 2);
   
   note_ = 0.0f;
   modulation_ = 0.0f;

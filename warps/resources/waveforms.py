@@ -50,7 +50,7 @@ def fshift(x, shift):
 
 
 
-def make_quadrature(name, x, angle_1=0, angle_2=0.25):
+def make_quadrature(name, x, angle_1=0, angle_2=0.5):
   xc = fshift(x, numpy.exp(1j * angle_1 * numpy.pi))
   xh = fshift(x, numpy.exp(1j * angle_2 * numpy.pi))
   scale = max(numpy.abs(xc).max(), numpy.abs(xh).max())

@@ -28,6 +28,8 @@
 
 #include "clouds/dsp/pvoc/frame_transformation.h"
 
+#include <algorithm>
+
 #include "stmlib/dsp/atan.h"
 #include "stmlib/dsp/units.h"
 #include "stmlib/utils/random.h"

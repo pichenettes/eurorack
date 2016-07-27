@@ -68,6 +68,7 @@ void Ui::Init(
         static_cast<BlendParameter>(i),
         static_cast<float>(state.blend_value[i]) / 255.0f);
   }
+  cv_scaler_->UnlockBlendKnob();
 }
 
 void Ui::SaveState() {

@@ -43,10 +43,11 @@ using namespace stmlib;
 void Ui::Init(Part* part, CvScaler* cv_scaler) {
   leds_.Init();
   switch_.Init();
-  mode_ = UI_MODE_NORMAL;
+  mode_ = UI_MODE_NORMAL;  // UI_MODE_DISPLAY_MODEL;
   part_ = part;
   cv_scaler_ = cv_scaler;
   part_->set_easter_egg(cv_scaler_->boot_in_easter_egg_mode());
+  part_->set_resonator_model(ResonatorModel(cv_scaler_->resonator_model()));
 }
 
 void Ui::Poll() {
@@ -60,12 +61,16 @@ void Ui::Poll() {
   
   if (switch_.pressed() && \
       press_time_ &&
-      (system_clock.milliseconds() - press_time_) >= 5000) {
+      (system_clock.milliseconds() - press_time_) >= 3000) {
     if (cv_scaler_->ready_for_calibration()) {
       queue_.AddEvent(CONTROL_SWITCH, 1, 0);
       press_time_ = 0;
-    } else if (cv_scaler_->easter_egg()) {
-      queue_.AddEvent(CONTROL_SWITCH, 2, 0);
+    } else if (cv_scaler_->resonator_high()) {
+      if (cv_scaler_->exciter_low()) {
+        queue_.AddEvent(CONTROL_SWITCH, 2, 0);
+      } else {
+        queue_.AddEvent(CONTROL_SWITCH, 3, 0);
+      }
       press_time_ = 0;
     }
   }
@@ -103,6 +108,17 @@ void Ui::Poll() {
       leds_.set_gate(blink);
       leds_.set_exciter(blink ? 255 : 0);
       leds_.set_resonator(blink ? 0 : 255);
+      break;
+      
+    case UI_MODE_DISPLAY_MODEL:
+      {
+        bool blink = (system_clock.milliseconds() & 255) > 128;
+        uint8_t count = ((system_clock.milliseconds()) >> 8) & 3;
+        bool pulse = (count <= part_->resonator_model()) && blink;
+        leds_.set_gate(pulse);
+        leds_.set_exciter(pulse ? 255 : 0);
+        leds_.set_resonator(pulse ? 255 : 0);
+      }
       break;
   }
   
@@ -142,6 +158,15 @@ void Ui::OnSwitchPressed(const Event& e) {
       gate_ = false;
       break;
     
+    case 3:
+      part_->set_resonator_model(
+          ResonatorModel((part_->resonator_model() + 1) % 3));
+      cv_scaler_->set_resonator_model(part_->resonator_model());
+      cv_scaler_->SaveCalibration();
+      gate_ = false;
+      mode_ = UI_MODE_DISPLAY_MODEL;
+      break;
+    
     default:
       break;
   }
@@ -178,11 +203,18 @@ void Ui::DoEvents() {
       }
     }
   }
-  if (queue_.idle_time() > 800 && mode_ == UI_MODE_PANIC) {
-    mode_ = UI_MODE_NORMAL;
-  }
-  if (queue_.idle_time() > 1000) {
-    queue_.Touch();
+  if (mode_ == UI_MODE_DISPLAY_MODEL) {
+    if (queue_.idle_time() > 4000) {
+      mode_ = UI_MODE_NORMAL;
+      queue_.Touch();
+    }
+  } else {
+    if (queue_.idle_time() > 800 && mode_ == UI_MODE_PANIC) {
+      mode_ = UI_MODE_NORMAL;
+    }
+    if (queue_.idle_time() > 1000) {
+      queue_.Touch();
+    }
   }
 }
 

@@ -34,7 +34,7 @@
 #include "clouds/settings.h"
 #include "clouds/ui.h"
 
-#include <cstdlib>
+// #define PROFILE_INTERRUPT 1
 
 using namespace clouds;
 using namespace stmlib;
@@ -83,9 +83,15 @@ void SysTick_Handler() {
 }
 
 void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t n) {
+#ifdef PROFILE_INTERRUPT
+  TIC
+#endif  // PROFILE_INTERRUPT
   cv_scaler.Read(processor.mutable_parameters());
   processor.Process((ShortFrame*)input, (ShortFrame*)output, n);
   meter.Process(processor.parameters().freeze ? output : input, n);
+#ifdef PROFILE_INTERRUPT
+  TOC
+#endif  // PROFILE_INTERRUPT
 }
 
 void Init() {
@@ -113,7 +119,11 @@ void Init() {
     ui.Panic();
   }
   if (settings.freshly_baked()) {
+#ifdef PROFILE_INTERRUPT
+    DebugPin::Init();
+#else
     debug_port.Init();
+#endif  // PROFILE_INTERRUPT
   }
   sys.StartTimers();
 }

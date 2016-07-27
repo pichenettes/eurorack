@@ -42,7 +42,8 @@ struct CalibrationSettings {
   float pitch_scale;
   float offset[CV_ADC_CHANNEL_LAST];
   uint8_t boot_in_easter_egg_mode;
-  uint8_t padding[63];
+  uint8_t resonator_model;
+  uint8_t padding[62];
 };
 
 class Patch;
@@ -75,7 +76,7 @@ class CvScaler {
       pot_lp_[POT_SPACE_ATTENUVERTER] < -3.0f;
   }
   
-  bool easter_egg() {
+  bool exciter_low() {
     return pot_lp_[POT_EXCITER_BOW_TIMBRE_ATTENUVERTER] < -3.0f &&
       pot_lp_[POT_EXCITER_BLOW_META_ATTENUVERTER] < -3.0f &&
       pot_lp_[POT_EXCITER_BLOW_TIMBRE_ATTENUVERTER] < -3.0f &&
@@ -83,15 +84,18 @@ class CvScaler {
       pot_lp_[POT_EXCITER_STRIKE_TIMBRE_ATTENUVERTER] < -3.0f &&
       pot_lp_[POT_EXCITER_BLOW_TIMBRE] < 0.2f &&
       pot_lp_[POT_EXCITER_BOW_TIMBRE] < 0.2f &&
-      pot_lp_[POT_EXCITER_STRIKE_TIMBRE] < 0.2f &&
-      pot_lp_[POT_RESONATOR_GEOMETRY_ATTENUVERTER] > 3.0f &&
-      pot_lp_[POT_RESONATOR_BRIGHTNESS_ATTENUVERTER] > 3.0f &&
-      pot_lp_[POT_RESONATOR_DAMPING_ATTENUVERTER] > 3.0f &&
-      pot_lp_[POT_RESONATOR_POSITION_ATTENUVERTER] > 3.0f &&
-      pot_lp_[POT_SPACE_ATTENUVERTER] > 3.0f && 
-      pot_lp_[POT_RESONATOR_DAMPING] > 0.8f &&
-      pot_lp_[POT_RESONATOR_POSITION] > 0.8f &&
-      pot_lp_[POT_SPACE] > 0.8f;
+      pot_lp_[POT_EXCITER_STRIKE_TIMBRE] < 0.2f;
+  }
+  
+  bool resonator_high() {
+    return pot_lp_[POT_RESONATOR_GEOMETRY_ATTENUVERTER] > 3.0f &&
+        pot_lp_[POT_RESONATOR_BRIGHTNESS_ATTENUVERTER] > 3.0f &&
+        pot_lp_[POT_RESONATOR_DAMPING_ATTENUVERTER] > 3.0f &&
+        pot_lp_[POT_RESONATOR_POSITION_ATTENUVERTER] > 3.0f &&
+        pot_lp_[POT_SPACE_ATTENUVERTER] > 3.0f && 
+        pot_lp_[POT_RESONATOR_DAMPING] > 0.8f &&
+        pot_lp_[POT_RESONATOR_POSITION] > 0.8f &&
+        pot_lp_[POT_SPACE] > 0.8f;
   }
   
   void CalibrateC1() {
@@ -131,9 +135,21 @@ class CvScaler {
   inline bool boot_in_easter_egg_mode() const {
     return calibration_settings_.boot_in_easter_egg_mode;
   }
+
+  inline uint8_t resonator_model() const {
+    return calibration_settings_.resonator_model;
+  }
   
   inline void set_boot_in_easter_egg_mode(bool boot_in_easter_egg_mode) {
     calibration_settings_.boot_in_easter_egg_mode = boot_in_easter_egg_mode;
+  }
+  
+  inline void set_resonator_model(uint8_t resonator_model) {
+    calibration_settings_.resonator_model = resonator_model;
+  }
+  
+  inline bool freshly_baked() const {
+    return freshly_baked_;
   }
   
  private:
@@ -143,6 +159,7 @@ class CvScaler {
   CalibrationSettings calibration_settings_;
   GateInput gate_input_;
   
+  bool freshly_baked_;
   bool gate_;
   bool previous_gate_;
   float pot_raw_[POT_LAST];

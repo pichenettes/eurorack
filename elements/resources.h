@@ -71,6 +71,7 @@ extern const float lut_midi_to_increment_high[];
 extern const float lut_midi_to_f_low[];
 extern const float lut_fm_frequency_quantizer[];
 extern const float lut_detune_quantizer[];
+extern const float lut_svf_shift[];
 extern const int16_t smp_sample_data[];
 extern const int16_t smp_noise_sample[];
 extern const size_t smp_boundaries[];
@@ -112,6 +113,8 @@ extern const size_t smp_boundaries[];
 #define LUT_FM_FREQUENCY_QUANTIZER_SIZE 129
 #define LUT_DETUNE_QUANTIZER 17
 #define LUT_DETUNE_QUANTIZER_SIZE 65
+#define LUT_SVF_SHIFT 18
+#define LUT_SVF_SHIFT_SIZE 257
 #define SMP_SAMPLE_DATA 0
 #define SMP_SAMPLE_DATA_SIZE 128013
 #define SMP_NOISE_SAMPLE 1

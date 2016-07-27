@@ -137,21 +137,21 @@ void Multi::Clock() {
   // Logic equation for computing a clock output with a 50% duty cycle.
   if (output_division > 1) {
     if (clock_output_prescaler_ == 0 && clock_input_prescaler_ == 0) {
-      clock_pulse_duration_ = 0xffff;
+      clock_pulse_counter_ = 0xffff;
     }
     if (clock_output_prescaler_ == (output_division >> 1) &&
         clock_input_prescaler_ == (input_division >> 1)) {
-      clock_pulse_duration_ = 0;
+      clock_pulse_counter_ = 0;
     }
   } else {
     if (input_division > 1) {
-      clock_pulse_duration_ = \
+      clock_pulse_counter_ = \
           clock_input_prescaler_ <= (input_division - 1) >> 1 ? 0xffff : 0;
     } else {
       // Because no division is used, neither on the output nor on the input,
       // we don't have a sufficient fast time base to derive a 50% duty cycle
       // output. Instead, we output 5ms pulses.
-      clock_pulse_duration_ = 40;
+      clock_pulse_counter_ = 40;
     }
   }
   
@@ -165,14 +165,15 @@ void Multi::Clock() {
         part_[i].Clock();
       }
     }
-
-    reset_flag_ = bar_position_ <= 0;
+    
     ++bar_position_;
     if (bar_position_ >= settings_.clock_bar_duration * 24) {
       bar_position_ = 0;
     }
+    if (bar_position_ == 0) {
+      reset_pulse_counter_ = 81;
+    }
     if (settings_.clock_bar_duration > kMaxBarDuration) {
-      // Send only one click on start.
       bar_position_ = 1;
     }
     
@@ -208,11 +209,10 @@ void Multi::Start(bool started_by_keyboard) {
   started_by_keyboard_ = started_by_keyboard;
   running_ = true;
   latched_ = false;
-  reset_flag_ = false;
   clock_input_prescaler_ = 0;
   clock_output_prescaler_ = 0;
   stop_count_down_ = 0;
-  bar_position_ = 0;
+  bar_position_ = 0xffff;
   for (uint8_t i = 0; i < num_active_parts_; ++i) {
     part_[i].Start(started_by_keyboard);
   }
@@ -227,7 +227,8 @@ void Multi::Stop() {
     part_[i].Stop();
   }
   midi_handler.OnStop();
-  clock_pulse_duration_ = 0;
+  clock_pulse_counter_ = 0;
+  reset_pulse_counter_ = 0;
   stop_count_down_ = 0;
   running_ = false;
   latched_ = false;
@@ -236,8 +237,11 @@ void Multi::Stop() {
 }
 
 void Multi::Refresh() {
-  if (clock_pulse_duration_) {
-    --clock_pulse_duration_;
+  if (clock_pulse_counter_) {
+    --clock_pulse_counter_;
+  }
+  if (reset_pulse_counter_) {
+    --reset_pulse_counter_;
   }
   
   for (uint8_t i = 0; i < kNumVoices; ++i) {
@@ -731,7 +735,7 @@ void Multi::ClockSong() {
       uint8_t part = *song_pointer_ >> 6;
       uint8_t note = *song_pointer_ & 0x3f;
       if (note == 0) {
-        part_[part].AllNotesOff(0);
+        part_[part].AllNotesOff();
       } else {
         part_[part].NoteOn(0, note + 24, 100);
       }
@@ -748,6 +752,12 @@ bool Multi::ControlChange(uint8_t channel, uint8_t controller, uint8_t value) {
   
   if (channel + 1 == settings_.remote_control_channel) {
     yarns::settings.SetFromCC(0xff, controller, value);
+    if (num_active_parts_ >= 4 && \
+        (controller == 0x78 || controller == 0x79 || controller == 0x7b)) {
+      // Do not continue to avoid treating these messages as "all sound off",
+      // "reset all controllers" and "all notes off" CC.
+      return true;
+    }
   }
   
   for (uint8_t i = 0; i < num_active_parts_; ++i) {
