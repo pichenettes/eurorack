@@ -87,7 +87,7 @@ class MiniSequencer {
     if (step_ >= num_steps_) {
       step_ = 0;
     }
-    return steps_[step_];
+    return static_cast<int32_t>(steps_[step_]) * 40960 >> 16;
   }
   
  private:

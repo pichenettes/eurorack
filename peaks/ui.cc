@@ -32,6 +32,8 @@
 
 #include <algorithm>
 
+#include "peaks/calibration_data.h"
+
 namespace peaks {
 
 using namespace std;
@@ -56,7 +58,9 @@ const ProcessorFunction Ui::function_table_[FUNCTION_LAST][2] = {
 
 Storage<0x8020000, 16> storage;
 
-void Ui::Init() {
+void Ui::Init(CalibrationData* calibration_data) {
+  calibration_data_ = calibration_data;
+  
   leds_.Init();
   switches_.Init();
   adc_.Init();
@@ -66,6 +70,8 @@ void Ui::Init() {
   fill(&adc_threshold_[0], &adc_threshold_[kNumAdcChannels], 0);
   fill(&snapped_[0], &snapped_[kNumAdcChannels], false);
   panel_gate_state_ = 0;
+  
+  calibrating_ = switches_.pressed_immediate(1);
   
   if (!storage.ParsimoniousLoad(&settings_, &version_token_)) {
     edit_mode_ = EDIT_MODE_TWIN;
@@ -119,6 +125,13 @@ void Ui::SaveState() {
 }
 
 inline void Ui::RefreshLeds() {
+  if (calibrating_) {
+    leds_.set_pattern(0xf);
+    leds_.set_twin_mode(true);
+    leds_.set_levels(0, 0);
+    return;
+  }
+
   uint8_t flash = (system_clock.milliseconds() >> 7) & 7;
   switch (edit_mode_) {
     case EDIT_MODE_FIRST:
@@ -149,7 +162,13 @@ inline void Ui::RefreshLeds() {
       case FUNCTION_LFO:
       case FUNCTION_TAP_LFO:
       case FUNCTION_MINI_SEQUENCER:
-        b[i] = static_cast<uint16_t>(brightness_[i] + 32768) >> 8;
+        {
+          int32_t brightness = int32_t(brightness_[i]) * 409 >> 8;
+          brightness += 32768;
+          brightness >>= 8;
+          CONSTRAIN(brightness, 0, 255);
+          b[i] = brightness;
+        }
         break;
       default:
         b[i] = brightness_[i] >> 7;
@@ -273,6 +292,28 @@ void Ui::SetFunction(uint8_t index, Function f) {
 }
 
 void Ui::OnSwitchReleased(const Event& e) {
+  if (calibrating_) {
+    if (e.control_id == SWITCH_TWIN_MODE) {
+      // Save calibration.
+      calibration_data_->Save();
+
+      // Reset all settings to defaults.
+      edit_mode_ = EDIT_MODE_TWIN;
+      function_[0] = FUNCTION_ENVELOPE;
+      function_[1] = FUNCTION_ENVELOPE;
+      settings_.snap_mode = false;
+      
+      SaveState();
+      ChangeControlMode();
+      SetFunction(0, function_[0]);
+      SetFunction(1, function_[1]);
+
+      // Done with calibration.
+      calibrating_ = false;
+    }
+    return;
+  }
+  
   switch (e.control_id) {
     case SWITCH_TWIN_MODE:
       if (e.data > kLongPressDuration) {
@@ -323,6 +364,17 @@ void Ui::OnSwitchReleased(const Event& e) {
 }
 
 void Ui::OnPotChanged(const Event& e) {
+  if (calibrating_) {
+    pot_value_[e.control_id] = e.data >> 8;
+    for (uint8_t i = 0; i < 2; ++i) {
+      int32_t coarse = pot_value_[i * 2];
+      int32_t fine = pot_value_[i * 2 + 1];
+      int32_t offset = ((coarse - 128) << 3) + ((fine - 128) >> 1);
+      calibration_data_->set_dac_offset(i, -offset);
+    }
+    return;
+  }
+
   switch (edit_mode_) {
     case EDIT_MODE_TWIN:
       processors[0].set_parameter(e.control_id, e.data);

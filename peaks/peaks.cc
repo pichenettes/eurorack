@@ -32,6 +32,7 @@
 #include "peaks/drivers/gate_input.h"
 #include "peaks/drivers/system.h"
 
+#include "peaks/calibration_data.h"
 #include "peaks/processors.h"
 #include "peaks/ui.h"
 
@@ -39,6 +40,7 @@ using namespace peaks;
 using namespace stmlib;
 
 Adc adc;
+CalibrationData calibration_data;
 Dac dac;
 GateInput gate_input;
 Leds leds;
@@ -80,7 +82,13 @@ void TIM1_UP_IRQHandler(void) {
 
   TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
   if (dac.ready()) {
-    dac.Write(32767 - cv_1, 32767 - cv_2);
+    if (ui.calibrating()) {
+      cv_1 = 0;
+      cv_2 = 0;
+    }
+    dac.Write(
+        calibration_data.Offset(0, 32767 - cv_1),
+        calibration_data.Offset(1, 32767 - cv_2));
     ui.set_leds_brightness(cv_1, cv_2);
     
     control = gate_input.Read() | ui.ReadPanelGateState();
@@ -99,16 +107,18 @@ void Init() {
   system_clock.Init();
   gate_input.Init();
   dac.Init();
-  
+
+  calibration_data.Init();
   processors[0].Init(0);
   processors[1].Init(1);
-  ui.Init();
+  ui.Init(&calibration_data);
   
   sys.StartTimers();
 }
 
 int main(void) {
   Init();
+  
   while (1) {
     // Faster rate than 1kHz, but no need to be faster than the buffer
     // fill rate.

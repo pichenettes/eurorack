@@ -65,7 +65,7 @@ class Lfo {
         set_shape_parameter_preset(parameter[1]);
       }
       set_reset_phase(0);
-      set_level(65535);
+      set_level(40960);
     } else {
       if (sync_) {
         set_level(parameter[0]);
@@ -73,7 +73,7 @@ class Lfo {
         set_parameter(parameter[2] - 32768);
         set_reset_phase(parameter[3] - 32768);
       } else {
-        set_level(65535);
+        set_level(40960);
         set_rate(parameter[0]);
         set_shape_integer(parameter[1]);
         set_parameter(parameter[2] - 32768);
