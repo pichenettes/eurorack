@@ -7,6 +7,7 @@ Mutable Instruments' Eurorack Modules.
 * [Elements](http://mutable-instruments.net/modules/elements): Modal synthesizer.
 * [Frames](http://mutable-instruments.net/modules/frames): Keyframer/mixer.
 * [Grids](http://mutable-instruments.net/modules/grids): Topographic drum sequencer.
+* [Kinks](http://mutable-instruments.net/modules/kinks): Utility module - rectifier, analog logic, S&H, noise.
 * [Links](http://mutable-instruments.net/modules/links): Utility module - buffer, mixer.
 * [Peaks](http://mutable-instruments.net/modules/peaks): Dual trigger converter.
 * [Rings](http://mutable-instruments.net/modules/rings): Resonator.
@@ -15,6 +16,7 @@ Mutable Instruments' Eurorack Modules.
 * [Shelves](http://mutable-instruments.net/modules/shelves): EQ filter.
 * [Streams](http://mutable-instruments.net/modules/streams): Dual dynamics gate.
 * [Tides](http://mutable-instruments.net/modules/tides): Tidal modulator.
+* [Veils](http://mutable-instruments.net/modules/veils): Quad VCA.
 * [Volts](http://mutable-instruments.net/modules/volts): +5V power module.
 * [Warps](http://mutable-instruments.net/modules/warps): Meta-modulator.
 * [Yarns](http://mutable-instruments.net/modules/yarns): MIDI interface.
