@@ -23,7 +23,7 @@ PACKAGES       = avrlibx \
 		edges
 RESOURCES      = edges/resources
 SYSEX_FLAGS    = --page_size=128 --device_id=10
-# EXTRA_DEFINES  =-DOCTAL_ADC
+EXTRA_DEFINES  =-DOCTAL_ADC
 
 FUSE0 = 00
 FUSE1 = 00
