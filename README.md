@@ -4,6 +4,7 @@ Mutable Instruments' Eurorack Modules.
 * [Braids](http://mutable-instruments.net/modules/braids): Macro-oscillator.
 * [Branches](http://mutable-instruments.net/modules/branches): Dual Bernoulli gate.
 * [Clouds](http://mutable-instruments.net/modules/clouds): Texture synthesizer.
+* [Ears](http://mutable-instruments.net/modules/ears): Contact microphone.
 * [Edges](http://mutable-instruments.net/modules/edges): Quad chiptune digital oscillator.
 * [Elements](http://mutable-instruments.net/modules/elements): Modal synthesizer.
 * [Frames](http://mutable-instruments.net/modules/frames): Keyframer/mixer.
