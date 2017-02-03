@@ -34,7 +34,7 @@
 namespace yarns {
 
 const char* const layout_values[] = {
-  "1M", "2M", "4M", "2P", "4P", "2>", "4>", "8>", "4T", "3+1"
+  "1M", "2M", "4M", "2P", "4P", "2>", "4>", "8>", "4T", "4V", "3+1"
 };
 
 const char* const clock_division_values[] = {
@@ -59,7 +59,7 @@ const char* const sequencer_arp_direction_values[] = {
 };
 
 const char* const voicing_aux_cv_values[] = {
-  "AT", "BREATH", "PEDAL", "VIBRATO LFO", "LFO"
+  "VELOCITY", "MODULATION", "AT", "BREATH", "PEDAL", "BEND", "VIBRATO LFO", "LFO"
 };
 
 const char* const voicing_oscillator_values[] = {
@@ -300,10 +300,22 @@ const Setting Settings::settings_[] = {
     30, 21,
   },
   {
-    "CV", "AUX. CV OUT",
+    "CV", "CV OUT",
     SETTING_DOMAIN_PART, { PART_VOICING_AUX_CV, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 4, voicing_aux_cv_values,
+    SETTING_UNIT_ENUMERATION, 0, 7, voicing_aux_cv_values,
     31, 22,
+  },
+  {
+    "3>", "CV OUT 3",
+    SETTING_DOMAIN_PART, { PART_VOICING_AUX_CV, 0 },
+    SETTING_UNIT_ENUMERATION, 0, 7, voicing_aux_cv_values,
+    31, 22,
+  },
+  {
+    "4>", "CV OUT 4",
+    SETTING_DOMAIN_PART, { PART_VOICING_AUX_CV_2, 0 },
+    SETTING_UNIT_ENUMERATION, 0, 7, voicing_aux_cv_values,
+    72, 0,
   },
   {
     "OS", "OSCILLATOR",
@@ -404,7 +416,8 @@ const SettingIndex mono_menu[] = {
   SETTING_VOICING_VIBRATO_RANGE,
   SETTING_VOICING_MODULATION_RATE,
   SETTING_VOICING_TRIGGER_DURATION,
-  SETTING_VOICING_AUX_CV,
+  SETTING_VOICING_CV_OUT_3,
+  SETTING_VOICING_CV_OUT_4,
   SETTING_VOICING_AUDIO_MODE,
   SETTING_SEQUENCER_CLOCK_DIVISION,
   SETTING_SEQUENCER_GATE_LENGTH,
@@ -438,7 +451,7 @@ const SettingIndex dual_mono_menu[] = {
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
   SETTING_VOICING_MODULATION_RATE,
-  SETTING_VOICING_AUX_CV,
+  SETTING_VOICING_CV_OUT,
   SETTING_VOICING_AUDIO_MODE,
   SETTING_SEQUENCER_CLOCK_DIVISION,
   SETTING_SEQUENCER_GATE_LENGTH,
@@ -504,7 +517,8 @@ const SettingIndex dual_poly_menu[] = {
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
   SETTING_VOICING_MODULATION_RATE,
-  SETTING_VOICING_AUX_CV,
+  SETTING_VOICING_CV_OUT_3,
+  SETTING_VOICING_CV_OUT_4,
   SETTING_VOICING_AUDIO_MODE,
   SETTING_SEQUENCER_CLOCK_DIVISION,
   SETTING_SEQUENCER_GATE_LENGTH,
@@ -567,7 +581,8 @@ const SettingIndex dual_polychained_menu[] = {
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
   SETTING_VOICING_MODULATION_RATE,
-  SETTING_VOICING_AUX_CV,
+  SETTING_VOICING_CV_OUT_3,
+  SETTING_VOICING_CV_OUT_4,
   SETTING_VOICING_AUDIO_MODE,
   SETTING_SEQUENCER_CLOCK_DIVISION,
   SETTING_SEQUENCER_GATE_LENGTH,
@@ -598,7 +613,8 @@ const SettingIndex quad_polychained_menu[] = {
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
   SETTING_VOICING_MODULATION_RATE,
-  SETTING_VOICING_AUX_CV,
+  SETTING_VOICING_CV_OUT_3,
+  SETTING_VOICING_CV_OUT_4,
   SETTING_VOICING_AUDIO_MODE,
   SETTING_SEQUENCER_CLOCK_DIVISION,
   SETTING_SEQUENCER_GATE_LENGTH,
@@ -703,6 +719,21 @@ const SettingIndex three_one_menu[] = {
   SETTING_LAST
 };
 
+const SettingIndex quad_voltages_menu[] = {
+  SETTING_LAYOUT,
+  SETTING_ACTIVE_PART_4,
+  SETTING_MIDI_CHANNEL,
+  SETTING_VOICING_CV_OUT,
+  SETTING_CLOCK_TEMPO,
+  SETTING_CLOCK_SWING,
+  SETTING_CLOCK_INPUT_DIVISION,
+  SETTING_CLOCK_OVERRIDE,
+  SETTING_CLOCK_OUTPUT_DIVISION,
+  SETTING_CLOCK_BAR_DURATION,
+  SETTING_REMOTE_CONTROL_CHANNEL,
+  SETTING_LAST
+};
+
 const SettingIndex* const Settings::menus_[] = {
   mono_menu,
   dual_mono_menu,
@@ -713,6 +744,7 @@ const SettingIndex* const Settings::menus_[] = {
   quad_polychained_menu,
   octal_polychained_menu,
   quad_triggers_menu,
+  quad_voltages_menu,
   three_one_menu
 };
 

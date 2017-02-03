@@ -114,7 +114,8 @@ struct VoicingSettings {
   uint8_t trigger_shape;
   uint8_t aux_cv;
   uint8_t audio_mode;
-  uint8_t padding[16];
+  uint8_t aux_cv_2;
+  uint8_t padding[15];
 };
 
 
@@ -142,6 +143,7 @@ enum PartSetting {
   PART_VOICING_TRIGGER_SHAPE,
   PART_VOICING_AUX_CV,
   PART_VOICING_AUDIO_MODE,
+  PART_VOICING_AUX_CV_2,
   PART_VOICING_LAST = PART_VOICING_ALLOCATION_MODE + sizeof(VoicingSettings) - 1,
   PART_SEQUENCER_CLOCK_DIVISION,
   PART_SEQUENCER_GATE_LENGTH,

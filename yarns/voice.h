@@ -116,7 +116,7 @@ class Voice {
     mod_pitch_bend_ = pitch_bend;
   }
   void Aftertouch(uint8_t velocity) {
-    mod_aux_[0] = velocity << 9;
+    mod_aux_[2] = velocity << 9;
   }
 
   inline void set_modulation_rate(uint8_t modulation_rate) {
@@ -140,11 +140,15 @@ class Voice {
   inline void set_aux_cv(uint8_t aux_cv_source) {
     aux_cv_source_ = aux_cv_source;
   }
+  inline void set_aux_cv_2(uint8_t aux_cv_source_2) {
+    aux_cv_source_2_ = aux_cv_source_2;
+  }
   
   inline int32_t note() const { return note_; }
   inline uint8_t velocity() const { return mod_velocity_; }
   inline uint8_t modulation() const { return mod_wheel_; }
   inline uint8_t aux_cv() const { return mod_aux_[aux_cv_source_] >> 8; }
+  inline uint8_t aux_cv_2() const { return mod_aux_[aux_cv_source_2_] >> 8; }
 
   inline uint16_t DacCodeFrom16BitValue(uint16_t value) const {
     uint32_t v = static_cast<uint32_t>(value);
@@ -164,6 +168,9 @@ class Voice {
   }
   inline uint16_t aux_cv_dac_code() const { 
     return DacCodeFrom16BitValue(mod_aux_[aux_cv_source_]);
+  }
+  inline uint16_t aux_cv_dac_code_2() const { 
+    return DacCodeFrom16BitValue(mod_aux_[aux_cv_source_2_]);
   }
   
   inline bool gate_on() const { return gate_; }
@@ -232,7 +239,7 @@ class Voice {
   
   int16_t mod_pitch_bend_;
   uint8_t mod_wheel_;
-  uint16_t mod_aux_[5];
+  uint16_t mod_aux_[8];
   uint8_t mod_velocity_;
   
   uint8_t pitch_bend_range_;
@@ -243,6 +250,7 @@ class Voice {
   uint8_t trigger_shape_;
   bool trigger_scale_;
   uint8_t aux_cv_source_;
+  uint8_t aux_cv_source_2_;
   
   uint32_t lfo_phase_;
   uint32_t portamento_phase_;

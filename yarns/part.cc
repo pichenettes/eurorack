@@ -640,6 +640,8 @@ void Part::TouchVoiceAllocation() {
 }
 
 void Part::TouchVoices() {
+  CONSTRAIN(voicing_.aux_cv, 0, 7);
+  CONSTRAIN(voicing_.aux_cv_2, 0, 7);
   for (uint8_t i = 0; i < num_voices_; ++i) {
     voice_[i]->set_pitch_bend_range(voicing_.pitch_bend_range);
     voice_[i]->set_modulation_rate(voicing_.modulation_rate);
@@ -648,6 +650,7 @@ void Part::TouchVoices() {
     voice_[i]->set_trigger_scale(voicing_.trigger_scale);
     voice_[i]->set_trigger_shape(voicing_.trigger_shape);
     voice_[i]->set_aux_cv(voicing_.aux_cv);
+    voice_[i]->set_aux_cv_2(voicing_.aux_cv_2);
     voice_[i]->set_audio_mode(voicing_.audio_mode);
     voice_[i]->set_tuning(voicing_.tuning_transpose, voicing_.tuning_fine);
   }
@@ -681,6 +684,7 @@ void Part::Set(uint8_t address, uint8_t value) {
       case PART_VOICING_TRIGGER_SHAPE:
       case PART_VOICING_TRIGGER_SCALE:
       case PART_VOICING_AUX_CV:
+      case PART_VOICING_AUX_CV_2:
       case PART_VOICING_AUDIO_MODE:
       case PART_VOICING_TUNING_TRANSPOSE:
       case PART_VOICING_TUNING_FINE:
