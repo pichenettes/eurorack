@@ -92,7 +92,7 @@ class MidiHandler {
   
   static void PitchBend(uint8_t channel, uint16_t pitch_bend) {
     if (multi.PitchBend(channel, pitch_bend) && !multi.direct_thru()) {
-      Send3(0xe0 | channel, pitch_bend >> 7, pitch_bend & 0x7f);
+      Send3(0xe0 | channel, pitch_bend & 0x7f, pitch_bend >> 7);
     }
   }
 
