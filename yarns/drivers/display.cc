@@ -82,6 +82,7 @@ void Display::Scroll() {
 }
 
 void Display::RefreshSlow() {
+#ifdef APPLICATION
   if (scrolling_) {
     if (scrolling_pre_delay_timer_) {
       --scrolling_pre_delay_timer_;
@@ -112,8 +113,14 @@ void Display::RefreshSlow() {
         : 15 - (fading_counter_ >> 12);
   }
   actual_brightness_ = brightness >> 1;
-  
   blink_counter_ = (blink_counter_ + 1) % (kBlinkMask * 2);
+
+#else
+
+  displayed_buffer_ = short_buffer_;
+  actual_brightness_ = 3;
+
+#endif  // APPLICATION
 }
 
 void Display::RefreshFast() {
@@ -132,8 +139,12 @@ void Display::RefreshFast() {
 
 void Display::Print(const char* short_buffer, const char* long_buffer) {
   strncpy(short_buffer_, short_buffer, kDisplayWidth);
+
+#ifdef APPLICATION
   strncpy(long_buffer_, long_buffer, kScrollBufferSize);
   long_buffer_size_ = strlen(long_buffer_);
+#endif  // APPLICATION
+
   scrolling_ = false;
 }
 
@@ -149,7 +160,8 @@ void Display::Print(const char* short_buffer, const char* long_buffer) {
 
 void Display::Shift14SegmentsWord(uint16_t data) {
   GPIOB->BRR = kPinEnable;
-  for (uint16_t i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i) {
+#ifdef APPLICATION
     SHIFT_BIT
     SHIFT_BIT
     SHIFT_BIT
@@ -158,6 +170,11 @@ void Display::Shift14SegmentsWord(uint16_t data) {
     SHIFT_BIT
     SHIFT_BIT
     SHIFT_BIT
+#else
+    for (int j = 0; j < 8; ++j) {
+      SHIFT_BIT
+    }
+#endif  // APPLICATION
   }
   GPIOB->BSRR = kPinEnable;
 }
