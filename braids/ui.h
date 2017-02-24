@@ -118,7 +118,8 @@ class Ui {
   Display display_;
   Encoder encoder_;
   
-  int16_t dac_code_c2_;
+  int16_t adc_code_c2_;
+  int16_t adc_code_min_[2];
   int16_t cv_[4];
   
   uint8_t splash_frame_;

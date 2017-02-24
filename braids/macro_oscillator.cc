@@ -223,6 +223,39 @@ void MacroOscillator::RenderTriple(
   }
 }
 
+void MacroOscillator::RenderSub(
+    const uint8_t* sync,
+    int16_t* buffer,
+    size_t size) {
+  AnalogOscillatorShape base_shape = shape_ == MACRO_OSC_SHAPE_SQUARE_SUB ?
+      OSC_SHAPE_SQUARE : OSC_SHAPE_VARIABLE_SAW;
+  analog_oscillator_[0].set_parameter(parameter_[0]);
+  analog_oscillator_[0].set_shape(base_shape);
+  analog_oscillator_[0].set_pitch(pitch_);
+
+  analog_oscillator_[1].set_parameter(0);
+  analog_oscillator_[1].set_shape(OSC_SHAPE_SQUARE);
+  int16_t octave = parameter_[1] < 16384 ? (24 << 7) : (12 << 7);
+  analog_oscillator_[1].set_pitch(pitch_ - octave);
+
+  analog_oscillator_[0].Render(sync, buffer, NULL, size);
+  analog_oscillator_[1].Render(sync, temp_buffer_, NULL, size);
+  
+  BEGIN_INTERPOLATE_PARAMETER_1
+
+  int16_t* temp_buffer = temp_buffer_;
+  while (size--) {
+    INTERPOLATE_PARAMETER_1
+    uint16_t sub_gain = (parameter_1 < 16384
+        ? (16383 - parameter_1) : (parameter_1 - 16384)) << 1;
+    *buffer = Mix(*buffer, *temp_buffer, sub_gain);
+    buffer++;
+    temp_buffer++;
+  }
+  
+  END_INTERPOLATE_PARAMETER_1
+}
+
 void MacroOscillator::RenderDualSync(
     const uint8_t* sync,
     int16_t* buffer,
@@ -351,6 +384,8 @@ MacroOscillator::RenderFn MacroOscillator::fn_table_[] = {
   &MacroOscillator::RenderSawSquare,
   &MacroOscillator::RenderSineTriangle,
   &MacroOscillator::RenderBuzz,
+  &MacroOscillator::RenderSub,
+  &MacroOscillator::RenderSub,
   &MacroOscillator::RenderDualSync,
   &MacroOscillator::RenderDualSync,
   &MacroOscillator::RenderTriple,

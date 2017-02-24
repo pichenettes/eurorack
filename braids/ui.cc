@@ -194,7 +194,7 @@ void Ui::OnClick() {
       
     case MODE_MARQUEE_EDITOR:
       {
-        if (marquee_character_ == 61) {
+        if (marquee_character_ == 53) {
           ++marquee_character_;
           settings.mutable_marquee_text()[marquee_character_] = '\0';
         } else if (settings.marquee_text()[marquee_character_] == '\xA0') {
@@ -226,12 +226,21 @@ void Ui::OnClick() {
       break;
       
     case MODE_CALIBRATION_STEP_1:
-      dac_code_c2_ = cv_[2];
+      adc_code_c2_ = cv_[2];
+      adc_code_min_[0] = cv_[0];
+      adc_code_min_[1] = cv_[1];
       mode_ = MODE_CALIBRATION_STEP_2;
       break;
       
     case MODE_CALIBRATION_STEP_2:
-      settings.Calibrate(dac_code_c2_, cv_[2], cv_[3]);
+      settings.Calibrate(
+          adc_code_c2_,
+          cv_[2],
+          cv_[3],
+          adc_code_min_[0],
+          cv_[0],
+          adc_code_min_[1],
+          cv_[1]);
       mode_ = MODE_MENU;
       break;
       

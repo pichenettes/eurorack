@@ -40,6 +40,8 @@ enum MacroOscillatorShape {
   MACRO_OSC_SHAPE_SINE_TRIANGLE,
   MACRO_OSC_SHAPE_BUZZ,
   
+  MACRO_OSC_SHAPE_SQUARE_SUB,
+  MACRO_OSC_SHAPE_SAW_SUB,
   MACRO_OSC_SHAPE_SQUARE_SYNC,
   MACRO_OSC_SHAPE_SAW_SYNC,
   MACRO_OSC_SHAPE_TRIPLE_SAW,
@@ -181,7 +183,10 @@ struct SettingsData {
   int32_t pitch_cv_scale;
   int32_t fm_cv_offset;
   
-  char marquee_text[63];
+  int16_t parameter_cv_offset[2];
+  uint16_t parameter_cv_scale[2];
+  
+  char marquee_text[55];
   char magic_byte;
 };
 
@@ -271,7 +276,11 @@ class Settings {
   void Calibrate(
       int32_t adc_code_c2,
       int32_t adc_code_c4,
-      int32_t adc_code_fm) {
+      int32_t adc_code_fm,
+      int32_t adc_code_p0_min,
+      int32_t adc_code_p0_max,
+      int32_t adc_code_p1_min,
+      int32_t adc_code_p1_max) {
     if (adc_code_c4 != adc_code_c2) {
       int32_t scale = (24 * 128 * 4096L) / (adc_code_c4 - adc_code_c2);
       data_.pitch_cv_scale = scale;
@@ -279,6 +288,19 @@ class Settings {
           (scale * ((adc_code_c2 + adc_code_c4) >> 1) >> 12);
       data_.fm_cv_offset = adc_code_fm;
     }
+    
+    // int32_t min_code[2] = { adc_code_p0_min, adc_code_p1_min };
+    // int32_t max_code[2] = { adc_code_p0_max, adc_code_p1_max };
+    //
+    // for (int i = 0; i < 2; ++i) {
+    //   int32_t d = max_code[i] - min_code[i];
+    //   if (d > 3700) {
+    //     int32_t scale = (32768 * 4106) / d;
+    //     int32_t offset = -(min_code[i] * scale >> 12) - 40;
+    //     data_.parameter_cv_offset[i] = offset;
+    //     data_.parameter_cv_scale[i] = scale;
+    //   }
+    // }
     Save();
   }
   
@@ -313,6 +335,12 @@ class Settings {
       fm_adc_code = 0;
     }
     return fm_adc_code;
+  }
+  
+  inline int32_t adc_to_parameter(int index, int32_t adc_code) const {
+    int32_t scale = static_cast<int32_t>(data_.parameter_cv_scale[index]);
+    int32_t offset = static_cast<int32_t>(data_.parameter_cv_offset[index]);
+    return (scale * adc_code >> 12) + offset;
   }
 
   inline bool paques() const {

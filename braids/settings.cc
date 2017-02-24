@@ -66,6 +66,9 @@ const SettingsData kInitSettings = {
   50,
   15401,
   2048,
+  
+  { 0, 0 },
+  { 32768, 32768 },
   "GREETINGS FROM MUTABLE INSTRUMENTS *EDIT ME*",
 };
 
@@ -85,6 +88,14 @@ void Settings::Init() {
         value <= setting_metadata.max_value;
   }
   settings_within_range = settings_within_range && data_.magic_byte == 'M';
+  for (int i = 0; i < 2; ++i) {
+    settings_within_range = settings_within_range && \
+        data_.parameter_cv_scale[i] > 16384;
+    settings_within_range = settings_within_range && \
+        data_.parameter_cv_offset[i] < 8000;
+    settings_within_range = settings_within_range && \
+        data_.parameter_cv_offset[i] > -8000;
+  }
   if (!settings_within_range) {
     Reset();
   }
@@ -138,6 +149,8 @@ const char* const algo_values[] = {
     "\x88\x8A\x8C\x8D",
     "FOLD",
     "\x8E\x8E\x8E\x8E",
+    "SUB\x8C",
+    "SUB\x88",
     "SYN\x8C",
     "SYN\x88",
     "\x88\x88x3",
@@ -318,7 +331,7 @@ const SettingMetadata Settings::metadata_[] = {
   { 0, 0, "CAL.", NULL },
   { 0, 0, "    ", NULL },  // Placeholder for CV tester
   { 0, 0, "    ", NULL },  // Placeholder for marquee
-  { 0, 0, "v1.8", NULL },  // Placeholder for version string
+  { 0, 0, "v1.9", NULL },  // Placeholder for version string
 };
 
 /* static */

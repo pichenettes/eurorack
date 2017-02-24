@@ -87,6 +87,7 @@ class MacroOscillator {
   void RenderCSaw(const uint8_t*, int16_t*, size_t);
   void RenderMorph(const uint8_t*, int16_t*, size_t);
   void RenderSawSquare(const uint8_t*, int16_t*, size_t);
+  void RenderSub(const uint8_t*, int16_t*, size_t);
   void RenderDualSync(const uint8_t*, int16_t*, size_t);
   void RenderSineTriangle(const uint8_t*, int16_t*, size_t);
   void RenderBuzz(const uint8_t*, int16_t*, size_t);
