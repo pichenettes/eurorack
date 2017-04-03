@@ -168,14 +168,21 @@ void CvScaler::Read(
     Patch* patch,
     PerformanceState* state) {
   ReadPanelPots();
-  
+
   patch->exciter_envelope_shape = pot_lp_[POT_EXCITER_ENVELOPE_SHAPE];
   patch->exciter_bow_level = pot_lp_[POT_EXCITER_BOW_LEVEL];
   patch->exciter_blow_level = pot_lp_[POT_EXCITER_BLOW_LEVEL];
   patch->exciter_strike_level = pot_lp_[POT_EXCITER_STRIKE_LEVEL];
-  
+
   BIND(patch->exciter_bow_timbre, EXCITER_BOW_TIMBRE, 1.0f, 0.0f, 0.9995f);
-  BIND(patch->exciter_blow_meta, EXCITER_BLOW_META, 0.05f, 0.0f, 0.9995f);
+
+  // remove the bind of the exciter blow meta knob to the EXCITER BLOW
+  // META CV input:
+  // BIND(patch->exciter_blow_meta, EXCITER_BLOW_META, 0.05f, 0.0f, 0.9995f);
+
+  // manually expand the bind for the exciter blow meta knob to not use any cv
+  patch->exciter_blow_meta = pot_lp_[POT_EXCITER_BLOW_META];
+
   BIND(patch->exciter_blow_timbre, EXCITER_BLOW_TIMBRE, 1.0f, 0.0f, 0.9995f);
   BIND(patch->exciter_strike_meta, EXCITER_STRIKE_META, 0.05f, 0.0f, 0.9995f);
   BIND(patch->exciter_strike_timbre, EXCITER_STRIKE_TIMBRE, 1.0f, 0.0f, 0.995f);
@@ -196,11 +203,19 @@ void CvScaler::Read(
     note_ += 0.1f * interval;
   }
 
-  float modulation = pot_lp_[POT_RESONATOR_FM_ATTENUVERTER] * 49.5f *
+  // manually read the values of the exciter blow meta cv and input
+  // attenuverter to tranform the value of the FM attenuverter pot
+  float pot_fm = pot_lp_[POT_RESONATOR_FM_ATTENUVERTER];
+  float cv_fm = calibration_settings_.offset[CV_ADC_EXCITER_BLOW_META] -
+      cv_.float_value(CV_ADC_EXCITER_BLOW_META);
+  float value_fm = pot_fm + pot_lp_[POT_EXCITER_BLOW_META_ATTENUVERTER] * cv_fm;
+  CONSTRAIN(value_fm, 0.0f, 0.9995f);
+
+  float modulation = value_fm * 49.5f *
       (calibration_settings_.offset[CV_ADC_FM] - cv_.float_value(CV_ADC_FM));
   modulation_ += 0.5f * (modulation - modulation_);
   state->modulation = modulation_;
-  
+
   state->note = note_;
   state->note += pot_quantized_[POT_RESONATOR_COARSE] + 19.0f;
   state->note += pot_lp_[POT_RESONATOR_FINE] * (2.0f / 3.3f);
