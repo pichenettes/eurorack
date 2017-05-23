@@ -78,6 +78,7 @@ void Process(uint16_t* cv) {
         &frequency);
     if (ui.calibrating()) {
       gain = 0;
+      frequency = 65535;
     }
     dac.Write(i, cv_scaler.ScaleGain(i, gain));
     pwm.Write(i, 65535 - frequency);
