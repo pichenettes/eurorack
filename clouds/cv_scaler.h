@@ -97,6 +97,10 @@ class CvScaler {
     blend_knob_origin_ = previous_blend_knob_value_;
   }
   
+  inline void MatchKnobPosition() {
+    previous_blend_knob_value_ = -1.0f;
+  }
+  
   inline BlendParameter blend_parameter() const {
     return blend_parameter_;
   }
