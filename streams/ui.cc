@@ -346,6 +346,7 @@ void Ui::OnSwitchPressed(const Event& e) {
       processor_[i].set_linked(linked);
     }
     Link(1 - e.control_id);
+    SaveState();
     return;
   }
   
