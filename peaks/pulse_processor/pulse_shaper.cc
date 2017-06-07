@@ -68,13 +68,11 @@ inline uint16_t PulseShaper::initial_delay() const {
   return Interpolate88(lut_delay_times, initial_delay_);
 }
 
-void PulseShaper::FillBuffer(
-    InputBuffer* input_buffer,
-    OutputBuffer* output_buffer) {
+void PulseShaper::Process(
+    const GateFlags* gate_flags, int16_t* out, size_t size) {
   bool new_pulse = false;
-  for (uint8_t i = 0; i < kBlockSize; ++i) {
-    uint8_t control = input_buffer->ImmediateRead();
-    new_pulse |= control & CONTROL_GATE_RISING;
+  for (size_t i = 0; i < size; ++i) {
+    new_pulse |= gate_flags[i] & GATE_FLAG_RISING;
   }
     
   uint8_t num_pulses = 0;
@@ -128,11 +126,9 @@ void PulseShaper::FillBuffer(
   if (retrig_counter_) {
     --retrig_counter_;
   }
-  uint16_t output = num_pulses > 0 && !retrig_counter_ ? 20480 : 0;
-    
-  for (uint8_t i = 0; i < kBlockSize; ++i) {
-    output_buffer->Overwrite(output);
-  }
+  
+  int16_t output = num_pulses > 0 && !retrig_counter_ ? 20480 : 0;
+  std::fill(&out[0], &out[size], output);
 }
 
 }  // namespace peaks

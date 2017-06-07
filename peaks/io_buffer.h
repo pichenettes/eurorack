@@ -1,4 +1,4 @@
-// Copyright 2013 Olivier Gillet.
+// Copyright 2015 Olivier Gillet.
 //
 // Author: Olivier Gillet (ol.gillet@gmail.com)
 //
@@ -24,71 +24,78 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Driver for DAC.
+// I/O Buffering.
 
-#ifndef PEAKS_DRIVERS_DAC_H_
-#define PEAKS_DRIVERS_DAC_H_
-
-#include <stm32f10x_conf.h>
+#ifndef PEAKS_IO_BUFFER_H_
+#define PEAKS_IO_BUFFER_H_
 
 #include "stmlib/stmlib.h"
+#include "peaks/gate_processor.h"
+
+#include <algorithm>
 
 namespace peaks {
 
-const uint16_t kPinSS = GPIO_Pin_12;
+const size_t kNumBlocks = 2;
+const size_t kNumChannels = 2;
+const size_t kBlockSize = 4;
 
-class Dac {
+class IOBuffer {
  public:
-  Dac() { }
-  ~Dac() { }
+  struct Block {
+    GateFlags input[kNumChannels][kBlockSize];
+    uint16_t output[kNumChannels][kBlockSize];
+  };
+  
+  struct Slice {
+    Block* block;
+    size_t frame_index;
+  };
 
-  void Init();
+  typedef void ProcessFn(Block* block, size_t size);
 
-  inline void Write(int index, uint16_t value) {
-    data_[index] = value;
+  IOBuffer() { }
+  ~IOBuffer() { }
+  
+  void Init() {
+    io_block_ = 0;
+    render_block_ = kNumBlocks / 2;
+    io_frame_ = 0;
   }
-
-  inline bool Update() {
-    GPIOB->BSRR = kPinSS;
-    GPIOB->BRR = kPinSS;
-    
-    if (wrote_both_channels_) {
-      SPI2->DR = 0x2400 | (data_[0] >> 8);
-      wrote_both_channels_ = false;
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      SPI2->DR = data_[0] << 8;
-    } else {
-      SPI2->DR = 0x1000 | (data_[1] >> 8);
-      wrote_both_channels_ = true;
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      __asm__("nop");
-      SPI2->DR = data_[1] << 8;
+  
+  inline void Process(ProcessFn* fn) {
+    while (render_block_ != io_block_) {
+      (*fn)(&block_[render_block_], kBlockSize);
+      render_block_ = (render_block_ + 1) % kNumBlocks;
     }
-    return wrote_both_channels_;
   }
   
-  void Write(uint16_t channel_1);
-
- private:
-  uint16_t data_[2];
-  bool wrote_both_channels_;
+  inline Slice NextSlice(size_t size) {
+    Slice s;
+    s.block = &block_[io_block_];
+    s.frame_index = io_frame_;
+    io_frame_ += size;
+    if (io_frame_ >= kBlockSize) {
+      io_frame_ -= kBlockSize;
+      io_block_ = (io_block_ + 1) % kNumBlocks;
+    }
+    return s;
+  }
   
-  DISALLOW_COPY_AND_ASSIGN(Dac);
+  inline bool new_block() const {
+    return io_frame_ == 0;
+  }
+  
+ private:
+  Block block_[kNumBlocks];
+  
+  size_t io_frame_;
+  volatile size_t io_block_;
+  volatile size_t render_block_;
+  
+  DISALLOW_COPY_AND_ASSIGN(IOBuffer);
 };
 
 }  // namespace peaks
 
-#endif  // PEAKS_DRIVERS_DAC_H_
+#endif  // PEAKS_IO_BUFFER_H_

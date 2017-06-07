@@ -47,7 +47,6 @@ void FmDrum::Init() {
 static const uint16_t kHighestNote = 128 * 128;
 static const uint16_t kPitchTableStart = 116 * 128;
 static const uint16_t kOctave = 128 * 12;
-static const uint8_t kNumZones = 6;
 
 static const uint16_t bd_map[10][4] = {
   { 4096, 0, 65535, 32768 },
@@ -129,10 +128,7 @@ uint32_t FmDrum::ComputePhaseIncrement(int16_t midi_pitch) {
   return phase_increment;
 }
 
-void FmDrum::FillBuffer(
-    InputBuffer* input_buffer,
-    OutputBuffer* output_buffer) {
-  uint8_t size = kBlockSize;
+void FmDrum::Process(const GateFlags* gate_flags, int16_t* out, size_t size) {
   uint32_t am_envelope_increment = ComputeEnvelopeIncrement(am_decay_);
   uint32_t fm_envelope_increment = ComputeEnvelopeIncrement(fm_decay_);
   uint32_t phase = phase_;
@@ -141,8 +137,8 @@ void FmDrum::FillBuffer(
   uint32_t aux_envelope_phase = aux_envelope_phase_;
   uint32_t phase_increment = phase_increment_;
   while (size--) {
-    uint8_t control = input_buffer->ImmediateRead();
-    if (control & CONTROL_GATE_RISING) {
+    GateFlags gate_flag = *gate_flags++;
+    if (gate_flag & GATE_FLAG_RISING) {
       fm_envelope_phase = 0;
       am_envelope_phase = 0;
       aux_envelope_phase = 0;
@@ -188,7 +184,7 @@ void FmDrum::FillBuffer(
       mix = Mix(mix, overdriven, overdrive_);
     }
     previous_sample_ = mix;
-    output_buffer->Overwrite(mix);
+    *out++ = mix;
   }
   phase_ = phase;
   fm_envelope_phase_ = fm_envelope_phase;

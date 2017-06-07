@@ -28,23 +28,19 @@
 
 #include "peaks/drivers/dac.h"
 
-#include <stm32f10x_conf.h>
-
 namespace peaks {
   
-const uint16_t kPinSS = GPIO_Pin_12;
-
 void Dac::Init() {
   // Initialize SS pin.
   GPIO_InitTypeDef gpio_init;
   gpio_init.GPIO_Pin = kPinSS;
-  gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_Init(GPIOB, &gpio_init);
   
   // Initialize MOSI and SCK pins.
   gpio_init.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_15;
-  gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_Init(GPIOB, &gpio_init);
   
@@ -62,21 +58,7 @@ void Dac::Init() {
   SPI_Init(SPI2, &spi_init);
   SPI_Cmd(SPI2, ENABLE);
   
-  active_channel_ = 0;
-}
-
-void Dac::Update() {
-  GPIO_SetBits(GPIOB, kPinSS);
-  GPIO_ResetBits(GPIOB, kPinSS);
-  if (active_channel_ == 0) {
-    SPI_I2S_SendData(SPI2, 0x1000 | (data_[1] >> 8));
-    SPI_I2S_SendData(SPI2, data_[1] << 8);
-    active_channel_ = 1;
-  } else {
-    SPI_I2S_SendData(SPI2, 0x2400 | (data_[0] >> 8));
-    SPI_I2S_SendData(SPI2, data_[0] << 8);
-    active_channel_ = 0;
-  }
+  wrote_both_channels_ = false;
 }
 
 void Dac::Write(uint16_t channel_1) {

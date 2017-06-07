@@ -51,7 +51,7 @@ class PulseShaper {
   ~PulseShaper() { }
   
   void Init();
-  void FillBuffer(InputBuffer* input_buffer, OutputBuffer* output_buffer);
+  void Process(const GateFlags* gate_flags, int16_t* out, size_t size);
   
   void Configure(uint16_t* parameter, ControlMode control_mode) {
     if (control_mode == CONTROL_MODE_HALF) {

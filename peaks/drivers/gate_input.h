@@ -51,22 +51,11 @@ class GateInput {
   
   void Init();
   
-  uint8_t Read() {
-    uint8_t state = ReadBits();
-    if (!(previous_state_ & INPUT_1_GATE) && (state & INPUT_1_GATE)) {
-      state |= INPUT_1_RAISING;
-    }
-    if ((previous_state_ & INPUT_1_GATE) && !(state & INPUT_1_GATE)) {
-      state |= INPUT_1_FALLING;
-    }
-    if (!(previous_state_ & INPUT_2_GATE) && (state & INPUT_2_GATE)) {
-      state |= INPUT_2_RAISING;
-    }
-    if ((previous_state_ & INPUT_2_GATE) && !(state & INPUT_2_GATE)) {
-      state |= INPUT_2_FALLING;
-    }
-    previous_state_ = state;
-    return state;
+  uint32_t Read() {
+    uint32_t result = 0;
+    result |= GPIOB->IDR & GPIO_Pin_11 ? 0 : 1;
+    result |= GPIOA->IDR & GPIO_Pin_12 ? 0 : 2;
+    return result;
   }
   
   inline bool ReadInput1() {
@@ -75,8 +64,6 @@ class GateInput {
   
  private:
   uint8_t ReadBits();
-  
-  uint8_t previous_state_;
   
   DISALLOW_COPY_AND_ASSIGN(GateInput);
 };

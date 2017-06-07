@@ -46,40 +46,44 @@ void MultistageEnvelope::Init() {
   hard_reset_ = false;
 }
 
-int16_t MultistageEnvelope::ProcessSingleSample(uint8_t control) {
-  if (control & CONTROL_GATE_RISING) {
-    start_value_ = (segment_ == num_segments_ || hard_reset_)
-        ? level_[0]
-        : value_;
-    segment_ = 0;
-    phase_ = 0;
-  } else if (control & CONTROL_GATE_FALLING && sustain_point_) {
-    start_value_ = value_;
-    segment_ = sustain_point_;
-    phase_ = 0;
-  } else if (phase_ < phase_increment_) {
-    start_value_ = level_[segment_ + 1];
-    ++segment_;
-    phase_ = 0;
-    if (segment_ == loop_end_) {
-      segment_ = loop_start_;
+void MultistageEnvelope::Process(
+    const GateFlags* gate_flags, int16_t* out, size_t size) {
+  while (size--) {
+    GateFlags gate_flag = *gate_flags++;
+    if (gate_flag & GATE_FLAG_RISING) {
+      start_value_ = (segment_ == num_segments_ || hard_reset_)
+          ? level_[0]
+          : value_;
+      segment_ = 0;
+      phase_ = 0;
+    } else if (gate_flag & GATE_FLAG_FALLING && sustain_point_) {
+      start_value_ = value_;
+      segment_ = sustain_point_;
+      phase_ = 0;
+    } else if (phase_ < phase_increment_) {
+      start_value_ = level_[segment_ + 1];
+      ++segment_;
+      phase_ = 0;
+      if (segment_ == loop_end_) {
+        segment_ = loop_start_;
+      }
     }
-  }
   
-  bool done = segment_ == num_segments_;
-  bool sustained = sustain_point_ && segment_ == sustain_point_ &&
-      control & CONTROL_GATE;
+    bool done = segment_ == num_segments_;
+    bool sustained = sustain_point_ && segment_ == sustain_point_ &&
+        gate_flag & GATE_FLAG_HIGH;
 
-  phase_increment_ =
-      sustained || done ? 0 : lut_env_increments[time_[segment_] >> 8];
+    phase_increment_ =
+        sustained || done ? 0 : lut_env_increments[time_[segment_] >> 8];
 
-  int32_t a = start_value_;
-  int32_t b = level_[segment_ + 1];
-  uint16_t t = Interpolate824(
-      lookup_table_table[LUT_ENV_LINEAR + shape_[segment_]], phase_);
-  value_ = a + ((b - a) * (t >> 1) >> 15);
-  phase_ += phase_increment_;
-  return value_;
+    int32_t a = start_value_;
+    int32_t b = level_[segment_ + 1];
+    uint16_t t = Interpolate824(
+        lookup_table_table[LUT_ENV_LINEAR + shape_[segment_]], phase_);
+    value_ = a + ((b - a) * (t >> 1) >> 15);
+    phase_ += phase_increment_;
+    *out++ = value_;
+  }
 }
 
 }  // namespace peaks

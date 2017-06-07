@@ -35,25 +35,34 @@
 
 namespace peaks {
 
-enum ControlBitMask {
-  CONTROL_GATE = 1,
-  CONTROL_GATE_RISING = 2,
-  CONTROL_GATE_FALLING = 4,
-
-  CONTROL_GATE_AUXILIARY = 16,
-  CONTROL_GATE_RISING_AUXILIARY = 32,
-  CONTROL_GATE_FALLING_AUXILIARY = 64
-};
-
 enum ControlMode {
   CONTROL_MODE_FULL,
   CONTROL_MODE_HALF
 };
 
-const uint16_t kBlockSize = 8;
+enum GateFlagsBits {
+  GATE_FLAG_LOW = 0,
+  GATE_FLAG_HIGH = 1,
+  GATE_FLAG_RISING = 2,
+  GATE_FLAG_FALLING = 4,
+  GATE_FLAG_FROM_BUTTON = 8,
+  
+  GATE_FLAG_AUXILIARY_LOW = 0,
+  GATE_FLAG_AUXILIARY_HIGH = 16,
+  GATE_FLAG_AUXILIARY_RISING = 32,
+  GATE_FLAG_AUXILIARY_FALLING = 64,
+};
 
-typedef stmlib::RingBuffer<uint8_t, kBlockSize * 2> InputBuffer;
-typedef stmlib::RingBuffer<int16_t, kBlockSize * 2> OutputBuffer;
+typedef uint8_t GateFlags;
+
+inline GateFlags ExtractGateFlags(GateFlags previous, bool current) {
+  previous &= GATE_FLAG_HIGH;
+  if (current) {
+    return previous ? GATE_FLAG_HIGH : (GATE_FLAG_RISING | GATE_FLAG_HIGH);
+  } else {
+    return previous ? GATE_FLAG_FALLING : GATE_FLAG_LOW;
+  }
+}
 
 }  // namespace peaks
 

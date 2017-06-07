@@ -66,6 +66,7 @@ void Ui::Init(CalibrationData* calibration_data) {
   adc_.Init();
   system_clock.Tick();
 
+  fill(&adc_lp_[0], &adc_lp_[kNumAdcChannels], 0);
   fill(&adc_value_[0], &adc_value_[kNumAdcChannels], 0);
   fill(&adc_threshold_[0], &adc_threshold_[kNumAdcChannels], 0);
   fill(&snapped_[0], &snapped_[kNumAdcChannels], false);
@@ -189,8 +190,9 @@ inline void Ui::RefreshLeds() {
 
 void Ui::PollPots() {
   for (uint8_t i = 0; i < kNumAdcChannels; ++i) {
-    int32_t value = adc_.value(i);
-    int32_t current_value = static_cast<int32_t>(adc_value_[i]);
+    adc_lp_[i] = (int32_t(adc_.value(i)) + adc_lp_[i] * 7) >> 3;
+    int32_t value = adc_lp_[i];
+    int32_t current_value = adc_value_[i];
     if (value >= current_value + adc_threshold_[i] ||
         value <= current_value - adc_threshold_[i] ||
         !adc_threshold_[i]) {
@@ -264,14 +266,18 @@ void Ui::OnSwitchPressed(const Event& e) {
 }
 
 void Ui::ChangeControlMode() {
+  uint16_t parameters[4];
+  for (int i = 0; i < 4; ++i) {
+    parameters[i] = adc_value_[i];
+  }
   if (edit_mode_ == EDIT_MODE_SPLIT) {
-    processors[0].CopyParameters(&adc_value_[0], 2);
-    processors[1].CopyParameters(&adc_value_[2], 2);
+    processors[0].CopyParameters(&parameters[0], 2);
+    processors[1].CopyParameters(&parameters[2], 2);
     processors[0].set_control_mode(CONTROL_MODE_HALF);
     processors[1].set_control_mode(CONTROL_MODE_HALF);
   } else if (edit_mode_ == EDIT_MODE_TWIN) {
-    processors[0].CopyParameters(&adc_value_[0], 4);
-    processors[1].CopyParameters(&adc_value_[0], 4);
+    processors[0].CopyParameters(&parameters[0], 4);
+    processors[1].CopyParameters(&parameters[0], 4);
     processors[0].set_control_mode(CONTROL_MODE_FULL);
     processors[1].set_control_mode(CONTROL_MODE_FULL);
   } else {

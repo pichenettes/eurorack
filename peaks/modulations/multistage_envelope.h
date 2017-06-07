@@ -50,7 +50,7 @@ class MultistageEnvelope {
   ~MultistageEnvelope() { }
   
   void Init();
-  int16_t ProcessSingleSample(uint8_t control);
+  void Process(const GateFlags* gate_flags, int16_t* out, size_t size);
   
   void Configure(uint16_t* parameter, ControlMode control_mode) {
     if (control_mode == CONTROL_MODE_HALF) {

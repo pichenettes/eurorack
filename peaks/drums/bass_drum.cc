@@ -54,7 +54,6 @@ void BassDrum::Init() {
   attack_fm_.set_decay(4093);
   
   resonator_.set_punch(32768);
-  resonator_.set_mode(SVF_MODE_BP);
   
   set_frequency(0);
   set_decay(32768);
@@ -64,24 +63,30 @@ void BassDrum::Init() {
   lp_state_ = 0;
 }
 
-int16_t BassDrum::ProcessSingleSample(uint8_t control) {
-  if (control & CONTROL_GATE_RISING) {
-    pulse_up_.Trigger(12 * 32768 * 0.7);
-    pulse_down_.Trigger(-19662 * 0.7);
-    attack_fm_.Trigger(18000);
-  }
-  int32_t excitation = 0;
-  excitation += pulse_up_.Process();
-  excitation += !pulse_down_.done() ? 16384 : 0;
-  excitation += pulse_down_.Process();
-  attack_fm_.Process();
-  resonator_.set_frequency(frequency_ + (attack_fm_.done() ? 0 : 17 << 7));
+void BassDrum::Process(const GateFlags* gate_flags, int16_t* out, size_t size) {
+  while (size--) {
+    GateFlags gate_flag = *gate_flags++;
+    if (gate_flag & GATE_FLAG_RISING) {
+      pulse_up_.Trigger(12 * 32768 * 0.7);
+      pulse_down_.Trigger(-19662 * 0.7);
+      attack_fm_.Trigger(18000);
+    }
+    
+    int32_t excitation = 0;
+    excitation += pulse_up_.Process();
+    excitation += !pulse_down_.done() ? 16384 : 0;
+    excitation += pulse_down_.Process();
+    attack_fm_.Process();
+    resonator_.set_frequency(frequency_ + (attack_fm_.done() ? 0 : 17 << 7));
 
-  int32_t resonator_output = (excitation >> 4) + resonator_.Process(excitation);
-  lp_state_ += (resonator_output - lp_state_) * lp_coefficient_ >> 15;
-  int32_t output = lp_state_;
-  CLIP(output);
-  return output;
+    int32_t resonator_output = (excitation >> 4) + \
+        resonator_.Process<SVF_MODE_BP>(excitation);
+    lp_state_ += (resonator_output - lp_state_) * lp_coefficient_ >> 15;
+    int32_t output = lp_state_;
+    CLIP(output);
+    
+    *out++ = output;
+  }
 }
 
 }  // namespace peaks

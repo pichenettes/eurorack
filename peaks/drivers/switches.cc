@@ -38,17 +38,17 @@ void Switches::Init() {
   GPIO_InitTypeDef gpio_init;
 
   gpio_init.GPIO_Pin = GPIO_Pin_4;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_Init(GPIOB, &gpio_init);
   
   gpio_init.GPIO_Pin = GPIO_Pin_8;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_Init(GPIOA, &gpio_init);
   
   gpio_init.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_Init(GPIOC, &gpio_init);
   

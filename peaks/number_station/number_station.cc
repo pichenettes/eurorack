@@ -36,8 +36,6 @@
 namespace peaks {
 
 const uint8_t kDownsample = 4;
-const uint16_t kSlopeBits = 12;
-const uint32_t kSyncCounterMaxTime = 8 * 48000;
 
 using namespace stmlib;
 
@@ -47,12 +45,10 @@ void NumberStation::Init() {
   lp_.Init();
   lp_.set_frequency(120 << 7);
   lp_.set_resonance(16000);
-  lp_.set_mode(SVF_MODE_LP);
 
   hp_.Init();
   hp_.set_frequency(70 << 7);
   hp_.set_resonance(8000);
-  hp_.set_mode(SVF_MODE_HP);
 
   previous_inner_sample_ = 0;
   previous_outer_sample_ = 0;
@@ -62,9 +58,8 @@ size_t voice_digits[] = {
   0, 4913, 7830, 11306, 14601, 18651, 22308, 26438, 30495, 33296, 36801
 };
 
-void NumberStation::FillBuffer(
-    InputBuffer* input_buffer,
-    OutputBuffer* output_buffer) {
+void NumberStation::Process(
+    const GateFlags* gate_flags, int16_t* out, size_t size) {
   uint32_t phase_increment;
 
   if (voice_) {
@@ -87,11 +82,11 @@ void NumberStation::FillBuffer(
   int32_t slow_noise = drift_ << 5;
   CLIP(slow_noise);
 
-  uint8_t size = kBlockSize / kDownsample;
+  size /= kDownsample;
   while (size--) {
     for (uint8_t i = 0; i < kDownsample; ++i) {
-      uint8_t control = input_buffer->ImmediateRead();
-      if (control & CONTROL_GATE_RISING) {
+      GateFlags gate_flag = *gate_flags++;
+      if (gate_flag & GATE_FLAG_RISING) {
         uint16_t random = Random::GetSample();
         if (random < transition_probability_) {
           digit_ = random >> 2;
@@ -101,7 +96,7 @@ void NumberStation::FillBuffer(
           phase_ = voice_digits[digit_] << 16;
         }
       }
-      if (control & CONTROL_GATE) {
+      if (gate_flag & GATE_FLAG_HIGH) {
         tone_amplitude_ += (32767 - tone_amplitude_) >> 6;
       } else {
         tone_amplitude_ -= tone_amplitude_ >> 6;
@@ -167,15 +162,16 @@ void NumberStation::FillBuffer(
         inner_sample * 8192 + (1UL << 31));
 
     int32_t outer_sample ;
-    outer_sample = lp_.Process(
-        hp_.Process((inner_sample + previous_inner_sample_) >> 1));
-    output_buffer->Overwrite((previous_outer_sample_ + outer_sample) >> 1);
-    output_buffer->Overwrite(outer_sample);
+    outer_sample = lp_.Process<SVF_MODE_LP>(
+        hp_.Process<SVF_MODE_HP>((inner_sample + previous_inner_sample_) >> 1));
+    *out++ = (previous_outer_sample_ + outer_sample) >> 1;
+    *out++ = outer_sample;
     previous_outer_sample_ = outer_sample;
 
-    outer_sample = lp_.Process(hp_.Process(inner_sample));
-    output_buffer->Overwrite((previous_outer_sample_ + outer_sample) >> 1);
-    output_buffer->Overwrite(outer_sample);
+    outer_sample = lp_.Process<SVF_MODE_LP>(
+        hp_.Process<SVF_MODE_HP>(inner_sample));
+    *out++ = (previous_outer_sample_ + outer_sample) >> 1;
+    *out++ = outer_sample;
     previous_outer_sample_ = outer_sample;
 
     previous_inner_sample_ = inner_sample;

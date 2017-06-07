@@ -52,7 +52,10 @@ class MiniSequencer {
   }
   
   inline void set_step(uint8_t index, int16_t value) {
-    steps_[index] = value;
+    int32_t difference = abs(int32_t(steps_[index]) - value);
+    if (difference > 0) {
+      steps_[index] = value;
+    }
   }
   
   inline void set_num_steps(uint8_t num_steps) {
@@ -73,21 +76,24 @@ class MiniSequencer {
     }
   }
   
-  inline int16_t ProcessSingleSample(uint8_t control) {
-    if (control & CONTROL_GATE_RISING) {
-      ++step_;
-      if (reset_at_next_clock_) {
-        reset_at_next_clock_  = false;
+  void Process(const GateFlags* gate_flags, int16_t* out, size_t size) {
+    while (size--) {
+      GateFlags gate_flag = *gate_flags++;
+      if (gate_flag & GATE_FLAG_RISING) {
+        ++step_;
+        if (reset_at_next_clock_) {
+          reset_at_next_clock_  = false;
+          step_ = 0;
+        }
+      }
+      if (num_steps_ > 2 && gate_flag & GATE_FLAG_AUXILIARY_RISING) {
+        reset_at_next_clock_ = true;
+      }
+      if (step_ >= num_steps_) {
         step_ = 0;
       }
+      *out++ = static_cast<int32_t>(steps_[step_]) * 40960 >> 16;
     }
-    if (num_steps_ > 2 && control & CONTROL_GATE_RISING_AUXILIARY) {
-      reset_at_next_clock_ = true;
-    }
-    if (step_ >= num_steps_) {
-      step_ = 0;
-    }
-    return static_cast<int32_t>(steps_[step_]) * 40960 >> 16;
   }
   
  private:

@@ -39,17 +39,17 @@ void Leds::Init() {
   GPIO_InitTypeDef gpio_init;
   
   gpio_init.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_Init(GPIOA, &gpio_init);
 
   gpio_init.GPIO_Pin = GPIO_Pin_10;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_Init(GPIOB, &gpio_init);
   
   gpio_init.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_Init(GPIOB, &gpio_init);
   

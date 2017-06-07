@@ -70,24 +70,23 @@ void Lfo::set_shape_parameter_preset(uint16_t value) {
   set_parameter(presets[value][1]);
 }
 
-void Lfo::FillBuffer(
-    InputBuffer* input_buffer,
-    OutputBuffer* output_buffer) {
+void Lfo::Process(const GateFlags* gate_flags, int16_t* out, size_t size) {
   if (!sync_) {
     int32_t a = lut_lfo_increments[rate_ >> 8];
     int32_t b = lut_lfo_increments[(rate_ >> 8) + 1];
     phase_increment_ = a + (((b - a) >> 1) * (rate_ & 0xff) >> 7);
   }
-  uint8_t size = kBlockSize;  
   while (size--) {
     ++sync_counter_;
-    uint8_t control = input_buffer->ImmediateRead();
-    if (control & CONTROL_GATE_RISING) {
+    GateFlags gate_flag = *gate_flags++;
+    if (gate_flag & GATE_FLAG_RISING) {
       bool reset_phase = true;
       if (sync_) {
         if (sync_counter_ < kSyncCounterMaxTime) {
           uint32_t period = 0;
-          if (sync_counter_ < 1920) {
+          if (gate_flag & GATE_FLAG_FROM_BUTTON) {
+            period = sync_counter_;
+          } else if (sync_counter_ < 1920) {
             period = (3 * period_ + sync_counter_) >> 2;
             reset_phase = false;
           } else {
@@ -106,7 +105,7 @@ void Lfo::FillBuffer(
     }
     phase_ += phase_increment_;
     int32_t sample = (this->*compute_sample_fn_table_[shape_])();
-    output_buffer->Overwrite(sample * level_ >> 15);
+    *out++ = sample * level_ >> 15;
   }
 }
 

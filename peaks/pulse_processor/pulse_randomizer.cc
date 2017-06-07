@@ -39,8 +39,6 @@ namespace peaks {
 
 using namespace stmlib;
 
-static const uint8_t kDownsample = 8;
-
 void PulseRandomizer::Init() {
   repetition_probability_ = 32767;
   acceptance_probability_ = 65535;
@@ -67,13 +65,11 @@ inline uint16_t PulseRandomizer::delay() const {
   return Interpolate88(lut_delay_times, delay);
 }
 
-void PulseRandomizer::FillBuffer(
-    InputBuffer* input_buffer,
-    OutputBuffer* output_buffer) {
+void PulseRandomizer::Process(
+    const GateFlags* gate_flags, int16_t* out, size_t size) {
   bool new_pulse = false;
-  for (uint8_t i = 0; i < kBlockSize; ++i) {
-    uint8_t control = input_buffer->ImmediateRead();
-    new_pulse |= control & CONTROL_GATE_RISING;
+  for (size_t i = 0; i < size; ++i) {
+    new_pulse |= gate_flags[i] & GATE_FLAG_RISING;
   }
     
   if ((Random::GetWord() >> 16) > acceptance_probability_) {
@@ -112,11 +108,8 @@ void PulseRandomizer::FillBuffer(
     }
   }
     
-  uint16_t output = retrig_counter_ > 6 ? 20480 : 0;
-    
-  for (uint8_t i = 0; i < kBlockSize; ++i) {
-    output_buffer->Overwrite(output);
-  }
+  int16_t output = retrig_counter_ > 6 ? 20480 : 0;
+  std::fill(&out[0], &out[size], output);
 }
 
 }  // namespace peaks

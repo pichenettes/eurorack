@@ -35,44 +35,29 @@ namespace peaks {
 using namespace stmlib;
 using namespace std;
 
-#define REGISTER_BUFFERED_PROCESSOR(ClassName) \
+#define REGISTER_PROCESSOR(ClassName) \
   { &Processors::ClassName ## Init, \
-    NULL, \
-    &Processors::ClassName ## FillBuffer, \
-    &Processors::ClassName ## Configure },
-
-#define REGISTER_UNBUFFERED_PROCESSOR(ClassName) \
-  { &Processors::ClassName ## Init, \
-    &Processors::ClassName ## ProcessSingleSample, \
-    NULL, \
+    &Processors::ClassName ## Process, \
     &Processors::ClassName ## Configure },
 
 /* static */
 const Processors::ProcessorCallbacks 
 Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
-  REGISTER_UNBUFFERED_PROCESSOR(MultistageEnvelope)
-  REGISTER_BUFFERED_PROCESSOR(Lfo)
-  REGISTER_BUFFERED_PROCESSOR(Lfo)
-  REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
-  REGISTER_UNBUFFERED_PROCESSOR(SnareDrum)
-  REGISTER_UNBUFFERED_PROCESSOR(HighHat)
-  REGISTER_BUFFERED_PROCESSOR(FmDrum)
-  REGISTER_BUFFERED_PROCESSOR(PulseShaper)
-  REGISTER_BUFFERED_PROCESSOR(PulseRandomizer)
-  REGISTER_UNBUFFERED_PROCESSOR(BouncingBall)
-  REGISTER_UNBUFFERED_PROCESSOR(MiniSequencer)
-  REGISTER_BUFFERED_PROCESSOR(NumberStation)
+  REGISTER_PROCESSOR(MultistageEnvelope)
+  REGISTER_PROCESSOR(Lfo)
+  REGISTER_PROCESSOR(Lfo)
+  REGISTER_PROCESSOR(BassDrum)
+  REGISTER_PROCESSOR(SnareDrum)
+  REGISTER_PROCESSOR(HighHat)
+  REGISTER_PROCESSOR(FmDrum)
+  REGISTER_PROCESSOR(PulseShaper)
+  REGISTER_PROCESSOR(PulseRandomizer)
+  REGISTER_PROCESSOR(BouncingBall)
+  REGISTER_PROCESSOR(MiniSequencer)
+  REGISTER_PROCESSOR(NumberStation)
 };
 
 void Processors::Init(uint8_t index) {
-  input_buffer_.Init();
-  output_buffer_.Init();
-
-  for (uint16_t i = 0; i < kBlockSize; ++i) {
-    output_buffer_.Overwrite(0);
-    input_buffer_.Overwrite(0);
-  }
-  
   for (uint16_t i = 0; i < PROCESSOR_FUNCTION_LAST; ++i) {
     (this->*callbacks_table_[i].init_fn)();
   }

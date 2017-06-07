@@ -65,30 +65,17 @@ enum ProcessorFunction {
   PROCESSOR_FUNCTION_LAST
 };
 
-#define DECLARE_BUFFERED_PROCESSOR(ClassName, variable) \
+#define DECLARE_PROCESSOR(ClassName, variable) \
   void ClassName ## Init() { \
     variable.Init(); \
   } \
-  void ClassName ## FillBuffer() { \
-    variable.FillBuffer(&input_buffer_, &output_buffer_); \
+  void ClassName ## Process(const GateFlags* gate_flags, int16_t* out, size_t size) { \
+    variable.Process(gate_flags, out, size); \
   } \
   void ClassName ## Configure(uint16_t* p, ControlMode control_mode) { \
     variable.Configure(p, control_mode); \
   } \
   ClassName variable;
-
-#define DECLARE_UNBUFFERED_PROCESSOR(ClassName, variable) \
-  void ClassName ## Init() { \
-    variable.Init(); \
-  } \
-  int16_t ClassName ## ProcessSingleSample(uint8_t control) { \
-    return variable.ProcessSingleSample(control); \
-  } \
-  void ClassName ## Configure(uint16_t* p, ControlMode control_mode) { \
-    variable.Configure(p, control_mode); \
-  } \
-  ClassName variable;
-  
 
 class Processors {
  public:
@@ -98,15 +85,13 @@ class Processors {
   void Init(uint8_t index);
   
   typedef void (Processors::*InitFn)(); 
-  typedef int16_t (Processors::*ProcessSingleSampleFn)(uint8_t); 
-  typedef void (Processors::*FillBufferFn)(); 
+  typedef void (Processors::*ProcessFn)(const GateFlags*, int16_t*, size_t); 
   typedef void (Processors::*ConfigureFn)(uint16_t*, ControlMode);
   
   struct ProcessorCallbacks {
     InitFn init_fn;
-    ProcessSingleSampleFn process_single_sample;
-    FillBufferFn fill_buffer;
-    ConfigureFn configure;
+    ProcessFn process_fn;
+    ConfigureFn configure_fn;
   };
   
   inline void set_control_mode(ControlMode control_mode) {
@@ -135,26 +120,8 @@ class Processors {
   
   inline ProcessorFunction function() const { return function_; }
 
-  inline int16_t Process(uint8_t control) {
-    if (callbacks_.process_single_sample) {
-      return (this->*callbacks_.process_single_sample)(control);
-    } else {
-      input_buffer_.Overwrite(control);
-      return output_buffer_.ImmediateRead();
-    }
-  }
-  
-  inline bool Buffer() {
-    if (callbacks_.fill_buffer) {
-      if (output_buffer_.writable() < kBlockSize) {
-        return false;
-      } else {
-        (this->*callbacks_.fill_buffer)();
-        return true;
-      }
-    } else {
-      return true;
-    }
+  inline void Process(const GateFlags* gate_flags, int16_t* output, size_t size) {
+    (this->*callbacks_.process_fn)(gate_flags, output, size);
   }
   
   inline const NumberStation& number_station() const { return number_station_; }
@@ -177,11 +144,8 @@ class Processors {
         }
       }
     }
-    (this->*callbacks_.configure)(&parameter_[0], control_mode_);
+    (this->*callbacks_.configure_fn)(&parameter_[0], control_mode_);
   }
-  
-  InputBuffer input_buffer_;
-  OutputBuffer output_buffer_;
   
   ControlMode control_mode_;
   ProcessorFunction function_;
@@ -190,17 +154,17 @@ class Processors {
   ProcessorCallbacks callbacks_;
   static const ProcessorCallbacks callbacks_table_[PROCESSOR_FUNCTION_LAST];
   
-  DECLARE_UNBUFFERED_PROCESSOR(MultistageEnvelope, envelope_);
-  DECLARE_BUFFERED_PROCESSOR(Lfo, lfo_);
-  DECLARE_UNBUFFERED_PROCESSOR(BassDrum, bass_drum_);
-  DECLARE_UNBUFFERED_PROCESSOR(SnareDrum, snare_drum_);
-  DECLARE_UNBUFFERED_PROCESSOR(HighHat, high_hat_);
-  DECLARE_BUFFERED_PROCESSOR(FmDrum, fm_drum_);
-  DECLARE_BUFFERED_PROCESSOR(PulseShaper, pulse_shaper_);
-  DECLARE_BUFFERED_PROCESSOR(PulseRandomizer, pulse_randomizer_);
-  DECLARE_UNBUFFERED_PROCESSOR(BouncingBall, bouncing_ball_);
-  DECLARE_UNBUFFERED_PROCESSOR(MiniSequencer, mini_sequencer_);
-  DECLARE_BUFFERED_PROCESSOR(NumberStation, number_station_);
+  DECLARE_PROCESSOR(MultistageEnvelope, envelope_);
+  DECLARE_PROCESSOR(Lfo, lfo_);
+  DECLARE_PROCESSOR(BassDrum, bass_drum_);
+  DECLARE_PROCESSOR(SnareDrum, snare_drum_);
+  DECLARE_PROCESSOR(HighHat, high_hat_);
+  DECLARE_PROCESSOR(FmDrum, fm_drum_);
+  DECLARE_PROCESSOR(PulseShaper, pulse_shaper_);
+  DECLARE_PROCESSOR(PulseRandomizer, pulse_randomizer_);
+  DECLARE_PROCESSOR(BouncingBall, bouncing_ball_);
+  DECLARE_PROCESSOR(MiniSequencer, mini_sequencer_);
+  DECLARE_PROCESSOR(NumberStation, number_station_);
   
   DISALLOW_COPY_AND_ASSIGN(Processors);
 };

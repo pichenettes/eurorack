@@ -90,27 +90,14 @@ class Ui {
   void DoEvents();
   void FlushEvents();
   
-  void set_leds_brightness(int16_t channel_1, int16_t channel_2) {
-    brightness_[0] = channel_1;
-    brightness_[1] = channel_2;
+  void set_led_brightness(int channel, int16_t value) {
+    brightness_[channel] = value;
   }
   
-  inline uint8_t ReadPanelGateState() {
-    uint8_t state = panel_gate_control_[0] ? INPUT_1_GATE : 0;
-    state |= panel_gate_control_[1] ? INPUT_2_GATE : 0;
-    if (!(panel_gate_state_ & INPUT_1_GATE) && (state & INPUT_1_GATE)) {
-      state |= INPUT_1_RAISING;
-    }
-    if ((panel_gate_state_ & INPUT_1_GATE) && !(state & INPUT_1_GATE)) {
-      state |= INPUT_1_FALLING;
-    }
-    if (!(panel_gate_state_ & INPUT_2_GATE) && (state & INPUT_2_GATE)) {
-      state |= INPUT_2_RAISING;
-    }
-    if ((panel_gate_state_ & INPUT_2_GATE) && !(state & INPUT_2_GATE)) {
-      state |= INPUT_2_FALLING;
-    }
-    panel_gate_state_ = state;
+  inline uint32_t ReadPanelGateState() {
+    uint32_t state = 0;
+    state |= panel_gate_control_[0] ? 1 : 0;
+    state |= panel_gate_control_[1] ? 2 : 0;
     return state;
   }
   
@@ -130,8 +117,9 @@ class Ui {
   void SetFunction(uint8_t index, Function f);
   void SaveState();
 
-  uint16_t adc_value_[kNumAdcChannels];
-  uint16_t adc_threshold_[kNumAdcChannels];
+  int32_t adc_lp_[kNumAdcChannels];
+  int32_t adc_value_[kNumAdcChannels];
+  int32_t adc_threshold_[kNumAdcChannels];
   uint32_t press_time_[kNumSwitches];
   bool panel_gate_control_[2];
   static const ProcessorFunction function_table_[FUNCTION_LAST][2];

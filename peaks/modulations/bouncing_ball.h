@@ -66,22 +66,25 @@ class BouncingBall {
     }
   }
   
-  inline int16_t ProcessSingleSample(uint8_t control) {
-    if (control & CONTROL_GATE_RISING) {
-      velocity_ = initial_velocity_;
-      position_ = initial_amplitude_;
+  void Process(const GateFlags* gate_flags, int16_t* out, size_t size) {
+    while (size--) {
+      GateFlags gate_flag = *gate_flags++;
+      if (gate_flag & GATE_FLAG_RISING) {
+        velocity_ = initial_velocity_;
+        position_ = initial_amplitude_;
+      }
+      velocity_ -= gravity_;
+      position_ += velocity_;
+      if (position_ < 0) {
+        position_ = 0;
+        velocity_ = -(velocity_ >> 12) * bounce_loss_;
+      }
+      if (position_ > (32767L << 15)) {
+        position_ = 32767L << 15;
+        velocity_ = -(velocity_ >> 12) * bounce_loss_;
+      }
+      *out++ = position_ >> 15;
     }
-    velocity_ -= gravity_;
-    position_ += velocity_;
-    if (position_ < 0) {
-      position_ = 0;
-      velocity_ = -(velocity_ >> 12) * bounce_loss_;
-    }
-    if (position_ > (32767L << 15)) {
-      position_ = 32767L << 15;
-      velocity_ = -(velocity_ >> 12) * bounce_loss_;
-    }
-    return position_ >> 15;
   }
   
   inline void set_gravity(uint16_t gravity) {

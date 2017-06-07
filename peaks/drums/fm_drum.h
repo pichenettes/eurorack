@@ -41,7 +41,8 @@ class FmDrum {
   ~FmDrum() { }
   
   void Init();
-  void FillBuffer(InputBuffer* input_buffer, OutputBuffer* output_buffer);
+  void Process(const GateFlags* gate_flags, int16_t* out, size_t size);
+
   void Morph(uint16_t x, uint16_t y);
   void Configure(uint16_t* parameter, ControlMode control_mode) {
     if (control_mode == CONTROL_MODE_HALF) {
@@ -88,8 +89,8 @@ class FmDrum {
  private:
   bool sd_range_;
 
-  uint32_t ComputePhaseIncrement(int16_t midi_pitch) IN_RAM;
-  uint32_t ComputeEnvelopeIncrement(uint16_t time) IN_RAM;
+  uint32_t ComputePhaseIncrement(int16_t midi_pitch);
+  uint32_t ComputeEnvelopeIncrement(uint16_t time);
 
   uint16_t aux_envelope_strength_;
   uint16_t frequency_;
