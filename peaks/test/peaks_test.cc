@@ -75,14 +75,14 @@ void TestFMDrum() {
     tri = tri > 32767 ? 65535 - tri : tri;
     uint8_t gate_flag = 0;
     if (i % period < (period / 4)) {
-      control |= CONTROL_GATE;
+      gate_flag |= GATE_FLAG_HIGH;
     }
     if (i % period == 0) {
-      control |= GATE_FLAG_RISING;
+      gate_flag |= GATE_FLAG_RISING;
     }
-    int16_t s = processors[0].Process(control);
+    int16_t s;
+    processors[0].Process(&gate_flag, &s, 1);
     wav_writer.WriteFrames(&s, 1);
-    processors[0].Buffer();
   }
 }
 
