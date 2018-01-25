@@ -148,17 +148,18 @@ ISR(TCE0_OVF_vect) {
       {
         // Otherwise, scan the gate.
         uint8_t gate = ~gate_inputs.value();
-        bool g_1 = (gate & 1) || midi_handler.gate(0) || settings.arpeggio(0);
+        uint8_t midi_gate = midi_handler.gate();
+        bool g_1 = (gate & 1) || (midi_gate & 1) || settings.arpeggio(0);
         channel_0.Gate<Channel0>(g_1);
         channel_1.Gate<Channel1>(g_1);
         
-        bool g_2 = (gate & 2) || midi_handler.gate(1) || settings.arpeggio(1);
+        bool g_2 = (gate & 2) || (midi_gate & 2) || settings.arpeggio(1);
         channel_2.Gate<Channel2>(g_2);
         
-        bool g_3 = (gate & 4) || midi_handler.gate(2) || settings.arpeggio(2);
+        bool g_3 = (gate & 4) || (midi_gate & 4) || settings.arpeggio(2);
         channel_3.Gate<Channel3>(g_3);
         
-        bool g_4 = (gate & 8) || midi_handler.gate(3) || settings.arpeggio(3);
+        bool g_4 = (gate & 8) || (midi_gate & 8) || settings.arpeggio(3);
         channel_4.Gate(g_4);
     
         // Read some MIDI bytes, but process them later.
@@ -230,7 +231,8 @@ int main(void) {
         }
         mask <<= 1;
       }
-      ui.set_gate(gate);
+      uint8_t midi_gate = midi_handler.gate();
+      ui.set_gate(gate|midi_gate);
       ui.Poll();      
     }
     

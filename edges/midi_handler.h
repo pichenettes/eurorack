@@ -44,7 +44,7 @@ class MidiHandler : public midi::MidiDevice {
     allocator_.Init();
     allocator_.set_size(4);
     learning_ = false;
-    memset(gate_, false, sizeof(gate_));
+    gate_ = 0;
     memset(pitch_, -1, sizeof(pitch_));
   }
   
@@ -74,7 +74,7 @@ class MidiHandler : public midi::MidiDevice {
       channel = allocator_.NoteOn(note);
       pitch_[channel] = note << 7;
     }
-    gate_[channel] = true;
+    gate_ |= (1 << channel);
   }
   
   static inline void NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -85,11 +85,11 @@ class MidiHandler : public midi::MidiDevice {
       if (stack_[channel].size()) {
         pitch_[channel] = stack_[channel].most_recent_note().note << 7;
       }
-      gate_[channel] = stack_[channel].size() != 0;
+      (stack_[channel].size() != 0) ? gate_ |= (1 << channel) : gate_ &= ~(1 << channel);
     } else {
       channel = allocator_.NoteOff(note);
       if (channel != 0xff) {
-        gate_[channel] = false;
+        gate_ &= ~(1 << channel);
       }
     }
   }
@@ -133,7 +133,7 @@ class MidiHandler : public midi::MidiDevice {
   
   static inline bool learning() { return learning_; }
   
-  static inline bool gate(uint8_t channel) { return gate_[channel]; }
+  static inline uint8_t gate() { return gate_; }
   static int16_t shift_pitch(uint8_t channel, int16_t pitch) {
     if (pitch_[channel] == -1) {
       return pitch;
@@ -161,7 +161,7 @@ class MidiHandler : public midi::MidiDevice {
   
  private:
   static bool learning_;
-  static bool gate_[kNumChannels];
+  static uint8_t gate_;
   static int16_t pitch_[kNumChannels];
   static int16_t pitch_bend_[kNumChannels];
   
