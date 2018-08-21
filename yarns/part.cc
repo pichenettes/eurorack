@@ -326,6 +326,7 @@ void Part::ClockSequencer() {
 
   if (step.has_note()) {
     int16_t note = step.note();
+    //TODO check if ANY part is recording, not just this one
     if (pressed_keys_.size() && !seq_recording_) {
       // When we play a monophonic sequence, we can make the guess that root
       // note = first note.
