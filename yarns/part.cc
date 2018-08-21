@@ -326,8 +326,7 @@ void Part::ClockSequencer() {
 
   if (step.has_note()) {
     int16_t note = step.note();
-    //TODO check if ANY part is recording, not just this one
-    if (pressed_keys_.size() && !seq_recording_) {
+    if (pressed_keys_.size() && !yarns::ui.is_recording()) {
       // When we play a monophonic sequence, we can make the guess that root
       // note = first note.
       // But this is not the case when we are playing several sequences at the

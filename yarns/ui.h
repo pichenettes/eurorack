@@ -132,6 +132,11 @@ class Ui {
   inline bool factory_testing() const {
     return mode_ == UI_MODE_FACTORY_TESTING;
   }
+  inline bool is_recording() const {
+    return  mode_ == UI_MODE_RECORDING ||
+            mode_ == UI_MODE_OVERDUBBING ||
+            mode_ == UI_MODE_PUSH_IT_SELECT_NOTE;
+  }
   inline uint8_t calibration_voice() const { return calibration_voice_; }
   inline uint8_t calibration_note() const { return calibration_note_; }
   
