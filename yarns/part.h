@@ -87,6 +87,16 @@ enum TuningSystem {
   TUNING_SYSTEM_LAST
 };
 
+enum SequencerInputResponse {
+  SEQUENCER_INPUT_RESPONSE_TRANSPOSE,
+  SEQUENCER_INPUT_RESPONSE_OVERRIDE,
+  SEQUENCER_INPUT_RESPONSE_OFF
+};
+
+const char* const sequencer_input_response_values[] = {
+  "TRANSPOSE", "OVERRIDE", "OFF"
+};
+
 struct MidiSettings {
   uint8_t channel;
   uint8_t min_note;
@@ -152,7 +162,8 @@ enum PartSetting {
   PART_SEQUENCER_ARP_PATTERN,
   PART_SEQUENCER_EUCLIDEAN_LENGTH,
   PART_SEQUENCER_EUCLIDEAN_FILL,
-  PART_SEQUENCER_EUCLIDEAN_ROTATE
+  PART_SEQUENCER_EUCLIDEAN_ROTATE,
+  PART_SEQUENCER_INPUT_RESPONSE
 };
 
 enum SequencerStepFlags {
@@ -194,6 +205,7 @@ struct SequencerSettings {
   uint8_t euclidean_length;
   uint8_t euclidean_fill;
   uint8_t euclidean_rotate;
+  uint8_t input_response;
   uint8_t num_steps;
   SequencerStep step[kNumSteps];
   uint8_t padding[7];
