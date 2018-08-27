@@ -93,10 +93,6 @@ enum SequencerInputResponse {
   SEQUENCER_INPUT_RESPONSE_OFF
 };
 
-const char* const sequencer_input_response_values[] = {
-  "TRANSPOSE", "OVERRIDE", "OFF"
-};
-
 struct MidiSettings {
   uint8_t channel;
   uint8_t min_note;
