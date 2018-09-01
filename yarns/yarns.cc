@@ -44,7 +44,6 @@ using namespace stmlib;
 
 Dac dac;
 GateOutput gate_output;
-Ui ui;
 MidiIO midi_io;
 System sys;
 
@@ -169,7 +168,6 @@ void Init() {
   
   settings.Init();
   multi.Init();
-  // ui = Ui::ui_;
   Ui::ui_.Init();
 
   // Load multi 0 on boot.
