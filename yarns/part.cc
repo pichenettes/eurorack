@@ -37,7 +37,6 @@
 #include "yarns/midi_handler.h"
 #include "yarns/resources.h"
 #include "yarns/voice.h"
-#include "yarns/settings.h"
 #include "yarns/ui.h"
 
 namespace yarns {
