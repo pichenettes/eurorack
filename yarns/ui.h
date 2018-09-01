@@ -101,6 +101,8 @@ class Ui {
   Ui() { }
   ~Ui() { }
   
+  static Ui ui_;
+
   void Init();
   void Poll();
   void PollFast() {

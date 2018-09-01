@@ -74,12 +74,12 @@ void SysTick_Handler() {
   // UI polling and LED refresh at 1kHz.
   static uint8_t counter;
   if ((++counter & 7) == 0) {
-    ui.Poll();
+    Ui::ui_.Poll();
     system_clock.Tick();
   }
   // When there is audio sources, lower the display refresh rate to 8kHz.
   if (has_audio_sources) {
-    ui.PollFast();
+    Ui::ui_.PollFast();
   }
   
   // Try to read some MIDI input if available.
@@ -111,10 +111,10 @@ void SysTick_Handler() {
   
   // In calibration mode, overrides the DAC outputs with the raw calibration
   // table values.
-  if (ui.calibrating()) {
-    const Voice& voice = multi.voice(ui.calibration_voice());
-    cv[ui.calibration_voice()] = voice.calibration_dac_code(
-        ui.calibration_note());
+  if (Ui::ui_.calibrating()) {
+    const Voice& voice = multi.voice(Ui::ui_.calibration_voice());
+    cv[Ui::ui_.calibration_voice()] = voice.calibration_dac_code(
+        Ui::ui_.calibration_note());
   } else if (midi_handler.calibrating()) {
     const Voice& voice = multi.voice(midi_handler.calibration_voice());
     cv[midi_handler.calibration_voice()] = voice.calibration_dac_code(
@@ -122,7 +122,7 @@ void SysTick_Handler() {
   }
   
   // In UI testing mode, overrides the GATE values with timers
-  if (ui.factory_testing()) {
+  if (Ui::ui_.factory_testing()) {
     gate[0] = (factory_testing_counter % 800) < 400;
     gate[1] = (factory_testing_counter % 400) < 200;
     gate[2] = (factory_testing_counter % 266) < 133;
@@ -155,19 +155,22 @@ void TIM1_UP_IRQHandler(void) {
     multi.RefreshInternalClock();
   } else if (dac.channel() == 1) {
     if (!has_audio_sources) {
-      ui.PollFast();
+      Ui::ui_.PollFast();
     }
   }
 }
 
 }
 
+Ui Ui::ui_ = Ui();
+
 void Init() {
   sys.Init();
   
   settings.Init();
   multi.Init();
-  ui.Init();
+  // ui = Ui::ui_;
+  Ui::ui_.Init();
 
   // Load multi 0 on boot.
   storage_manager.LoadMulti(0);
@@ -184,13 +187,13 @@ void Init() {
 int main(void) {
   Init();
   while (1) {
-    ui.DoEvents();
+    Ui::ui_.DoEvents();
     midi_handler.ProcessInput();
     multi.ProcessInternalClockEvents();
     multi.RenderAudio();
     if (midi_handler.factory_testing_requested()) {
       midi_handler.AcknowledgeFactoryTestingRequest();
-      ui.StartFactoryTesting();
+      Ui::ui_.StartFactoryTesting();
     }
   }
 }
