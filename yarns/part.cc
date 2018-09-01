@@ -37,7 +37,9 @@
 #include "yarns/midi_handler.h"
 #include "yarns/resources.h"
 #include "yarns/voice.h"
-#include "yarns/ui.h"
+
+#include "yarns/global.h"
+Ui ui;
 
 namespace yarns {
 
@@ -327,7 +329,7 @@ void Part::ClockSequencer() {
 
   if (step.has_note()) {
     int16_t note = step.note();
-    if (pressed_keys_.size() && !Ui::ui_.is_recording()) {
+    if (pressed_keys_.size() && !ui.is_recording()) {
       // When we play a monophonic sequence, we can make the guess that root
       // note = first note.
       // But this is not the case when we are playing several sequences at the
