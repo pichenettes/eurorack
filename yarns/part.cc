@@ -39,7 +39,6 @@
 #include "yarns/voice.h"
 
 #include "yarns/global.h"
-Ui ui;
 
 namespace yarns {
 
@@ -323,6 +322,8 @@ void Part::StopSequencerArpeggiatorNotes() {
     InternalNoteOff(note);
   }
 }
+
+Ui ui;
 
 void Part::ClockSequencer() {
   const SequencerStep& step = seq_.step[seq_step_];
