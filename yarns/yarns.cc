@@ -38,6 +38,7 @@
 #include "yarns/settings.h"
 #include "yarns/storage_manager.h"
 #include "yarns/ui.h"
+#include "yarns/global.h"
 
 using namespace yarns;
 using namespace stmlib;

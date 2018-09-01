@@ -38,6 +38,8 @@
 #include "yarns/resources.h"
 #include "yarns/voice.h"
 
+#include "yarns/global.h"
+
 namespace yarns {
 
 const uint8_t clock_divisions[] = {
@@ -321,12 +323,14 @@ void Part::StopSequencerArpeggiatorNotes() {
   }
 }
 
+Ui ui;
+
 void Part::ClockSequencer() {
   const SequencerStep& step = seq_.step[seq_step_];
 
   if (step.has_note()) {
     int16_t note = step.note();
-    if (pressed_keys_.size() && !seq_recording_) {
+    if (pressed_keys_.size() && !ui.is_recording()) {
       // When we play a monophonic sequence, we can make the guess that root
       // note = first note.
       // But this is not the case when we are playing several sequences at the
