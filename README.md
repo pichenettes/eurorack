@@ -12,6 +12,7 @@ Mutable Instruments' Eurorack Modules.
 * [Kinks](http://mutable-instruments.net/modules/kinks): Utility module - rectifier, analog logic, S&H, noise.
 * [Links](http://mutable-instruments.net/modules/links): Utility module - buffer, mixer.
 * [Peaks](http://mutable-instruments.net/modules/peaks): Dual trigger converter.
+* [Plaits](http://mutable-instruments.net/modules/plaits): Macro oscillator.
 * [Rings](http://mutable-instruments.net/modules/rings): Resonator.
 * [Ripples](http://mutable-instruments.net/modules/ripples): Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
 * [Shades](http://mutable-instruments.net/modules/shades): Triple attenuverter.
@@ -32,7 +33,7 @@ Code (STM32F projects): MIT license.
 
 Hardware: cc-by-sa-3.0
 
-By: Olivier Gillet (olivier@mutable-instruments.net)
+By: O. Gillet (o@mutable-instruments.net)
 
 Guidelines for derivative works
 ===============================
