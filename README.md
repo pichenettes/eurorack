@@ -17,6 +17,7 @@ Mutable Instruments' Eurorack Modules.
 * [Ripples](http://mutable-instruments.net/modules/ripples): Liquid 2-pole BP, 2-pole LP and 4-pole LP filter.
 * [Shades](http://mutable-instruments.net/modules/shades): Triple attenuverter.
 * [Shelves](http://mutable-instruments.net/modules/shelves): EQ filter.
+* [Stages](http://mutable-instruments.net/modules/stages): Segment generator.
 * [Streams](http://mutable-instruments.net/modules/streams): Dual dynamics gate.
 * [Tides](http://mutable-instruments.net/modules/tides): Tidal modulator.
 * [Veils](http://mutable-instruments.net/modules/veils): Quad VCA.
