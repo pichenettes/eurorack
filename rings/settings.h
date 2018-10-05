@@ -47,7 +47,7 @@ struct State {
   uint8_t polyphony;
   uint8_t model;
   uint8_t easter_egg;
-  uint8_t padding;
+  uint8_t color_blind;
 };
 
 struct SettingsData {

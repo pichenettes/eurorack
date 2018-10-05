@@ -56,6 +56,16 @@ void Ui::Init(
   part_ = part;
   string_synth_ = string_synth;
   
+  if (switches_.pressed_immediate(1)) {
+    State* state = settings_->mutable_state();
+    if (state->color_blind == 1) {
+      state->color_blind = 0; 
+    } else {
+      state->color_blind = 1; 
+    }
+    settings_->Save();
+  }
+  
   part_->set_polyphony(settings_->state().polyphony);
   part_->set_model(static_cast<ResonatorModel>(settings_->state().model));
   string_synth_->set_polyphony(settings_->state().polyphony);
@@ -111,16 +121,50 @@ void Ui::Poll() {
         uint8_t pwm_counter = system_clock.milliseconds() & 15;
         uint8_t triangle = (system_clock.milliseconds() >> 5) & 31;
         triangle = triangle < 16 ? triangle : 31 - triangle;
-        leds_.set(0, part_->polyphony() >= 2, part_->polyphony() <= 2);
-        leds_.set(1, part_->model() >= 1, part_->model() <= 1);
-        // Fancy modes!
-        if (part_->polyphony() == 3) {
-          leds_.set(0, true, pwm_counter < triangle);
-        }
-        if (part_->model() >= 3) {
-          bool led_1 = part_->model() >= 4 && pwm_counter < triangle;
-          bool led_2 = part_->model() <= 4 && pwm_counter < triangle;
-          leds_.set(1, led_1, led_2);
+
+        if (settings_->state().color_blind == 1) {
+          uint8_t mode_red_brightness[] = {
+            0, 15, 1,
+            0, triangle, uint8_t(triangle >> 3)
+          };
+          uint8_t mode_green_brightness[] = {
+            4, 15, 0, 
+            uint8_t(triangle >> 1), triangle, 0,
+          };
+          
+          uint8_t poly_counter = (system_clock.milliseconds() >> 7) % 12;
+          uint8_t poly_brightness = (poly_counter >> 1) < part_->polyphony() &&
+                (poly_counter & 1);
+          uint8_t poly_red_brightness = part_->polyphony() >= 2
+              ? 8 + 8 * poly_brightness
+              : 0;
+          uint8_t poly_green_brightness = part_->polyphony() <= 3
+              ? 8 + 8 * poly_brightness
+              : 0;
+          if (part_->polyphony() == 1 || part_->polyphony() == 4) {
+            poly_red_brightness >>= 3;
+            poly_green_brightness >>= 2;
+          }
+          leds_.set(
+              0,
+              pwm_counter < poly_red_brightness,
+              pwm_counter < poly_green_brightness);
+          leds_.set(
+              1,
+              pwm_counter < mode_red_brightness[part_->model()],
+              pwm_counter < mode_green_brightness[part_->model()]);
+        } else {
+          leds_.set(0, part_->polyphony() >= 2, part_->polyphony() <= 2);
+          leds_.set(1, part_->model() >= 1, part_->model() <= 1);
+          // Fancy modes!
+          if (part_->polyphony() == 3) {
+            leds_.set(0, true, pwm_counter < triangle);
+          }
+          if (part_->model() >= 3) {
+            bool led_1 = part_->model() >= 4 && pwm_counter < triangle;
+            bool led_2 = part_->model() <= 4 && pwm_counter < triangle;
+            leds_.set(1, led_1, led_2);
+          }
         }
         ++strumming_flag_interval_;
         if (strumming_flag_counter_) {

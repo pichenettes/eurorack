@@ -45,6 +45,7 @@ void Settings::Init() {
     data_.state.polyphony = 1;
     data_.state.model = 0;
     data_.state.easter_egg = 0;
+    data_.state.color_blind = 0;
     data_.calibration_data.normalization_detection_threshold = 0.75f;
     freshly_baked_ = true;
     Save();
