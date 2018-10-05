@@ -11,6 +11,7 @@ Mutable Instruments' Eurorack Modules.
 * [Grids](http://mutable-instruments.net/modules/grids): Topographic drum sequencer.
 * [Kinks](http://mutable-instruments.net/modules/kinks): Utility module - rectifier, analog logic, S&H, noise.
 * [Links](http://mutable-instruments.net/modules/links): Utility module - buffer, mixer.
+* [Marbles](http://mutable-instruments.net/modules/marbles): Random sampler.
 * [Peaks](http://mutable-instruments.net/modules/peaks): Dual trigger converter.
 * [Plaits](http://mutable-instruments.net/modules/plaits): Macro oscillator.
 * [Rings](http://mutable-instruments.net/modules/rings): Resonator.
