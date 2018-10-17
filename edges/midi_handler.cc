@@ -42,4 +42,4 @@ bool MidiHandler::learning_;
 /* extern */
 MidiHandler midi_handler;
 
-}  // namespace anu
+}  // namespace edges

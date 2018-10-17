@@ -27,6 +27,13 @@
 
 namespace edges {
 
+enum MidiMode {
+  MIDI_MODE_MULTITIMBRAL,
+  MIDI_MODE_POLYPHONIC,
+  MIDI_MODE_3_1,
+  NUM_MIDI_MODES
+};
+
 static const uint16_t kHysteresisThreshold = 32;
 
 struct ChannelData {
@@ -186,7 +193,7 @@ class Settings {
   }
 
   static void ToggleMidiMode() {
-    data_.midi_mode = (data_.midi_mode + 1) & 1;
+    data_.midi_mode = (data_.midi_mode + 1) % NUM_MIDI_MODES;
     Save();
   }
   
