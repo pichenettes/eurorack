@@ -84,6 +84,14 @@ class MidiHandler : public midi::MidiDevice {
           pitch_[channel] = stack_[channel].most_recent_note().note << 7;
         }
         break;
+
+      case MIDI_MODE_CHORDS:
+        stack_[0].NoteOn(note, velocity);
+        for (uint8_t i = 0; i < kNumChannels; ++i) {
+          pitch_[i] = stack_[0].most_recent_note().note << 7;
+        }
+        gate_ = 0xf;
+        break;
     }
     gate_ |= (1 << channel);
   }
@@ -122,6 +130,16 @@ class MidiHandler : public midi::MidiDevice {
           (stack_[channel].size() != 0) ? gate_ |= (1 << channel) : gate_ &= ~(1 << channel);
         }
         break;
+
+      case MIDI_MODE_CHORDS:
+        stack_[0].NoteOff(note);
+        for (uint8_t i = 0; i < kNumChannels; ++i) {
+          if (stack_[0].size()) {
+            pitch_[channel] = stack_[0].most_recent_note().note << 7;
+          }
+        }
+        (stack_[0].size() != 0) ? gate_ = 0xf : gate_ = 0;
+        break;
     }
   }
   
@@ -136,6 +154,7 @@ class MidiHandler : public midi::MidiDevice {
         break;
 
       case MIDI_MODE_POLYPHONIC:
+      case MIDI_MODE_CHORDS:
         for (uint8_t i = 0; i < kNumChannels; ++i) {
           pitch_bend_[i] = v;
         }
@@ -170,6 +189,7 @@ class MidiHandler : public midi::MidiDevice {
         return ((channel - base_channel()) & 0xf) < kNumChannels;
 
       case MIDI_MODE_POLYPHONIC:
+      case MIDI_MODE_CHORDS:
         return channel == base_channel();
 
       case MIDI_MODE_3_1:
