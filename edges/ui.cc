@@ -22,6 +22,8 @@
 #include "edges/midi_handler.h"
 #include "edges/settings.h"
 
+#include "avrlibx/system/time.h"
+
 namespace edges {
 
 const uint16_t kLongPressTime = 600;  // ms
@@ -143,6 +145,13 @@ void Ui::OnSwitchReleased(uint8_t index) {
     midi_handler.Learn();
   } else {
     midi_handler.ToggleMidiMode();
+    leds_.Write(0);
+    for (uint8_t i = 0; i <= midi_mode(); ++i) {
+      leds_.Toggle();
+      ConstantDelay(100);
+      leds_.Toggle();
+      ConstantDelay(100);
+    }
   }
 }
 
