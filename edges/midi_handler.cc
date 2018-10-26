@@ -22,7 +22,7 @@
 namespace edges {
 
 /* static */
-bool MidiHandler::gate_[kNumChannels];
+uint8_t MidiHandler::gate_;
 
 /* static */
 int16_t MidiHandler::pitch_[kNumChannels];
@@ -42,4 +42,4 @@ bool MidiHandler::learning_;
 /* extern */
 MidiHandler midi_handler;
 
-}  // namespace anu
+}  // namespace edges
