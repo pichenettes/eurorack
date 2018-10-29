@@ -205,6 +205,9 @@ class Multi {
         Stop();
       }
       part_[part].StartRecording();
+      for (uint8_t i = 0; i < num_active_parts_; ++i) {
+        part_[i].SetMultiIsRecording(true);
+      }
       recording_ = true;
     }
   }
@@ -212,6 +215,9 @@ class Multi {
   void StopRecording(uint8_t part) {
     if (recording_) {
       part_[part].StopRecording();
+      for (uint8_t i = 0; i < num_active_parts_; ++i) {
+        part_[i].SetMultiIsRecording(false);
+      }
       recording_ = false;
     }
   }

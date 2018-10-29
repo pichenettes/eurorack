@@ -345,6 +345,10 @@ class Part {
     release_latched_keys_on_next_note_on_ = true;
   }
   
+  inline void SetMultiIsRecording(bool b) {
+    multi_is_recording_ = b;
+  }
+
   void set_siblings(bool has_siblings) {
     has_siblings_ = has_siblings;
   }
@@ -402,6 +406,8 @@ class Part {
   
   bool has_siblings_;
   
+  bool multi_is_recording_;
+
   DISALLOW_COPY_AND_ASSIGN(Part);
 };
 
