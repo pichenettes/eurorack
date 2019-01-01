@@ -2,7 +2,7 @@
 #
 # Copyright 2012 Olivier Gillet.
 #
-# Author: Olivier Gillet (ol.gillet@gmail.com)
+# Author: Olivier Gillet (pichenettes@mutable-instruments.net)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

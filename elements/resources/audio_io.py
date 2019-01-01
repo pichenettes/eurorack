@@ -1,6 +1,6 @@
 #!/usr/bin/python2.6
 #
-# Author: Olivier Gillet (ol.gillet@gmail.com)
+# Author: Olivier Gillet (pichenettes@mutable-instruments.net)
 
 """Class and functions to read and write numpy array from and to audio files."""
 
