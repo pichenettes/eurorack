@@ -21,6 +21,7 @@
 #include "avrlibx/avrlibx.h"
 
 #include "edges/hardware_config.h"
+#include "edges/settings.h"
 
 namespace edges {
 
@@ -63,6 +64,10 @@ class Ui {
   static void Poll();
   static uint8_t gate() { return gate_; }
   static Mode mode() { return mode_; }
+
+  static inline MidiMode midi_mode() {
+    return static_cast<MidiMode>(settings.midi_mode());
+  }
   
  private:
   static void OnSwitchHeld(uint8_t index);
