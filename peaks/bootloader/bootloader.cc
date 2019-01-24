@@ -1,6 +1,6 @@
 // Copyright 2013 Olivier Gillet.
 //
-// Author: Olivier Gillet (ol.gillet@gmail.com)
+// Author: Olivier Gillet (pichenettes@mutable-instruments.net)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -184,7 +184,7 @@ const uint16_t kPacketsPerPage = PAGE_SIZE / kPacketSize;
 int main(void) {
   Init();
 
-  bool exit_updater = !switches.pressed_immediate(1);
+  bool exit_updater = !switches.pressed_immediate(2);
   while (!exit_updater) {
     bool error = false;
     
