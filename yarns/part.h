@@ -61,6 +61,7 @@ enum VoiceAllocationMode {
   VOICE_ALLOCATION_MODE_POLY_SORTED,
   VOICE_ALLOCATION_MODE_POLY_UNISON_1,
   VOICE_ALLOCATION_MODE_POLY_UNISON_2,
+  VOICE_ALLOCATION_MODE_POLY_STEAL_MOST_RECENT,
   VOICE_ALLOCATION_MODE_LAST
 };
 
@@ -115,7 +116,8 @@ struct VoicingSettings {
   uint8_t aux_cv;
   uint8_t audio_mode;
   uint8_t aux_cv_2;
-  uint8_t padding[15];
+  uint8_t tuning_factor;
+  uint8_t padding[14];
 };
 
 
@@ -144,6 +146,7 @@ enum PartSetting {
   PART_VOICING_AUX_CV,
   PART_VOICING_AUDIO_MODE,
   PART_VOICING_AUX_CV_2,
+  PART_VOICING_TUNING_FACTOR,
   PART_VOICING_LAST = PART_VOICING_ALLOCATION_MODE + sizeof(VoicingSettings) - 1,
   PART_SEQUENCER_CLOCK_DIVISION,
   PART_SEQUENCER_GATE_LENGTH,
@@ -349,6 +352,10 @@ class Part {
     has_siblings_ = has_siblings;
   }
   
+  void set_transposable(bool transposable) {
+    transposable_ = transposable;
+  }
+  
  private:
   int16_t Tune(int16_t note);
   void ResetAllControllers();
@@ -401,6 +408,7 @@ class Part {
   uint16_t lfo_counter_;
   
   bool has_siblings_;
+  bool transposable_;
   
   DISALLOW_COPY_AND_ASSIGN(Part);
 };

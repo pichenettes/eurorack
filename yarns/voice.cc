@@ -46,7 +46,7 @@ using namespace stmlib_midi;
 const int32_t kOctave = 12 << 7;
 const int32_t kMaxNote = 120 << 7;
 
-void Voice::Init() {
+void Voice::Init(bool reset_calibration) {
   note_ = -1;
   note_source_ = note_target_ = note_portamento_ = 60 << 7;
   gate_ = false;
@@ -63,8 +63,11 @@ void Voice::Init() {
   portamento_exponential_shape_ = false;
   
   trigger_duration_ = 2;
-  for (uint8_t i = 0; i < kNumOctaves; ++i) {
-    calibrated_dac_code_[i] = 54586 - 5133 * i;
+  
+  if (reset_calibration) {
+    for (uint8_t i = 0; i < kNumOctaves; ++i) {
+      calibrated_dac_code_[i] = 54586 - 5133 * i;
+    }
   }
   dirty_ = false;
   oscillator_.Init(

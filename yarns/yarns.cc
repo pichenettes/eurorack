@@ -166,7 +166,7 @@ void Init() {
   sys.Init();
   
   settings.Init();
-  multi.Init();
+  multi.Init(true);
   ui.Init();
 
   // Load multi 0 on boot.

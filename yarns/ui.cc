@@ -370,7 +370,7 @@ void Ui::PrintFactoryTesting() {
 }
 
 void Ui::PrintVersionNumber() {
-  display_.Print(".3");
+  display_.Print(".5");
 }
 
 // Generic Handlers
@@ -648,7 +648,7 @@ void Ui::OnSwitchHeld(const Event& e) {
 }
 
 void Ui::DoInitCommand() {
-  multi.Init();
+  multi.Init(false);
 }
 
 void Ui::DoDumpCommand() {

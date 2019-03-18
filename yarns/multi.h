@@ -52,7 +52,9 @@ struct MultiSettings {
   uint8_t clock_override;
   int8_t custom_pitch_table[12];
   uint8_t remote_control_channel;
-  uint8_t padding[12];
+  uint8_t nudge_first_tick;
+  uint8_t clock_manual_start;
+  uint8_t padding[10];
 };
 
 enum MultiSetting {
@@ -75,7 +77,9 @@ enum MultiSetting {
   MULTI_PITCH_10,
   MULTI_PITCH_11,
   MULTI_PITCH_12,
-  MULTI_REMOTE_CONTROL_CHANNEL
+  MULTI_REMOTE_CONTROL_CHANNEL,
+  MULTI_CLOCK_NUDGE_FIRST_TICK,
+  MULTI_CLOCK_MANUAL_START,
 };
 
 enum Layout {
@@ -98,7 +102,7 @@ class Multi {
   Multi() { }
   ~Multi() { }
   
-  void Init();
+  void Init(bool reset_calibration);
   
   inline uint8_t paques() const {
     return settings_.clock_tempo == 49 && \
@@ -119,7 +123,10 @@ class Multi {
       }
     }
     
-    if (received && !running() && internal_clock()) {
+    if (received &&
+        !running() &&
+        internal_clock() &&
+        !settings_.clock_manual_start) {
       // Start the arpeggiators.
       Start(true);
     }
@@ -205,6 +212,14 @@ class Multi {
         Stop();
       }
       part_[part].StartRecording();
+      uint8_t channel = part_[part].midi_settings().channel;
+      for (uint8_t i = 0; i < num_active_parts_; ++i) {
+        if (part_[i].midi_settings().channel == channel || \
+            channel == 0x10 || \
+            part_[i].midi_settings().channel == 0x10) {
+          part_[i].set_transposable(false);
+        }
+      }
       recording_ = true;
     }
   }
@@ -212,6 +227,9 @@ class Multi {
   void StopRecording(uint8_t part) {
     if (recording_) {
       part_[part].StopRecording();
+      for (uint8_t i = 0; i < num_active_parts_; ++i) {
+        part_[i].set_transposable(true);
+      }
       recording_ = false;
     }
   }
@@ -300,7 +318,12 @@ class Multi {
   inline bool running() const { return running_; }
   inline bool latched() const { return latched_; }
   inline bool recording() const { return recording_; }
-  inline bool clock() const { return clock_pulse_counter_ > 0; }
+  inline bool clock() const {
+    return clock_pulse_counter_ > 0 && \
+        (!settings_.nudge_first_tick || \
+          settings_.clock_bar_duration == 0 || \
+          !reset());
+  }
   inline bool reset() const {
     return reset_pulse_counter_ > 0;
   }
@@ -410,6 +433,10 @@ class Multi {
   
   InternalClock internal_clock_;
   uint8_t internal_clock_ticks_;
+  uint16_t midi_clock_tick_duration_;
+
+  int16_t swing_predelay_[12];
+  uint8_t swing_counter_;
   
   uint8_t clock_input_prescaler_;
   uint8_t clock_output_prescaler_;
@@ -418,6 +445,9 @@ class Multi {
   
   uint16_t clock_pulse_counter_;
   uint16_t reset_pulse_counter_;
+  
+  uint16_t previous_output_division_;
+  bool needs_resync_;
   
   // Indicates that a setting has been changed and that the multi should
   // be saved in memory.

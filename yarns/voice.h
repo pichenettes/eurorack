@@ -104,7 +104,7 @@ class Voice {
   Voice() { }
   ~Voice() { }
   
-  void Init();
+  void Init(bool reset_calibration);
   void ResetAllControllers();
 
   void Calibrate(uint16_t* calibrated_dac_code);
