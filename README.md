@@ -35,7 +35,7 @@ Code (STM32F projects): MIT license.
 
 Hardware: cc-by-sa-3.0
 
-By: E. Gillet (pichenettes@mutable-instruments.net)
+By: Emilie Gillet (emilie.o.gillet@gmail.com)
 
 Guidelines for derivative works
 ===============================

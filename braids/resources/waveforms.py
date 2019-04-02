@@ -1,8 +1,8 @@
 #!/usr/bin/python2.5
 #
-# Copyright 2012 Olivier Gillet.
+# Copyright 2012 Emilie Gillet.
 #
-# Author: Olivier Gillet (pichenettes@mutable-instruments.net)
+# Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
