@@ -271,6 +271,9 @@ class Part {
   }
   
   inline bool accepts(uint8_t channel) const {
+    if (!(transposable_ || seq_recording_)) {
+      return false;
+    }
     return midi_.channel == 0x10 || midi_.channel == channel;
   }
   
