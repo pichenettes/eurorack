@@ -59,6 +59,16 @@ void Ui::Init(Settings* settings, FactoryTest* factory_test) {
   factory_test_ = factory_test;
   mode_ = UI_MODE_NORMAL;
   
+  if (switches_.pressed_immediate(SWITCH_SHIFT)) {
+    State* state = settings_->mutable_state();
+    if (state->color_blind == 1) {
+      state->color_blind = 0;
+    } else {
+      state->color_blind = 1;
+    }
+    settings_->SaveState();
+  }
+  
   queue_.Init();
   
   fill(&press_time_[0], &press_time_[SWITCH_LAST], 0);
@@ -95,6 +105,26 @@ void Ui::Poll() {
   }
 }
 
+LedColor Ui::MakeColor(uint8_t value, bool color_blind) {
+  LedColor color = palette_[value];
+  if (color_blind) {
+    uint8_t pwm_counter = system_clock.milliseconds() & 15;
+    uint8_t triangle = (system_clock.milliseconds() >> 5) & 31;
+    triangle = triangle < 16 ? triangle : 31 - triangle;
+
+    if (value == 0) {
+      color = pwm_counter < (4 + (triangle >> 2))
+          ? LED_COLOR_GREEN
+          : LED_COLOR_OFF;
+    } else if (value == 1) {
+      color = LED_COLOR_YELLOW;
+    } else if (value == 2) {
+      color = pwm_counter == 0 ? LED_COLOR_RED : LED_COLOR_OFF;
+    }
+  }
+  return color;
+}
+
 void Ui::UpdateLEDs() {
   leds_.Clear();
   
@@ -104,9 +134,11 @@ void Ui::UpdateLEDs() {
     case UI_MODE_NORMAL:
       {
         const State& s = settings_->state();
-        leds_.set(LED_MODE, palette_[s.mode]);
-        leds_.set(LED_RANGE, palette_[s.range]);
-        leds_.set(LED_SHIFT, palette_[(s.output_mode + 3) % 4]);
+        bool color_blind = s.color_blind == 1;
+        
+        leds_.set(LED_MODE, MakeColor(s.mode, color_blind));
+        leds_.set(LED_RANGE, MakeColor(s.range, color_blind));
+        leds_.set(LED_SHIFT, MakeColor((s.output_mode + 3) % 4, color_blind));
       }
       break;
       

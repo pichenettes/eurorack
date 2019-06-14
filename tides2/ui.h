@@ -67,6 +67,7 @@ class Ui {
   void OnSwitchPressed(const stmlib::Event& e);
   void OnSwitchReleased(const stmlib::Event& e);
    
+  LedColor MakeColor(uint8_t value, bool color_blind);
   void UpdateLEDs();
 
   stmlib::EventQueue<16> queue_;

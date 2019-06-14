@@ -231,7 +231,7 @@ int main(void) {
   Init();
   InitializeReception();
 
-  bool exit_updater = !switches.pressed_immediate(SWITCH_MODE);
+  bool exit_updater = !switches.pressed_immediate(SWITCH_RANGE);
   while (!exit_updater) {
     bool error = false;
 

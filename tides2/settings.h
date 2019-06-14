@@ -63,7 +63,8 @@ struct State {
   uint8_t mode;
   uint8_t range;
   uint8_t output_mode;
-  uint8_t padding[5];
+  uint8_t color_blind;
+  uint8_t padding[4];
   
   enum { tag = 0x54415453 };  // STAT
 };

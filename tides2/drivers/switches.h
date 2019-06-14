@@ -63,8 +63,10 @@ class Switches {
   }
   
   inline bool pressed_immediate(Switch s) const {
-    if (s == SWITCH_MODE) {
+    if (s == SWITCH_RANGE) {
       return !GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2);
+    } else if (s == SWITCH_SHIFT) {
+      return !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_13);
     } else {
       return false;
     }
