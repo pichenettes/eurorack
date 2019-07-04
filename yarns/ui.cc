@@ -1,6 +1,6 @@
-// Copyright 2013 Olivier Gillet.
+// Copyright 2013 Emilie Gillet.
 //
-// Author: Olivier Gillet (ol.gillet@gmail.com)
+// Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -370,7 +370,7 @@ void Ui::PrintFactoryTesting() {
 }
 
 void Ui::PrintVersionNumber() {
-  display_.Print(".3");
+  display_.Print(".5");
 }
 
 // Generic Handlers
@@ -648,7 +648,7 @@ void Ui::OnSwitchHeld(const Event& e) {
 }
 
 void Ui::DoInitCommand() {
-  multi.Init();
+  multi.Init(false);
 }
 
 void Ui::DoDumpCommand() {

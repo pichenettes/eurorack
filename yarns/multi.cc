@@ -1,6 +1,6 @@
-// Copyright 2013 Olivier Gillet.
+// Copyright 2013 Emilie Gillet.
 //
-// Author: Olivier Gillet (ol.gillet@gmail.com)
+// Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ const uint8_t clock_divisions[] = {
   96, 48, 32, 24, 16, 12, 8, 6, 4, 3, 2, 1
 };
 
-void Multi::Init() {
+void Multi::Init(bool reset_calibration) {
   just_intonation_processor.Init();
   
   fill(
@@ -58,7 +58,7 @@ void Multi::Init() {
     part_[i].set_custom_pitch_table(settings_.custom_pitch_table);
   }
   for (uint8_t i = 0; i < kNumVoices; ++i) {
-    voice_[i].Init();
+    voice_[i].Init(reset_calibration);
   }
   running_ = false;
   latched_ = false;
@@ -72,6 +72,8 @@ void Multi::Init() {
   settings_.clock_output_division = 7;
   settings_.clock_bar_duration = 4;
   settings_.clock_override = 0;
+  settings_.nudge_first_tick = 0;
+  settings_.clock_manual_start = 0;
   
   MidiSettings* midi = part_[0].mutable_midi_settings();
   midi->channel = 0;
@@ -96,6 +98,7 @@ void Multi::Init() {
   voicing->tuning_fine = 0;
   voicing->tuning_root = 0;
   voicing->tuning_system = 0;
+  voicing->tuning_factor = 0;
   voicing->audio_mode = 0;
 
   SequencerSettings* seq = part_[0].mutable_sequencer_settings();
@@ -120,7 +123,9 @@ void Multi::Init() {
   // seq->step[2].data[1] = 0x7f;
   // seq->step[3].data[0] = 72;
   // seq->step[3].data[1] = 0x7f;
-  // voicing->audio_mode = 1;  // To hear it...
+  // voicing->audio_mode = 1;
+  // settings_.clock_tempo = 100;
+  // settings_.clock_swing = 99;
 
   num_active_parts_ = 1;
   part_[0].AllocateVoices(&voice_[0], 1, false);
@@ -135,13 +140,19 @@ void Multi::Clock() {
   uint16_t output_division = clock_divisions[settings_.clock_output_division];
   uint16_t input_division = settings_.clock_input_division;
   
+  if (previous_output_division_ &&
+      output_division != previous_output_division_) {
+    needs_resync_ = true;
+  }
+  previous_output_division_ = output_division;
+  
   // Logic equation for computing a clock output with a 50% duty cycle.
   if (output_division > 1) {
     if (clock_output_prescaler_ == 0 && clock_input_prescaler_ == 0) {
       clock_pulse_counter_ = 0xffff;
     }
-    if (clock_output_prescaler_ == (output_division >> 1) &&
-        clock_input_prescaler_ == (input_division >> 1)) {
+    if (clock_output_prescaler_ >= (output_division >> 1) &&
+        clock_input_prescaler_ >= (input_division >> 1)) {
       clock_pulse_counter_ = 0;
     }
   } else {
@@ -159,11 +170,24 @@ void Multi::Clock() {
   if (!clock_input_prescaler_) {
     midi_handler.OnClock();
     
+    ++swing_counter_;
+    if (swing_counter_ >= 12) {
+      swing_counter_ = 0;
+    }
+    
     if (song_pointer_) {
       ClockSong();
     } else {
-      for (uint8_t i = 0; i < num_active_parts_; ++i) {
-        part_[i].Clock();
+      if (internal_clock()) {
+        swing_predelay_[swing_counter_] = 0;
+      } else {
+        uint32_t interval = midi_clock_tick_duration_;
+        midi_clock_tick_duration_ = 0;
+
+        uint32_t modulation = swing_counter_ < 6
+            ? swing_counter_ : 12 - swing_counter_;
+        swing_predelay_[swing_counter_] = \
+            27 * modulation * interval * uint32_t(settings_.clock_swing) >> 13;
       }
     }
     
@@ -172,7 +196,11 @@ void Multi::Clock() {
       bar_position_ = 0;
     }
     if (bar_position_ == 0) {
-      reset_pulse_counter_ = 81;
+      reset_pulse_counter_ = settings_.nudge_first_tick ? 9 : 81;
+      if (needs_resync_) {
+        clock_output_prescaler_ = 0;
+        needs_resync_ = false;
+      }
     }
     if (settings_.clock_bar_duration > kMaxBarDuration) {
       bar_position_ = 1;
@@ -213,11 +241,18 @@ void Multi::Start(bool started_by_keyboard) {
   clock_input_prescaler_ = 0;
   clock_output_prescaler_ = 0;
   stop_count_down_ = 0;
-  bar_position_ = 0xffff;
+  bar_position_ = -1;
+  swing_counter_ = -1;
+  previous_output_division_ = 0;
+  needs_resync_ = false;
+  
+  fill(&swing_predelay_[0], &swing_predelay_[12], -1);
+  
   for (uint8_t i = 0; i < num_active_parts_; ++i) {
     part_[i].Start(started_by_keyboard);
   }
   song_pointer_ = NULL;
+  midi_clock_tick_duration_ = 0;
 }
 
 void Multi::Stop() {
@@ -244,7 +279,19 @@ void Multi::Refresh() {
   if (reset_pulse_counter_) {
     --reset_pulse_counter_;
   }
-  
+
+  ++midi_clock_tick_duration_;
+  for (int i = 0; i < 12; ++i) {
+    if (swing_predelay_[i] == 0) {
+      for (uint8_t j = 0; j < num_active_parts_; ++j) {
+        part_[j].Clock();
+      }
+    }
+    if (swing_predelay_[i] >= 0) {
+      --swing_predelay_[i];
+    }
+  }
+
   for (uint8_t i = 0; i < kNumVoices; ++i) {
     voice_[i].Refresh();
   }

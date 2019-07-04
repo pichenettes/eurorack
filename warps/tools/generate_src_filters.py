@@ -1,8 +1,8 @@
 #!/usr/bin/python2.5
 #
-# Copyright 2014 Olivier Gillet.
+# Copyright 2014 Emilie Gillet.
 #
-# Author: Olivier Gillet (ol.gillet@gmail.com)
+# Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,9 +37,9 @@ import sys
 
 
 
-HEADER = """// Copyright 2015 Olivier Gillet.
+HEADER = """// Copyright 2015 Emilie Gillet.
 //
-// Author: Olivier Gillet (ol.gillet@gmail.com)
+// Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
