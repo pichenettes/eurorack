@@ -58,7 +58,7 @@ const int kChordNumVoices = 5;
 const int kChordNumChords = 11;
 const int kChordNumHarmonics = 3;
 
-#end if  //AROOM_HACK
+#endif  //AROOM_HACK
 
 class ChordEngine : public Engine {
  public:
