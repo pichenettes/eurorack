@@ -323,7 +323,7 @@ void Ui::ReadSwitches() {
           SaveState();
         }
 
-#end if  //AROOM_HACK
+#endif  //AROOM_HACK
 
       }
       break;
