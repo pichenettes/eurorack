@@ -36,7 +36,52 @@ namespace plaits {
 
 using namespace std;
 using namespace stmlib;
+  
+// Enables the chords hack
+#define AROOM_HACK
 
+
+
+#ifdef AROOM_HACK
+
+// Your modified code
+ const float chords[kChordNumChords][kChordNumNotes] = {
+  { 0.00f, 0.01f, 11.99f, 12.00f },  // OCT
+  { 0.00f, 7.01f,  7.00f, 12.00f },  // 5
+  { 0.00f, 5.00f,  7.00f, 12.00f },  // sus4
+  { 0.00f, 3.00f,  7.00f, 12.00f },  // m
+  { 0.00f, 3.00f,  7.00f, 10.00f },  // m7
+  { 0.00f, 3.00f, 10.00f, 14.00f },  // m9
+  { 0.00f, 3.00f, 10.00f, 17.00f },  // m11
+  // Fixed Intervals
+  { 0.00f, 0.01f, 11.99f, 12.00f },  // Octave
+  { 0.00f, 7.01f,  7.00f, 12.00f },  // Fifth
+  // Minor
+  { 0.00f, 3.00f,  7.00f, 12.00f },  // Minor
+  { 0.00f, 3.00f,  7.00f, 10.00f },  // Minor 7th
+  { 0.00f, 3.00f, 10.00f, 14.00f },  // Minor 9th
+  { 0.00f, 3.00f, 10.00f, 17.00f },  // Minor 11th
+  // Major
+  { 0.00f, 4.00f,  7.00f, 12.00f },  // Major
+  { 0.00f, 4.00f,  7.00f, 11.00f },  // Major 7th
+  { 0.00f, 4.00f, 11.00f, 14.00f },  // Major 9th
+  // Colour Chords
+  { 0.00f, 5.00f,  7.00f, 12.00f },  // Sus4
+  { 0.00f, 2.00f,  9.00f, 16.00f },  // 69
+  { 0.00f, 4.00f, 11.00f, 14.00f },  // M9
+  { 0.00f, 4.00f,  7.00f, 11.00f },  // M7
+  { 0.00f, 4.00f,  7.00f, 12.00f },  // M
+  { 0.00f, 4.00f,  7.00f,  9.00f },  // 6th
+  { 0.00f, 7.00f, 16.00f, 23.00f },  // 10th (Spread maj7)
+  { 0.00f, 4.00f,  7.00f, 10.00f },  // Dominant 7th
+  { 0.00f, 7.00f, 10.00f, 13.00f },  // Dominant 7th (b9)
+  { 0.00f, 3.00f,  6.00f, 10.00f },  // Half Diminished
+  { 0.00f, 3.00f,  6.00f,  9.00f },  // Fully Diminished
+ };
+
+#else
+
+// The original function
 const float chords[kChordNumChords][kChordNumNotes] = {
   { 0.00f, 0.01f, 11.99f, 12.00f },  // OCT
   { 0.00f, 7.01f,  7.00f, 12.00f },  // 5
@@ -50,6 +95,9 @@ const float chords[kChordNumChords][kChordNumNotes] = {
   { 0.00f, 4.00f,  7.00f, 11.00f },  // M7
   { 0.00f, 4.00f,  7.00f, 12.00f },  // M
 };
+
+
+#end if  //AROOM_HACK
 
 void ChordEngine::Init(BufferAllocator* allocator) {
   for (int i = 0; i < kChordNumVoices; ++i) {
