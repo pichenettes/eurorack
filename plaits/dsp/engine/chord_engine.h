@@ -37,10 +37,28 @@
 
 namespace plaits {
 
+// Enables the chords hack
+#define AROOM_HACK
+
+
+
+#ifdef AROOM_HACK
+
+// Your modified code
+const int kChordNumNotes = 4;
+const int kChordNumVoices = 5;
+const int kChordNumChords = 17;
+const int kChordNumHarmonics = 3;
+
+#else
+
+// The original function
 const int kChordNumNotes = 4;
 const int kChordNumVoices = 5;
 const int kChordNumChords = 11;
 const int kChordNumHarmonics = 3;
+
+#end if  //AROOM_HACK
 
 class ChordEngine : public Engine {
  public:
