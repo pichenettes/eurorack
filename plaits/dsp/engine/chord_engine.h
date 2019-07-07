@@ -44,7 +44,7 @@ namespace plaits {
 
 #ifdef AROOM_HACK
 
-// Your modified code
+// Modified code from jonbutler88
 const int kChordNumNotes = 4;
 const int kChordNumVoices = 5;
 const int kChordNumChords = 17;
