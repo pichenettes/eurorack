@@ -181,7 +181,7 @@ class TGenerator {
     }
   }
 
-  #end if  //AROOM_HACK
+  #endif  //AROOM_HACK
 
   float one_hertz_;
 
