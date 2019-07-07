@@ -44,15 +44,8 @@ using namespace stmlib;
 
 #ifdef AROOM_HACK
 
-// Your modified code
+// Modified code from jonbutler88
  const float chords[kChordNumChords][kChordNumNotes] = {
-  { 0.00f, 0.01f, 11.99f, 12.00f },  // OCT
-  { 0.00f, 7.01f,  7.00f, 12.00f },  // 5
-  { 0.00f, 5.00f,  7.00f, 12.00f },  // sus4
-  { 0.00f, 3.00f,  7.00f, 12.00f },  // m
-  { 0.00f, 3.00f,  7.00f, 10.00f },  // m7
-  { 0.00f, 3.00f, 10.00f, 14.00f },  // m9
-  { 0.00f, 3.00f, 10.00f, 17.00f },  // m11
   // Fixed Intervals
   { 0.00f, 0.01f, 11.99f, 12.00f },  // Octave
   { 0.00f, 7.01f,  7.00f, 12.00f },  // Fifth
@@ -68,9 +61,6 @@ using namespace stmlib;
   // Colour Chords
   { 0.00f, 5.00f,  7.00f, 12.00f },  // Sus4
   { 0.00f, 2.00f,  9.00f, 16.00f },  // 69
-  { 0.00f, 4.00f, 11.00f, 14.00f },  // M9
-  { 0.00f, 4.00f,  7.00f, 11.00f },  // M7
-  { 0.00f, 4.00f,  7.00f, 12.00f },  // M
   { 0.00f, 4.00f,  7.00f,  9.00f },  // 6th
   { 0.00f, 7.00f, 16.00f, 23.00f },  // 10th (Spread maj7)
   { 0.00f, 4.00f,  7.00f, 10.00f },  // Dominant 7th
