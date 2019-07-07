@@ -87,7 +87,7 @@ const float chords[kChordNumChords][kChordNumNotes] = {
 };
 
 
-#end if  //AROOM_HACK
+#endif  //AROOM_HACK
 
 void ChordEngine::Init(BufferAllocator* allocator) {
   for (int i = 0; i < kChordNumVoices; ++i) {
