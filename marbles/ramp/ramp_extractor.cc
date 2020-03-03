@@ -166,12 +166,13 @@ RampExtractor::Prediction RampExtractor::PredictNextPeriod() {
   return p;
 }
 
-void RampExtractor::Process(
+bool RampExtractor::Process(
     Ratio ratio,
     bool always_ramp_to_maximum,
     const GateFlags* gate_flags,
     float* ramp, 
     size_t size) {
+  bool reset_observed = false;
   while (size--) {
     GateFlags flags = *gate_flags++;
     // We are done with the previous pulse.
@@ -186,6 +187,7 @@ void RampExtractor::Process(
         train_phase_ = 0.0f;
         reset_counter_ = ratio.q;
         reset_interval_ = 4 * p.total_duration;
+        reset_observed = true;
       } else {
         float period = float(p.total_duration);
         if (period <= audio_rate_period_hysteresis_) {
@@ -307,6 +309,7 @@ void RampExtractor::Process(
       *ramp++ = output_phase;
     }
   }
+  return reset_observed;
 }
 
 }  // namespace marbles

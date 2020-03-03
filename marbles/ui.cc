@@ -35,7 +35,6 @@
 #include "marbles/drivers/clock_inputs.h"
 #include "marbles/cv_reader.h"
 #include "marbles/scale_recorder.h"
-#include "marbles/settings.h"
 
 namespace marbles {
 
@@ -96,6 +95,10 @@ void Ui::Init(
       state->color_blind = 1; 
     }
     settings_->SaveState();
+  }
+  
+  if (switches_.pressed_immediate(SWITCH_X_DEJA_VU)) {
+    settings_->ProgramOptionBytes();
   }
   
   deja_vu_lock_ = false;
@@ -162,6 +165,28 @@ LedColor Ui::MakeColor(uint8_t value, bool color_blind) {
   return slow_blink || !bank ? color : LED_COLOR_OFF;
 }
 
+/* static */
+LedColor Ui::DejaVuColor(DejaVuState state, bool lock) {
+  if (state == DEJA_VU_OFF) {
+    return LED_COLOR_OFF;
+  } else if (state == DEJA_VU_ON) {
+    if (lock) {
+      int slow_triangle = (system_clock.milliseconds() & 1023) >> 5;
+      slow_triangle = slow_triangle >= 16 ? 31 - slow_triangle : slow_triangle;
+      int pw = system_clock.milliseconds() & 15;
+      return slow_triangle >= pw ? LED_COLOR_GREEN : LED_COLOR_OFF;
+    } else {
+      return LED_COLOR_GREEN;
+    }
+  } else {
+    int fast_triangle = (system_clock.milliseconds() & 511) >> 4;
+    fast_triangle = fast_triangle >= 16 ? 31 - fast_triangle : fast_triangle;
+    int pw = system_clock.milliseconds() & 15;
+
+    return fast_triangle >= pw ? LED_COLOR_GREEN : LED_COLOR_OFF;
+  }
+}
+
 void Ui::UpdateLEDs() {
   bool blink = (system_clock.milliseconds() & 127) > 64;
   bool slow_blink = (system_clock.milliseconds() & 255) > 128;
@@ -184,25 +209,21 @@ void Ui::UpdateLEDs() {
   
   leds_.Clear();
   
-  int slow_triangle = (system_clock.milliseconds() & 1023) >> 5;
-  slow_triangle = slow_triangle >= 16 ? 31 - slow_triangle : slow_triangle;
-  int pw = system_clock.milliseconds() & 15;
-  bool deja_vu_glow = !deja_vu_lock_ || (slow_triangle >= pw);
-  
   switch (mode_) {
     case UI_MODE_NORMAL:
     case UI_MODE_RECORD_SCALE:
       {
         leds_.set(LED_T_MODEL, MakeColor(state.t_model, cb));
         leds_.set(LED_T_RANGE, MakeColor(state.t_range, cb));
-        leds_.set(LED_T_DEJA_VU,
-                  state.t_deja_vu && deja_vu_glow ?
-                      LED_COLOR_GREEN : LED_COLOR_OFF);
+        leds_.set(
+            LED_T_DEJA_VU,
+            DejaVuColor(DejaVuState(state.t_deja_vu), deja_vu_lock_));
+        
         leds_.set(LED_X_CONTROL_MODE, MakeColor(state.x_control_mode, cb));
-        leds_.set(LED_X_DEJA_VU,
-                  state.x_deja_vu && deja_vu_glow ?
-                      LED_COLOR_GREEN : LED_COLOR_OFF);
-                  
+        leds_.set(
+            LED_X_DEJA_VU,
+            DejaVuColor(DejaVuState(state.x_deja_vu), deja_vu_lock_));
+        
         if (mode_ == UI_MODE_NORMAL) {
           leds_.set(LED_X_RANGE,
                     state.x_register_mode
@@ -274,11 +295,31 @@ void Ui::OnSwitchReleased(const Event& e) {
   State* state = settings_->mutable_state();
   switch (e.control_id) {
     case SWITCH_T_DEJA_VU:
-      state->t_deja_vu = !state->t_deja_vu;
+      if (state->t_deja_vu == DEJA_VU_OFF) {
+        state->t_deja_vu = e.data >= kLongPressDuration
+            ? DEJA_VU_LOCKED
+            : DEJA_VU_ON;
+      } else if (state->t_deja_vu == DEJA_VU_LOCKED) {
+        state->t_deja_vu = DEJA_VU_ON;
+      } else {
+        state->t_deja_vu = e.data >= kLongPressDuration
+            ? DEJA_VU_LOCKED
+            : DEJA_VU_OFF;
+      }
       break;
 
     case SWITCH_X_DEJA_VU:
-      state->x_deja_vu = !state->x_deja_vu;
+      if (state->x_deja_vu == DEJA_VU_OFF) {
+        state->x_deja_vu = e.data >= kLongPressDuration
+            ? DEJA_VU_LOCKED
+            : DEJA_VU_ON;
+      } else if (state->x_deja_vu == DEJA_VU_LOCKED) {
+        state->x_deja_vu = DEJA_VU_ON;
+      } else {
+        state->x_deja_vu = e.data >= kLongPressDuration
+            ? DEJA_VU_LOCKED
+            : DEJA_VU_OFF;
+      }
       break;
     
     case SWITCH_T_MODEL:

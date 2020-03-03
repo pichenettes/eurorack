@@ -69,6 +69,41 @@ class RandomSequence {
     redo_write_history_ptr_ = NULL;
   }
   
+  inline void Clone(const RandomSequence& source) {
+    random_stream_ = source.random_stream_;
+    
+    std::copy(
+        &source.loop_[0],
+        &source.loop_[kDejaVuBufferSize],
+        &loop_[0]);
+    std::copy(
+        &source.history_[0],
+        &source.history_[kHistoryBufferSize],
+        &history_[0]);
+    
+    loop_write_head_ = source.loop_write_head_;
+    length_ = source.length_;
+    step_ = source.step_;
+    
+    record_head_ = source.record_head_;
+    replay_head_ = source.replay_head_;
+    replay_start_ = source.replay_start_;
+    replay_hash_ = source.replay_hash_;
+    replay_shift_ = source.replay_shift_;
+    
+    deja_vu_ = source.deja_vu_;
+    
+    redo_read_ptr_ = source.redo_read_ptr_
+        ? &loop_[source.redo_read_ptr_ - &source.loop_[0]]
+        : NULL;
+    redo_write_ptr_ = source.redo_write_ptr_
+        ? &loop_[source.redo_write_ptr_ - &source.loop_[0]]
+        : NULL;
+    redo_write_history_ptr_ = source.redo_write_history_ptr_
+        ? &history_[source.redo_write_history_ptr_ - &source.history_[0]]
+        : NULL;
+  }
+  
   inline void Record() {
     replay_start_ = record_head_;
     replay_head_ = -1;

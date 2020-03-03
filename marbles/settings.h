@@ -58,6 +58,12 @@ struct PersistentData {
   enum { tag = 0x494C4143 };
 };
 
+enum DejaVuState {
+  DEJA_VU_OFF,
+  DEJA_VU_ON,
+  DEJA_VU_LOCKED
+};
+
 struct State {
   uint8_t t_deja_vu;
   uint8_t t_model;

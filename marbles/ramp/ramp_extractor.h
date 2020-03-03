@@ -51,7 +51,7 @@ class RampExtractor {
   ~RampExtractor() { }
   
   void Init(float max_frequency);
-  void Process(
+  bool Process(
       Ratio r,
       bool always_ramp_to_maximum,
       const stmlib::GateFlags* gate_flags,

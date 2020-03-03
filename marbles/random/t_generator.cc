@@ -328,7 +328,6 @@ void TGenerator::Process(
     Ramps ramps,
     bool* gate,
     size_t size) {
-  
   float internal_frequency;
   if (use_external_clock) {
     if (!use_external_clock_) {
@@ -345,7 +344,21 @@ void TGenerator::Process(
       ratio.p *= 4;
     }
     ratio.Simplify<2>();
-    ramp_extractor_.Process(ratio, true, external_clock, ramps.external, size);
+    bool reset_observed = ramp_extractor_.Process(
+        ratio, true, external_clock, ramps.external, size);
+    if (reset_observed) {
+      if (model_ == T_GENERATOR_MODEL_DRUMS) {
+        drum_pattern_step_ = kDrumPatternSize;
+        RandomVector random_vector;
+        sequence_.NextVector(
+            random_vector.x,
+            sizeof(random_vector.x) / sizeof(float));
+        ConfigureSlaveRamps(random_vector);
+      } else if (model_ == T_GENERATOR_MODEL_CLUSTERS ||
+                model_ == T_GENERATOR_MODEL_DIVIDER) {
+        divider_pattern_length_ = 0;
+      }
+    }
     internal_frequency = 0.0f;
   } else {
     float rate = 2.0f;
