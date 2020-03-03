@@ -27,7 +27,8 @@ import sys
 
 def LoadHexFile(lines):
   """Loads a Hex file."""
-
+  base_address = None
+  offset = 0
   data = []
   for line_number, line in enumerate(lines):
     line = line.strip()
@@ -55,11 +56,18 @@ def LoadHexFile(lines):
       else:
         break
     elif bytes[3] == 0:
-      address = bytes[1] << 8 | bytes[2]
+      address = offset << 16 | bytes[1] << 8 | bytes[2]
       padding_size = address + bytes[0] - len(data)
       if padding_size > 0:
         data += [0] * padding_size
       data[address:address + bytes[0]] = bytes[4:-1]
+    elif bytes[3] == 4:
+      address = bytes[4] << 8 | bytes[5]
+      if base_address is None:
+        base_address = address
+        offset = 0
+      else:
+        offset = address - base_address
   return data
 
 
