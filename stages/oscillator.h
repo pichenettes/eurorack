@@ -24,14 +24,16 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Single waveform oscillator. Can optionally do audio-rate linear FM, with
-// through-zero capabilities (negative frequencies).
+// Harmonic oscillator.
 
 #ifndef STAGES_OSCILLATOR_H_
 #define STAGES_OSCILLATOR_H_
 
+#include <cmath>
+
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/parameter_interpolator.h"
+#include "stmlib/dsp/units.h"
 #include "stmlib/utils/random.h"
 
 #include "stages/resources.h"
@@ -50,8 +52,23 @@ enum OscillatorShape {
   OSCILLATOR_SHAPE_SQUARE_TRIANGLE,
 };
 
+const float kSampleRate = 31250.0f;
+const float kMiddleCHz = 261.6255f;
 const float kMaxFrequency = 0.25f;
 const float kMinFrequency = 0.00001f;
+float kScalingGainBasis = 0.66f;
+float kScalingCoefficient = 0.78758f;
+
+// TODO - experiment with these, originals below
+//float ouroboros_ratios[] = {
+//  0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 8.0f, 8.0f
+//};
+const float kHarmonicRatios[] = {
+  0.25f, 0.5f, 0.75f, 1.0f,
+  1.5f, 2.0f, 3.0f, 4.0f,
+  5.0f, 6.0f, 7.0, 8.0f,
+  9.0f, 10.0f, 12.0f, 12.0f,
+};
 
 inline float ThisBlepSample(float t) {
   return 0.5f * t * t;
@@ -73,207 +90,114 @@ inline float ThisIntegratedBlepSample(float t) {
   return NextIntegratedBlepSample(1.0f - t);
 }
 
+// TODO - rename to HarmonicOscillator to signify extended functionality
 class Oscillator {
  public:
   Oscillator() { }
   ~Oscillator() { }
   
   void Init() {
-    phase_ = 0.5f;
-    next_sample_ = 0.0f;
-    lp_state_ = 1.0f;
-    hp_state_ = 0.0f;
-    high_ = true;
+    fill(&phase_[0], &phase_[kMaxNumChannels], 0.5f);
+    fill(&next_sample_[0], &next_sample_[kMaxNumChannels], 0.0f);
+    fill(&lp_state_[0], &lp_state_[kMaxNumChannels], 1.0f);
+    fill(&hp_state_[0], &hp_state_[kMaxNumChannels], 0.0f);
+    fill(&high_[0], &high_[kMaxNumChannels], true);
 
-    frequency_ = 0.001f;
-    pw_ = 0.5f;
+    fill(&frequency_[0], &frequency_[kMaxNumChannels], 0.001f);
+    fill(&pw_[0], &pw_[kMaxNumChannels], 0.5f);
+
+    fill(&ratio_[0], &ratio_[kMaxNumChannels], 1.0f);
+    fill(&amplitude_[0], &amplitude_[kMaxNumChannels], 1.0f);
+    fill(&waveshape_[0], &waveshape_[kMaxNumChannels], 0x0);
+
+    fundamental_ = 0.001f;
+    num_channels_ = 1;
   }
 
-  template<OscillatorShape shape>
-  void Render(float frequency, float pw, float* out, size_t size) {
-    Render<shape, false, false>(frequency, pw, NULL, out, size);
+  void Configure(size_t num_channels, uint8_t* harmosc_waveshapes) {
+    if (num_channels_ != num_channels) {
+      Init();
+    }
+    num_channels_ = num_channels;
+    copy(&harmosc_waveshapes[0], &harmosc_waveshapes[num_channels], waveshape_);
   }
-  
-  template<OscillatorShape shape>
-  void Render(
-      float frequency,
+
+  void ConfigureSlave(float fundamental, uint8_t waveshape) {
+    fundamental_ = fundamental;
+    waveshape_[0] = waveshape;
+    num_channels_ = 1;
+  }
+
+  inline float fundamental() {
+    return fundamental_;
+  }
+
+  inline uint8_t num_channels() {
+    return num_channels_;
+  }
+
+  void Render(float* out, size_t size);
+
+  void RenderSingleHarmonic(uint8_t channel_index, float* out, size_t size);
+
+  void RenderSingleHarmonicWaveshape(
+      uint8_t channel_index,
       float pw,
-      const float* fm,
+      OscillatorShape shape,
       float* out,
-      size_t size) {
-    if (!fm) {
-      Render<shape, false, false>(frequency, pw, NULL, out, size);
-    } else {
-      Render<shape, true, true>(frequency, pw, fm, out, size);
-    }
+      size_t size);
+
+  inline void set_fundamental(float cv_slider_value, float pot_value) {
+    const float coarse = (cv_slider_value - 0.5f) * 96.0f;
+    const float fine = pot_value * 2.0f - 1.0f;
+    fundamental_ = SemitonesToRatio(coarse + fine) * kMiddleCHz / kSampleRate;
   }
 
-  template<OscillatorShape shape, bool has_external_fm, bool through_zero_fm>
-  void Render(
-      float frequency,
-      float pw,
-      const float* external_fm,
-      float* out,
-      size_t size) {
-    
-    if (!has_external_fm) {
-      if (!through_zero_fm) {
-        CONSTRAIN(frequency, kMinFrequency, kMaxFrequency);
-      } else {
-        CONSTRAIN(frequency, -kMaxFrequency, kMaxFrequency);
-      }
-      CONSTRAIN(pw, fabsf(frequency) * 2.0f, 1.0f - 2.0f * fabsf(frequency))
-    }
-    
-    stmlib::ParameterInterpolator fm(&frequency_, frequency, size);
-    stmlib::ParameterInterpolator pwm(&pw_, pw, size);
-  
-    float next_sample = next_sample_;
-  
-    while (size--) {
-      float this_sample = next_sample;
-      next_sample = 0.0f;
-
-      float frequency = fm.Next();
-      if (has_external_fm) {
-        frequency *= (1.0f + *external_fm++);
-        if (!through_zero_fm) {
-          CONSTRAIN(frequency, kMinFrequency, kMaxFrequency);
-        } else {
-          CONSTRAIN(frequency, -kMaxFrequency, kMaxFrequency);
-        }
-      }
-      float pw = (shape == OSCILLATOR_SHAPE_SQUARE_TRIANGLE ||
-                  shape == OSCILLATOR_SHAPE_TRIANGLE) ? 0.5f : pwm.Next();
-      if (has_external_fm) {
-        CONSTRAIN(pw, fabsf(frequency) * 2.0f, 1.0f - 2.0f * fabsf(frequency))
-      }
-      phase_ += frequency;
-      
-      if (shape <= OSCILLATOR_SHAPE_SAW) {
-        if (phase_ >= 1.0f) {
-          phase_ -= 1.0f;
-          float t = phase_ / frequency;
-          this_sample -= ThisBlepSample(t);
-          next_sample -= NextBlepSample(t);
-        } else if (through_zero_fm && phase_ < 0.0f) {
-          float t = phase_ / frequency;
-          phase_ += 1.0f;
-          this_sample += ThisBlepSample(t);
-          next_sample += NextBlepSample(t);
-        }
-        next_sample += phase_;
-
-        if (shape == OSCILLATOR_SHAPE_SAW) {
-          *out++ = 2.0f * this_sample - 1.0f;
-        } else {
-          lp_state_ += 0.25f * ((hp_state_ - this_sample) - lp_state_);
-          *out++ = 4.0f * lp_state_;
-          hp_state_ = this_sample;
-        }
-      } else if (shape == OSCILLATOR_SHAPE_SINE) {
-        if (phase_ >= 1.0f) {
-          phase_ -= 1.0f;
-        }
-        next_sample = stmlib::Interpolate(lut_sine, phase_, 1024.0f);
-        *out++ = this_sample;
-      } else if (shape <= OSCILLATOR_SHAPE_SLOPE) {
-        float slope_up = 2.0f;
-        float slope_down = 2.0f;
-        if (shape == OSCILLATOR_SHAPE_SLOPE) {
-          slope_up = 1.0f / (pw);
-          slope_down = 1.0f / (1.0f - pw);
-        }
-        if (high_ ^ (phase_ < pw)) {
-          float t = (phase_ - pw) / frequency;
-          float discontinuity = (slope_up + slope_down) * frequency;
-          if (through_zero_fm && frequency < 0.0f) {
-            discontinuity = -discontinuity;
-          }
-          this_sample -= ThisIntegratedBlepSample(t) * discontinuity;
-          next_sample -= NextIntegratedBlepSample(t) * discontinuity;
-          high_ = phase_ < pw;
-        }
-        if (phase_ >= 1.0f) {
-          phase_ -= 1.0f;
-          float t = phase_ / frequency;
-          float discontinuity = (slope_up + slope_down) * frequency;
-          this_sample += ThisIntegratedBlepSample(t) * discontinuity;
-          next_sample += NextIntegratedBlepSample(t) * discontinuity;
-          high_ = true;
-        } else if (through_zero_fm && phase_ < 0.0f) {
-          float t = phase_ / frequency;
-          phase_ += 1.0f;
-          float discontinuity = (slope_up + slope_down) * frequency;
-          this_sample -= ThisIntegratedBlepSample(t) * discontinuity;
-          next_sample -= NextIntegratedBlepSample(t) * discontinuity;
-          high_ = false;
-        }
-        next_sample += high_
-          ? phase_ * slope_up
-          : 1.0f - (phase_ - pw) * slope_down;
-        *out++ = 2.0f * this_sample - 1.0f;
-      } else {
-        if (high_ ^ (phase_ >= pw)) {
-          float t = (phase_ - pw) / frequency;
-          float discontinuity = 1.0f;
-          if (through_zero_fm && frequency < 0.0f) {
-            discontinuity = -discontinuity;
-          }
-          this_sample += ThisBlepSample(t) * discontinuity;
-          next_sample += NextBlepSample(t) * discontinuity;
-          high_ = phase_ >= pw;
-        }
-        if (phase_ >= 1.0f) {
-          phase_ -= 1.0f;
-          float t = phase_ / frequency;
-          this_sample -= ThisBlepSample(t);
-          next_sample -= NextBlepSample(t);
-          high_ = false;
-        } else if (through_zero_fm && phase_ < 0.0f) {
-          float t = phase_ / frequency;
-          phase_ += 1.0f;
-          this_sample += ThisBlepSample(t);
-          next_sample += NextBlepSample(t);
-          high_ = true;
-        }
-        next_sample += phase_ < pw ? 0.0f : 1.0f;
-        
-        if (shape == OSCILLATOR_SHAPE_SQUARE_TRIANGLE) {
-          const float integrator_coefficient = frequency * 0.0625f;
-          this_sample = 128.0f * (this_sample - 0.5f);
-          lp_state_ += integrator_coefficient * (this_sample - lp_state_);
-          *out++ = lp_state_;
-        } else if (shape == OSCILLATOR_SHAPE_SQUARE_DARK) {
-          const float integrator_coefficient = frequency * 2.0f;
-          this_sample = 4.0f * (this_sample - 0.5f);
-          lp_state_ += integrator_coefficient * (this_sample - lp_state_);
-          *out++ = lp_state_;
-        } else if (shape == OSCILLATOR_SHAPE_SQUARE_BRIGHT) {
-          const float integrator_coefficient = frequency * 2.0f;
-          this_sample = 2.0f * this_sample - 1.0f;
-          lp_state_ += integrator_coefficient * (this_sample - lp_state_);
-          *out++ = (this_sample - lp_state_) * 0.5f;
-        } else {
-          this_sample = 2.0f * this_sample - 1.0f;
-          *out++ = this_sample;
-        }
-      }
-    }
-    next_sample_ = next_sample;
+  inline void set_amplitude_and_harmonic_ratio(
+      int8_t index,
+      float cv_slider_value,
+      float pot_value) {
+    // TODO: I'm pretty sure this should be tied to the number of values in
+    // kHarmonicRatios (ignoring the duplicated last one), but would be good
+    // to verify for sure
+    // const float harmonic = pot_value * 9.999f;
+    const float harmonic = pot_value * 14.999f;
+    MAKE_INTEGRAL_FRACTIONAL(harmonic);
+    harmonic_fractional = 8.0f * (harmonic_fractional - 0.5f) + 0.5f;
+    CONSTRAIN(harmonic_fractional, 0.0f, 1.0f);
+    // TODO: why are these crossfaded instead of just either/or?
+    ratio_[index] = Crossfade(
+        kHarmonicRatios[harmonic_integral],
+        kHarmonicRatios[harmonic_integral + 1],
+        harmonic_fractional);
+    amplitude_[index] = std::max(cv_slider_value, 0.0f);
   }
-  
+
+  inline float gain() {
+    return kScalingGainBasis * std::pow(kScalingCoefficient, num_channels_ - 1);
+  }
+
  private:
   // Oscillator state.
-  float phase_;
-  float next_sample_;
-  float lp_state_;
-  float hp_state_;
-  bool high_;
+  float phase_[kMaxNumChannels];
+  float next_sample_[kMaxNumChannels];
+  float lp_state_[kMaxNumChannels];
+  float hp_state_[kMaxNumChannels];
+  bool high_[kMaxNumChannels];
 
   // For interpolation of parameters.
-  float frequency_;
-  float pw_;
+  float frequency_[kMaxNumChannels];
+  float pw_[kMaxNumChannels];
+  float previous_amplitude_[kMaxNumChannels];
+
+  // Individual harmonic parameters.
+  float ratio_[kMaxNumChannels];
+  float amplitude_[kMaxNumChannels];
+  uint8_t waveshape_[kMaxNumChannels];
+
+  // Overall parameters.
+  float fundamental_;
+  uint8_t num_channels_;
   
   DISALLOW_COPY_AND_ASSIGN(Oscillator);
 };

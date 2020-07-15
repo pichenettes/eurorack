@@ -24,23 +24,20 @@
 
 #include <stm32f37x_conf.h>
 
-#include "stmlib/dsp/dsp.h"
-
+#include "chain_state.h"
+#include "cv_reader.h"
+#include "drivers/dac.h"
+#include "drivers/gate_inputs.h"
+#include "drivers/serial_link.h"
+#include "drivers/system.h"
+#include "factory_test.h"
+#include "io_buffer.h"
+#include "oscillator.h"
+#include "segment_generator.h"
+#include "settings.h"
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/units.h"
-#include "stages/chain_state.h"
-#include "stages/drivers/dac.h"
-#include "stages/drivers/gate_inputs.h"
-#include "stages/drivers/serial_link.h"
-#include "stages/drivers/system.h"
-#include "stages/cv_reader.h"
-#include "stages/factory_test.h"
-#include "stages/io_buffer.h"
-#include "stages/oscillator.h"
-#include "stages/resources.h"
-#include "stages/segment_generator.h"
-#include "stages/settings.h"
-#include "stages/ui.h"
+#include "ui.h"
 
 using namespace stages;
 using namespace std;
@@ -101,126 +98,41 @@ IOBuffer::Slice FillBuffer(size_t size) {
 }
 
 SegmentGenerator::Output out[kBlockSize];
-
-static float note_lp[kNumChannels] = { 0, 0, 0, 0, 0, 0 };
+float harmosc_out[kBlockSize];
 
 void Process(IOBuffer::Block* block, size_t size) {
+  // NOTE: I don't think we need to pass an out equivalent for oscillator, since
+  // that is just used for passing segment/phase info from R->L, which there is
+  // no need for in the case of the oscillator.
   chain_state.Update(
       *block,
       &settings,
+      &oscillator[0],
       &segment_generator[0],
       out);
+
   for (size_t channel = 0; channel < kNumChannels; ++channel) {
-    bool led_state = segment_generator[channel].Process(
-        block->input_patched[channel] ? block->input[channel] : no_gate,
-        out,
-        size);
-    ui.set_slider_led(channel, led_state, 5);
-    
-    if (test_adc_noise) {
-      float note = block->cv_slider[channel];
-      ONE_POLE(note_lp[channel], note, 0.0001f);
-      float cents = (note - note_lp[channel]) * 1200.0f * 0.5f;
-      CONSTRAIN(cents, -1.0f, +1.0f)
+    if (chain_state.harmosc_status(channel) == ChainState::HARMOSC_STATUS_NONE) {
+      bool led_state = segment_generator[channel].Process(
+          block->input_patched[channel] ? block->input[channel] : no_gate,
+          out,
+          size);
+      ui.set_slider_led(channel, led_state, 5);
+
       for (size_t i = 0; i < size; ++i) {
-        out[i].value = cents;
+        block->output[channel][i] = settings.dac_code(channel, out[i].value);
+      }
+    } else {
+      // TODO: UI changes here, or somewhere else?
+      for (size_t i = 0; i < size; ++i) {
+        oscillator[channel].Render(harmosc_out, size);
+        block->output[channel][i] = settings.dac_code(channel, harmosc_out[i]);
       }
     }
-    
-    for (size_t i = 0; i < size; ++i) {
-      block->output[channel][i] = settings.dac_code(channel, out[i].value);
-    }
   }
 }
 
-
-float ouroboros_ratios[] = {
-  0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 8.0f, 8.0f
-};
-
-float this_channel[kBlockSize];
-float sum[kBlockSize];
-float channel_amplitude[kNumChannels];
-float previous_amplitude[kNumChannels];
-
-void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
-  const float coarse = (block->cv_slider[0] - 0.5f) * 96.0f;
-  const float fine = block->pot[0] * 2.0f - 1.0f;
-  const float f0 = SemitonesToRatio(coarse + fine) * 261.6255f / kSampleRate;
-  
-  std::fill(&sum[0], &sum[size], 0.0f);
-  
-  for (int channel = kNumChannels - 1; channel >= 0; --channel) {
-    
-    const float harmonic = block->pot[channel] * 9.999f;
-    MAKE_INTEGRAL_FRACTIONAL(harmonic);
-    harmonic_fractional = 8.0f * (harmonic_fractional - 0.5f) + 0.5f;
-    CONSTRAIN(harmonic_fractional, 0.0f, 1.0f);
-    const float ratio = channel == 0 ? 1.0f : Crossfade(
-        ouroboros_ratios[harmonic_integral],
-        ouroboros_ratios[harmonic_integral + 1],
-        harmonic_fractional);
-    const float amplitude = channel == 0
-        ? 1.0f
-        : std::max(block->cv_slider[channel], 0.0f);
-    bool trigger = false;
-    for (size_t i = 0; i < size; ++i) {
-      trigger = trigger || (block->input[channel][i] & GATE_FLAG_RISING);
-    }
-    if (trigger || !block->input_patched[channel]) {
-      channel_amplitude[channel] = 1.0f;
-    } else {
-      channel_amplitude[channel] *= 0.999f;
-    }
-    ui.set_slider_led(
-        channel, channel_amplitude[channel] * amplitude > 0.00001f, 1);
-    const float f = f0 * ratio;
-    
-    uint8_t waveshape = settings.state().segment_configuration[channel];
-    switch (waveshape) {
-      case 0:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_SINE>(
-            f, 0.5f, this_channel, size);
-        break;
-      case 1:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_TRIANGLE>(
-            f, 0.5f, this_channel, size);
-        break;
-      case 2:
-      case 3:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_SQUARE>(
-            f, 0.5f, this_channel, size);
-        break;
-      case 4:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_SAW>(
-            f, 0.5f, this_channel, size);
-        break;
-      case 5:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_SQUARE>(
-            f, 0.75f, this_channel, size);
-        break;
-      case 6:
-      case 7:
-        oscillator[channel].Render<OSCILLATOR_SHAPE_SQUARE>(
-            f, 0.9f, this_channel, size);
-        break;
-    }
-    
-    ParameterInterpolator am(
-        &previous_amplitude[channel],
-        amplitude * amplitude * channel_amplitude[channel],
-        size);
-    for (size_t i = 0; i < size; ++i) {
-      sum[i] += this_channel[i] * am.Next();
-    }
-    
-    const float gain = channel == 0 ? 0.2f : 0.66f;
-    const float* source = channel == 0 ? sum : this_channel;
-    for (size_t i = 0; i < size; ++i) {
-      block->output[channel][i] = settings.dac_code(channel, source[i] * gain);
-    }
-  }
-}
+// TODO: test trigger logic in original ouroboros mode
 
 void Init() {
   System sys;
@@ -254,8 +166,6 @@ void Init() {
 int main(void) {
   Init();
   while (1) {
-    io_buffer.Process(factory_test.running()
-          ? &FactoryTest::ProcessFn
-          : (chain_state.ouroboros() ? &ProcessOuroboros : &Process));
+    io_buffer.Process(factory_test.running() ? &FactoryTest::ProcessFn : &Process);
   }
 }

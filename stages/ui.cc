@@ -76,40 +76,18 @@ void Ui::Poll() {
   UpdateLEDs();
   
   switches_.Debounce();
+  // TODO: ouroboros mode used to detect long presses here
+  // is the new_loop_bit logic in chain_state sufficient, or do
+  // we need to do something more here? i think it's sufficient
+  // but need to verify
   
-  if (chain_state_->ouroboros()) {
-    State* s = settings_->mutable_state();
-    for (int i = 0; i < kNumSwitches; ++i) {
-      if (switches_.pressed(i)) {
-        if (press_time_[i] != -1) {
-          ++press_time_[i];
-        }
-        if (press_time_[i] > kLongPressDuration) {
-          uint8_t loop_bit = s->segment_configuration[i] & 0x4;
-          uint8_t type_bits = s->segment_configuration[i] & 0x03;
-          s->segment_configuration[i] = type_bits | (4 - loop_bit);
-          settings_->SaveState();
-          press_time_[i] = -1;
-        }
-      } else {
-        if (press_time_[i] > 0) {
-          uint8_t loop_bit = s->segment_configuration[i] & 0x4;
-          uint8_t type_bits = s->segment_configuration[i] & 0x03;
-          s->segment_configuration[i] = ((type_bits + 1) % 3) | loop_bit;
-          settings_->SaveState();
-        }
-        press_time_[i] = 0;
-      }
+  ChainState::ChannelBitmask pressed = 0;
+  for (int i = 0; i < kNumSwitches; ++i) {
+    if (switches_.pressed(i)) {
+      pressed |= 1 << i;
     }
-  } else {
-    ChainState::ChannelBitmask pressed = 0;
-    for (int i = 0; i < kNumSwitches; ++i) {
-      if (switches_.pressed(i)) {
-        pressed |= 1 << i;
-      }
-    }
-    chain_state_->set_local_switch_pressed(pressed);
   }
+  chain_state_->set_local_switch_pressed(pressed);
 }
 
 inline uint8_t Ui::FadePattern(uint8_t shift, uint8_t phase) const {
@@ -159,10 +137,12 @@ void Ui::UpdateLEDs() {
       FadePattern(4, 0x0f),  // END
       FadePattern(4, 0x08),  // SELF
     };
+
     for (size_t i = 0; i < kNumChannels; ++i) {
       uint8_t configuration = settings_->state().segment_configuration[i];
       uint8_t type = configuration & 0x3;
-      int brightness = fade_patterns[chain_state_->ouroboros()
+
+      int brightness = fade_patterns[chain_state_->harmosc_status(i) != 0
           ? (configuration & 0x4 ? 3 : 0)
           : chain_state_->loop_status(i)];
       LedColor color = palette_[type];
@@ -179,6 +159,7 @@ void Ui::UpdateLEDs() {
           brightness = brightness >= 0xc ? 0x1 : 0;
         }
       }
+      // TODO - use led lights to somehow convey harmosc blocks
       leds_.set(
           LED_GROUP_UI + i,
           (brightness >= pwm && brightness != 0) ? color : LED_COLOR_OFF);

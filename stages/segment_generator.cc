@@ -406,6 +406,7 @@ void SegmentGenerator::ProcessZero(
 void SegmentGenerator::ProcessSlave(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
   while (size--) {
+    // NOTE: the values for active_segment_ seem inverted but :shrug:
     active_segment_ = out->segment == monitored_segment_ ? 0 : 1;
     out->value = active_segment_ ? 0.0f : 1.0f - out->phase;
     ++out;

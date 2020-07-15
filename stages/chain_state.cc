@@ -69,6 +69,7 @@ void ChainState::Init(SerialLink* left, SerialLink* right) {
   fill(&channel_state_[0], &channel_state_[kMaxNumChannels], c);
   fill(&unpatch_counter_[0], &unpatch_counter_[kNumChannels], 0);
   fill(&loop_status_[0], &loop_status_[kNumChannels], LOOP_STATUS_NONE);
+  fill(&harmosc_status_[0], &harmosc_status_[kNumChannels], HARMOSC_STATUS_NONE);
   fill(&switch_pressed_[0], &switch_pressed_[kMaxChainSize], 0);
   fill(&switch_press_time_[0], &switch_press_time_[kMaxNumChannels], 0);
   
@@ -127,6 +128,7 @@ void ChainState::TransmitRight() {
   p->segment = tx_last_sample_.segment;
   p->last_patched_channel = tx_last_patched_channel_;
   p->last_loop = tx_last_loop_;
+  p->harmosc_fundamental = tx_harmosc_fundamental_;
   
   copy(&input_patched_[0], &input_patched_[index_ + 1], &p->input_patched[0]);
   copy(&switch_pressed_[0], &switch_pressed_[index_ + 1],
@@ -155,7 +157,12 @@ void ChainState::ReceiveRight() {
           &p->channel[kNumChannels],
           remote_channel(rx_index, 0));
       request_.request = REQUEST_NONE;
-    } else if (rx_index == 0xf) {
+//    } else if (rx_index == 0xf) {
+    } else if (rx_index == 0x7) {
+      // NOTE: I'm pretty sure the above change to the if-statement correctly
+      // solves for the updates to how index extraction works, but not 100%
+      // positive.
+
       // This suspiciously looks like a state change request packet!
       // We will take care of it later.
       request_ = *(const RequestPacket*)(p);
@@ -212,6 +219,7 @@ void ChainState::ReceiveLeft() {
     rx_last_patched_channel_ = size_ * kNumChannels;
     rx_last_loop_.start = -1;
     rx_last_loop_.end = -1;
+    rx_harmosc_fundamental_ = -1.0f;
     return;
   }
   
@@ -221,22 +229,32 @@ void ChainState::ReceiveLeft() {
     rx_last_loop_ = p->last_loop;
     rx_last_sample_.phase = p->phase;
     rx_last_sample_.segment = p->segment;
+    rx_harmosc_fundamental_ = p->harmosc_fundamental;
     copy(&p->switch_pressed[0], &p->switch_pressed[index_],
          &switch_pressed_[0]);
     copy(&p->input_patched[0], &p->input_patched[index_], &input_patched_[0]);
   }
 }
 
-void ChainState::Configure(SegmentGenerator* segment_generator) {
+void ChainState::Configure(
+    SegmentGenerator* segment_generator,
+    Oscillator* oscillator) {
   size_t last_local_channel = local_channel_index(0) + kNumChannels;
   size_t last_channel = size_ * kNumChannels;
   size_t last_patched_channel = rx_last_patched_channel_;
   Loop last_loop = rx_last_loop_;
+  float harmosc_fundamental = rx_harmosc_fundamental_;
+
+  // TODO - having configured the oscillator in the right cases, how are we
+  // going to check when to use it in the stages.cc Process method?
 
   num_internal_bindings_ = 0;
   num_bindings_ = 0;
+  num_local_harmosc_bindings_ = 0;
+  num_remote_harmosc_bindings_ = 0;
   
   segment::Configuration configuration[kMaxNumChannels];
+  uint8_t harmosc_waveshapes[kMaxNumChannels];
   
   for (size_t i = 0; i < kNumChannels; ++i) {
     size_t channel = local_channel_index(i);
@@ -246,23 +264,80 @@ void ChainState::Configure(SegmentGenerator* segment_generator) {
         // Create a slave channel - we are just extending a chain of segments.
         size_t segment = channel - last_patched_channel;
         segment_generator[i].ConfigureSlave(segment);
+        harmosc_status_[i] = HARMOSC_STATUS_NONE;
         set_loop_status(i, segment, last_loop);
       } else {
-        // Create a free-running channel.
         segment::Configuration c = local_channel(i)->configuration();
-        segment_generator[i].ConfigureSingleSegment(false, c);
-        binding_[num_bindings_].generator = i;
-        binding_[num_bindings_].source = i;
-        binding_[num_bindings_].destination = 0;
-        ++num_bindings_;
-        ++num_internal_bindings_;
-        loop_status_[i] = c.loop ? LOOP_STATUS_SELF : LOOP_STATUS_NONE;
+
+        if (harmosc_fundamental < 0.0 && !c.harmosc) {
+          // Create a free-running channel.
+          segment_generator[i].ConfigureSingleSegment(false, c);
+          binding_[num_bindings_].generator = i;
+          binding_[num_bindings_].source = i;
+          binding_[num_bindings_].destination = 0;
+          ++num_bindings_;
+          ++num_internal_bindings_;
+          loop_status_[i] = c.loop ? LOOP_STATUS_SELF : LOOP_STATUS_NONE;
+          harmosc_status_[i] = HARMOSC_STATUS_NONE;
+        } else if (harmosc_fundamental < 0.0 && c.harmosc) {
+          // Create a harmosc block, trying to extend it as far as possible.
+          size_t num_channels = 0;
+          bool add_more_segments = true;
+          bool dirty = false;
+
+          while (add_more_segments) {
+            // Add an entry in the waveshape array.
+            uint8_t waveshape = channel_state_[channel].flags & 0x7;
+            harmosc_waveshapes[num_channels] = waveshape;
+
+            dirty |= dirty_[channel];
+            harmosc_fundamental = oscillator[i].fundamental();
+
+            // Add a binding in the harmosc binding array.
+            if (channel < last_local_channel) {
+              // Bind local CV/pot to this segment's parameters.
+              harmosc_local_binding_[num_local_harmosc_bindings_].generator = i;
+              harmosc_local_binding_[num_local_harmosc_bindings_].destination =
+                  num_channels == 0 ? -1 : num_channels;
+              harmosc_local_binding_[num_local_harmosc_bindings_].source = i + num_channels;
+              ++num_local_harmosc_bindings_;
+            } else {
+              // Bind remote CV/pot to this segment's parameters.
+              harmosc_remote_binding_[num_remote_harmosc_bindings_].generator = i;
+              harmosc_remote_binding_[num_remote_harmosc_bindings_].destination = num_channels;
+              harmosc_remote_binding_[num_remote_harmosc_bindings_].source = channel;
+              ++num_remote_harmosc_bindings_;
+            }
+            add_more_segments = num_channels == 0 ||
+                !channel_state_[channel].configuration().harmosc;
+            ++channel;
+            ++num_channels;
+            add_more_segments &= channel < last_channel
+          }
+          if (dirty || num_channels != oscillator[i].num_channels()) {
+            oscillator[i].Configure(num_channels, harmosc_waveshapes);
+          }
+          loop_status_[i] = LOOP_STATUS_NONE;
+          harmosc_status_[i] = HARMOSC_STATUS_START;
+        } else {
+          harmosc_local_binding_[num_local_harmosc_bindings_].generator = i;
+          harmosc_local_binding_[num_local_harmosc_bindings_].source = i;
+          harmosc_local_binding_[num_local_harmosc_bindings_].destination = 0;
+          ++num_local_harmosc_bindings_;
+          uint8_t waveshape = channel_state_[channel].flags & 0x7;
+
+          oscillator[i].ConfigureSlave(harmosc_fundamental, waveshape);
+          loop_status_[i] = LOOP_STATUS_NONE;
+          harmosc_status_[i] = c.harmosc ? HARMOSC_STATUS_END : HARMOSC_STATUS_MIDDLE;
+          if (c.harmosc) harmosc_fundamental = -1.0f;
+        }
       }
     } else {
       last_patched_channel = channel;
+      harmosc_fundamental = -1.0f;
       
       // Create a normal channel, trying to extend it as far as possible.
-      int num_segments = 0;
+      size_t num_segments = 0;
       bool add_more_segments = true;
       bool dirty = false;
       
@@ -300,17 +375,21 @@ void ChainState::Configure(SegmentGenerator* segment_generator) {
       if (dirty || num_segments != segment_generator[i].num_segments()) {
         segment_generator[i].Configure(true, configuration, num_segments);
       }
+      harmosc_status_[i] = HARMOSC_STATUS_NONE;
       set_loop_status(i, 0, last_loop);
     }
   }
+
   tx_last_loop_ = last_loop;
   tx_last_patched_channel_ = last_patched_channel;
+  tx_harmosc_fundamental_ = harmosc_fundamental;
 }
 
 inline void ChainState::UpdateLocalState(
     const IOBuffer::Block& block,
     const Settings& settings,
-    const SegmentGenerator::Output& last_out) {
+    const SegmentGenerator::Output& last_out,
+    Oscillator* oscillator) {
   tx_last_sample_ = last_out;
   
   ChannelBitmask input_patched_bitmask = 0;
@@ -331,6 +410,20 @@ inline void ChainState::UpdateLocalState(
     }
   }
   input_patched_[index_] = input_patched_bitmask;
+
+  for (size_t i = 0; i < kNumChannels; ++i) {
+    switch (harmosc_status_[i]) {
+      case HARMOSC_STATUS_START:
+        tx_harmosc_fundamental_ = oscillator[i].fundamental();
+        break;
+      case HARMOSC_STATUS_END:
+        tx_harmosc_fundamental_ = -1.0f;
+        break;
+    }
+  }
+
+  // NOTE: If there are issues with the current harmosc cancellation logic for input
+  // patching, this could be another place where we could try to deal with it.
 }
 
 inline void ChainState::UpdateLocalPotCvSlider(const IOBuffer::Block& block) {
@@ -342,10 +435,19 @@ inline void ChainState::UpdateLocalPotCvSlider(const IOBuffer::Block& block) {
 }
 
 inline void ChainState::BindRemoteParameters(
-    SegmentGenerator* segment_generator) {
+    SegmentGenerator* segment_generator,
+    Oscillator* oscillator) {
   for (size_t i = num_internal_bindings_; i < num_bindings_; ++i) {
     const ParameterBinding& m = binding_[i];
     segment_generator[m.generator].set_segment_parameters(
+        m.destination,
+        channel_state_[m.source].cv_slider / 16384.0f - 2.0f,
+        channel_state_[m.source].pot / 256.0f);
+  }
+
+  for (size_t i = 0; i < num_remote_harmosc_bindings_; ++i) {
+    const ParameterBinding& m = harmosc_remote_binding_[i];
+    oscillator[m.generator].set_amplitude_and_harmonic_ratio(
         m.destination,
         channel_state_[m.source].cv_slider / 16384.0f - 2.0f,
         channel_state_[m.source].pot / 256.0f);
@@ -354,13 +456,29 @@ inline void ChainState::BindRemoteParameters(
 
 inline void ChainState::BindLocalParameters(
     const IOBuffer::Block& block,
-    SegmentGenerator* segment_generator) {
+    SegmentGenerator* segment_generator,
+    Oscillator* oscillator) {
   for (size_t i = 0; i < num_internal_bindings_; ++i) {
     const ParameterBinding& m = binding_[i];
     segment_generator[m.generator].set_segment_parameters(
         m.destination,
         block.cv_slider[m.source],
         block.pot[m.source]);
+  }
+
+  // TODO: frequency locking
+  for (size_t i = 0; i < num_local_harmosc_bindings_; ++i) {
+    const ParameterBinding& m = harmosc_local_binding_[i];
+    if (m.destination == -1) {
+      oscillator[m.generator].set_fundamental(
+          block.cv_slider[m.source],
+          block.pot[m.source]);
+    } else {
+      oscillator[m.generator].set_amplitude_and_harmonic_ratio(
+          m.destination,
+          block.cv_slider[m.source],
+          block.pot[m.source]);
+    }
   }
 }
 
@@ -369,8 +487,10 @@ ChainState::RequestPacket ChainState::MakeLoopChangeRequest(
   size_t channel_index = 0;
   size_t group_start = 0;
   size_t group_end = size_ * kNumChannels;
+  size_t harmosc_segments_before_loop_start = 0;
+  size_t harmosc_segments_before_loop_end = 0;
 
-  bool inconsistent_loop = false;
+  RequestPacket result;
 
   // Fill group_start and group_end, which contain the tightest interval
   // of patched channels enclosing the loop.
@@ -397,21 +517,56 @@ ChainState::RequestPacket ChainState::MakeLoopChangeRequest(
         if (channel_index > loop_start && channel_index < loop_end) {
           // LOOP     ----S- ------ --E--- ------
           // PATCHED  -x---- ---x-- ----x- ------
-          inconsistent_loop = true;
+          result.request = REQUEST_NONE;  // inconsistent loop
+          return result;
         }
+      }
+      if (channel_index < loop_start && harmosc_start_or_end_[channel_index]) {
+        ++harmosc_segments_before_loop_start;
+      }
+      if (channel_index < loop_end && harmosc_start_or_end_[channel_index]) {
+        ++harmosc_segments_before_loop_end;
       }
       input_patched >>= 1;
       ++channel_index;
     }
   }
   
-  // There shouldn't be a loop spanning multiple channels among the first
-  // group of unpatched channels.
+  // A "loop" spanning multiple channels among the first group of
+  // unpatched channels is treated as a new harmonic oscillator range.
   if (group_start == 0 && !(input_patched_[0] & 1)) {
     if (loop_start != loop_end) {
+      bool inconsistent_harmosc_range = false;
       // LOOP     -S-E-- ------
       // PATCHED  -----x ---x--
-      inconsistent_loop = true;
+      if (group_end == loop_end) {
+        // Harmosc ranges shouldn't include any patched inputs.
+        inconsistent_harmosc_range = true;
+      } else if (harmosc_segments_before_loop_start % 2 == 1) {
+        // Since harmosc ranges have a minimum length of two, they always come in
+        // pairs. Therefore there should never be an odd number of harmosc range
+        // start/end points before a new one begins.
+        inconsistent_harmosc_range = true;
+      } else if (harmosc_segments_before_loop_end - harmosc_segments_before_loop_start > 1) {
+        inconsistent_harmosc_range = true;
+      } else if (harmosc_segments_before_loop_end - harmosc_segments_before_loop_start == 1) {
+        // The only time there should be any segments between loop start and end is if
+        // this is a request to cancel a harmosc range.
+        if (!harmosc_start_or_end_[loop_start] || !harmosc_start_or_end_[loop_end]) {
+          inconsistent_harmosc_range = true;
+        }
+      } else if (harmosc_start_or_end_[loop_end]) {
+        inconsistent_harmosc_range = true;
+      }
+
+      if (inconsistent_harmosc_range) {
+        result.request = REQUEST_NONE;
+      } else {
+        result.request = REQUEST_SET_HARMOSC_RANGE;
+        result.argument[0] = loop_start;
+        result.argument[1] = loop_end;
+      }
+      return result;
     } else {
       group_start = group_end = loop_start = loop_end;
     }
@@ -428,19 +583,15 @@ ChainState::RequestPacket ChainState::MakeLoopChangeRequest(
     // Incorrect:
     // LOOP     ---S-E
     // PATCHED  ---x-x
-    inconsistent_loop = true;
+    result.request = REQUEST_NONE;  // inconsistent loop
+    return result;
   }
   
-  RequestPacket result;
-  if (inconsistent_loop) {
-    result.request = REQUEST_NONE;
-  } else {
-    result.request = REQUEST_SET_LOOP;
-    result.argument[0] = group_start;
-    result.argument[1] = loop_start;
-    result.argument[2] = loop_end;
-    result.argument[3] = group_end;
-  }
+  result.request = REQUEST_SET_LOOP;
+  result.argument[0] = group_start;
+  result.argument[1] = loop_start;
+  result.argument[2] = loop_end;
+  result.argument[3] = group_end;
   return result;
 }
 
@@ -469,6 +620,10 @@ void ChainState::PollSwitches() {
             if (first_pressed != kMaxNumChannels) {
               // Simultaneously pressing a pair of buttons.
               request_ = MakeLoopChangeRequest(first_pressed, switch_index);
+              if (request_.request == REQUEST_SET_HARMOSC_RANGE) {
+                harmosc_start_or_end_[first_pressed] = !harmosc_start_or_end_[first_pressed];
+                harmosc_start_or_end_[switch_index] = !harmosc_start_or_end_[switch_index];
+              }
               switch_press_time_[first_pressed] = -1;
               switch_press_time_[switch_index] = -1;
             } else if (switch_press_time_[switch_index] > kLongPressDuration) {
@@ -493,6 +648,45 @@ void ChainState::PollSwitches() {
         ++switch_index;
       }
     }
+
+    if (request_.request != REQUEST_NONE) {
+      return;
+    }
+
+    // If there are no other pending requests, use this opportunity to check if
+    // any existing harmosc range or ranges need to be cancelled because of a
+    // newly-patched gate input. If N ranges need to be cancelled the cancellations
+    // will be spread over N separate requests.
+    size_t channel_index = 0;
+    bool open_harmosc_range = false;
+    bool any_input_patched = false;
+    size_t harmosc_block_start = -1;
+
+    for (size_t i = 0; i < size_; ++i) {
+      ChannelBitmask input_patched = input_patched_[i];
+      for (size_t j = 0; j < kNumChannels; ++j) {
+        if (input_patched & 1) {
+          any_input_patched = true;
+        }
+
+        if (harmosc_start_or_end_[channel_index]) {
+          if (!open_harmosc_range) {
+            harmosc_block_start = channel_index;
+          } else if (any_input_patched) {
+            request_.request = REQUEST_SET_HARMOSC_RANGE;
+            request_.argument[0] = harmosc_block_start;
+            request_.argument[1] = channel_index;
+            harmosc_start_or_end_[harmosc_block_start] = false;
+            harmosc_start_or_end_[channel_index] = false;
+            return;
+          }
+          open_harmosc_range = !open_harmosc_range;
+        }
+
+        input_patched >>= 1;
+        ++channel_index;
+      }
+    }
   }
 }
 
@@ -508,26 +702,46 @@ void ChainState::HandleRequest(Settings* settings) {
 
     uint8_t type_bits = s->segment_configuration[i] & 0x3;
     uint8_t loop_bit = s->segment_configuration[i] & 0x4;
+    uint8_t harmosc_bit = s->segment_configuration[i] & 0x8;
 
     if (request_.request == REQUEST_SET_SEGMENT_TYPE) {
       if (channel == request_.argument[0]) {
-        s->segment_configuration[i] = ((type_bits + 1) % 3) | loop_bit;
+        s->segment_configuration[i] = ((type_bits + 1) % 3) | loop_bit | harmosc_bit;
         dirty |= true;
       }
     } else if (request_.request == REQUEST_SET_LOOP) {
       uint8_t new_loop_bit = loop_bit;
       if ((channel >= request_.argument[0] && channel < request_.argument[3])) {
         new_loop_bit = 0x0;
+        // NOTE: everything in the range is cancelled by default, and only becomes a
+        // new loop if it meets the later checks
       }
       if (channel == request_.argument[1] || channel == request_.argument[2]) {
         if (request_.argument[1] == request_.argument[2]) {
+          // NOTE: this is how single-segment loops get cancelled
           new_loop_bit = 0x4 - loop_bit;
         } else {
           new_loop_bit = 0x4;
         }
       }
-      s->segment_configuration[i] = type_bits | new_loop_bit;
+      s->segment_configuration[i] = type_bits | new_loop_bit | harmosc_bit;
       dirty |= new_loop_bit != loop_bit;
+    } else if (request_.request == REQUEST_SET_HARMOSC_RANGE) {
+      uint8_t new_type_bits = type_bits;
+      uint8_t new_loop_bit = loop_bit;
+      uint8_t new_harmosc_bit = harmosc_bit;
+
+      if ((channel >= request_.argument[0] && channel < request_.argument[1])) {
+        // Clear any single-segment loops in the new harmosc range.
+        new_loop_bit = 0x0;
+        // New harmosc ranges are created with all sine harmonics.
+        new_type_bits = 0x0;
+      }
+      if (channel == request_.argument[0] || channel == request_.argument[1]) {
+        new_harmosc_bit = 0x8 - harmosc_bit;
+      }
+      s->segment_configuration[i] = new_type_bits | new_loop_bit | new_harmosc_bit;
+      dirty |= new_harmosc_bit != harmosc_bit;
     }
   }
   
@@ -539,6 +753,7 @@ void ChainState::HandleRequest(Settings* settings) {
 void ChainState::Update(
     const IOBuffer::Block& block,
     Settings* settings,
+    Oscillator* oscillator,
     SegmentGenerator* segment_generator,
     SegmentGenerator::Output* out) {
   if (discovering_neighbors_) {
@@ -549,7 +764,7 @@ void ChainState::Update(
   switch (counter_ & 0x3) {
     case 0:
       PollSwitches();
-      UpdateLocalState(block, *settings, out[kBlockSize - 1]);
+      UpdateLocalState(block, *settings, out[kBlockSize - 1], oscillator);
       TransmitRight();
       break;
     case 1:
@@ -562,12 +777,12 @@ void ChainState::Update(
       break;
     case 3:
       ReceiveLeft();
-      Configure(segment_generator);
-      BindRemoteParameters(segment_generator);
+      Configure(segment_generator, oscillator);
+      BindRemoteParameters(segment_generator, oscillator);
       break;
   }
   
-  BindLocalParameters(block, segment_generator);
+  BindLocalParameters(block, segment_generator, oscillator);
   fill(&out[0], &out[kBlockSize], rx_last_sample_);
   
   ++counter_;

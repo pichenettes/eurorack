@@ -33,6 +33,7 @@
 
 #include "stages/io_buffer.h"
 #include "stages/segment_generator.h"
+#include "stages/oscillator.h"
 
 namespace stages {
 
@@ -54,6 +55,7 @@ class ChainState {
   void Update(
       const IOBuffer::Block& block,
       Settings* settings,
+      Oscillator* oscillator,
       SegmentGenerator* segment_generator,
       SegmentGenerator::Output* out);
   
@@ -76,8 +78,19 @@ class ChainState {
     LOOP_STATUS_SELF
   };
 
+  enum HarmoscStatus {
+    HARMOSC_STATUS_NONE,
+    HARMOSC_STATUS_START,
+    HARMOSC_STATUS_MIDDLE,
+    HARMOSC_STATUS_END,
+  };
+
   inline LoopStatus loop_status(size_t i) const {
     return loop_status_[i];
+  }
+
+  inline HarmoscStatus harmosc_status(size_t i) const {
+    return harmosc_status_[i];
   }
 
   inline void set_local_switch_pressed(ChannelBitmask bitmask) {
@@ -95,23 +108,29 @@ class ChainState {
   void UpdateLocalState(
       const IOBuffer::Block& block,
       const Settings& settings,
-      const SegmentGenerator::Output& last_out);
+      const SegmentGenerator::Output& last_out,
+      Oscillator* oscillator);
   void UpdateLocalPotCvSlider(const IOBuffer::Block& block);
-  void Configure(SegmentGenerator* segment_generator);
+  void Configure(SegmentGenerator* segment_generator, Oscillator* oscillator);
   void PollSwitches();
-  void BindRemoteParameters(SegmentGenerator* segment_generator);
+  void BindRemoteParameters(
+      SegmentGenerator* segment_generator,
+      Oscillator* oscillator);
   void BindLocalParameters(
-      const IOBuffer::Block& block, SegmentGenerator* segment_generator);
+      const IOBuffer::Block& block,
+      SegmentGenerator* segment_generator,
+      Oscillator* oscillator);
   void HandleRequest(Settings* settings);
   
   struct ChannelState {
     // 7 6 5 4 3 2 1 0
     // 8 4 2 1 8 4 2 1
     //
-    // S S S S I L T T
+    // S S S I H L T T
     //
-    // SSSS: index of the module sending this packet.
+    // SSS: index of the module sending this packet.
     // I: gate/trigger input patched?
+    // H: harmonic oscillator enabled?
     // L: loop enabled?
     // TT: segment type
     uint8_t flags;
@@ -119,27 +138,28 @@ class ChainState {
     uint16_t cv_slider;
     
     inline bool input_patched() const {
-      return flags & 0x08;
+      return flags & 0x10;
     }
     
     inline segment::Configuration configuration() const {
       segment::Configuration c;
+      c.harmosc = flags & 0x08;
       c.loop = flags & 0x04;
       c.type = segment::Type(flags & 0x03);
       return c;
     }
     
     inline size_t index() const {
-      return size_t(flags) >> 4;
+      return size_t(flags) >> 5;
     }
     
     inline bool UpdateFlags(
         uint8_t index,
         uint8_t configuration,
         bool input_patched) {
-      uint8_t new_flags = index << 4;
+      uint8_t new_flags = index << 5;
       new_flags |= configuration;
-      new_flags |= input_patched ? 0x08 : 0;
+      new_flags |= input_patched ? 0x10 : 0;
       bool dirty = new_flags != flags;
       flags = new_flags;
       return dirty;
@@ -150,14 +170,15 @@ class ChainState {
     int8_t start;
     int8_t end;
   };
-  
+
   struct LeftToRightPacket {
-    uint8_t last_patched_channel;
-    int8_t segment;
-    float phase;
-    Loop last_loop;
-    ChannelBitmask switch_pressed[kMaxChainSize];
-    ChannelBitmask input_patched[kMaxChainSize];
+    uint8_t last_patched_channel;  // 1 byte
+    int8_t segment;  // 1 byte
+    float phase;  // 4 bytes
+    float harmosc_fundamental;  // 4 bytes
+    Loop last_loop;  // 2 bytes
+    ChannelBitmask switch_pressed[kMaxChainSize];  // 6 bytes
+    ChannelBitmask input_patched[kMaxChainSize];  // 6 bytes
   };
   
   struct RightToLeftPacket {
@@ -166,6 +187,7 @@ class ChainState {
   
   enum Request {
     REQUEST_NONE,
+    REQUEST_SET_HARMOSC_RANGE = 0xfd,
     REQUEST_SET_SEGMENT_TYPE = 0xfe,
     REQUEST_SET_LOOP = 0xff
   };
@@ -189,9 +211,9 @@ class ChainState {
   };
   
   struct ParameterBinding {
-    size_t generator;
-    size_t source;
-    size_t destination;
+    int8_t generator;
+    int8_t source;
+    int8_t destination;
   };
   
   inline size_t remote_channel_index(size_t i, size_t j) const {
@@ -231,16 +253,20 @@ class ChainState {
   
   ChannelState channel_state_[kMaxNumChannels];
   bool dirty_[kMaxNumChannels];
+  bool harmosc_start_or_end_[kMaxNumChannels];
 
   int16_t switch_press_time_[kMaxNumChannels];
   uint16_t unpatch_counter_[kNumChannels];
   LoopStatus loop_status_[kNumChannels];
+  HarmoscStatus harmosc_status_[kNumChannels];
 
   ChannelBitmask switch_pressed_[kMaxChainSize];
   ChannelBitmask input_patched_[kMaxChainSize];
   
   size_t rx_last_patched_channel_;
   size_t tx_last_patched_channel_;
+  float tx_harmosc_fundamental_;
+  float rx_harmosc_fundamental_;
   Loop rx_last_loop_;
   Loop tx_last_loop_;
   SegmentGenerator::Output rx_last_sample_;
@@ -259,7 +285,11 @@ class ChainState {
   
   size_t num_internal_bindings_;
   size_t num_bindings_;
+  size_t num_local_harmosc_bindings_;
+  size_t num_remote_harmosc_bindings_;
   ParameterBinding binding_[kMaxNumChannels];
+  ParameterBinding harmosc_local_binding_[kMaxNumChannels];
+  ParameterBinding harmosc_remote_binding_[kMaxNumChannels];
   
   DISALLOW_COPY_AND_ASSIGN(ChainState);
 };

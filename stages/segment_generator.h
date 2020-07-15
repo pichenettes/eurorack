@@ -64,6 +64,7 @@ enum Type {
 struct Configuration {
   Type type;
   bool loop;
+  bool harmosc;
 };
 
 struct Parameters {
