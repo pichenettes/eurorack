@@ -162,7 +162,7 @@ void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
         harmonic_fractional);
     const float amplitude = channel == 0
         ? 1.0f
-        : std::max(block->cv_slider[channel], 0.0f);
+        : std::max(block->cv_slider[channel] - 0.01f, 0.0f);
     bool trigger = false;
     for (size_t i = 0; i < size; ++i) {
       trigger = trigger || (block->input[channel][i] & GATE_FLAG_RISING);
@@ -173,7 +173,7 @@ void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
       channel_amplitude[channel] *= 0.999f;
     }
     ui.set_slider_led(
-        channel, channel_amplitude[channel] * amplitude > 0.00001f, 1);
+        channel, channel_amplitude[channel] * amplitude > 0.02f, 1);
     const float f = f0 * ratio;
     
     uint8_t waveshape = settings.state().segment_configuration[channel];
