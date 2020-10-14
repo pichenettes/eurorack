@@ -31,6 +31,7 @@
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/parameter_interpolator.h"
 #include "stmlib/dsp/units.h"
+#include "stmlib/utils/random.h"
 
 #include <cassert>
 #include <cmath>
@@ -50,7 +51,10 @@ const int kRetrigDelaySamples = 32;
 
 // S&H delay (for all those sequencers whose CV and GATE outputs are out of
 // sync).
-const size_t kSampleAndHoldDelay = kSampleRate * 2 / 1000;  // 2 milliseconds
+const size_t kSampleAndHoldDelay = kSampleRate * 2 / 1000;
+
+// Clock inhibition following a rising edge on the RESET input
+const size_t kClockInhibitDelay = kSampleRate * 5 / 1000;
 
 void SegmentGenerator::Init() {
   process_fn_ = &SegmentGenerator::ProcessMultiSegment;
@@ -90,11 +94,19 @@ void SegmentGenerator::Init() {
   ramp_extractor_.Init(
       kSampleRate,
       1000.0f / kSampleRate);
-  ramp_division_quantizer_.Init();
+  function_quantizer_.Init();
   delay_line_.Init();
   gate_delay_.Init();
   
+  address_quantizer_.Init();
+  
   num_segments_ = 0;
+  first_step_ = 1;
+  last_step_ = 1;
+  
+  for (int i = 0; i < kMaxNumSegments; ++i) {
+    step_quantizer_[i].Init();
+  }
 }
 
 inline float SegmentGenerator::WarpPhase(float t, float curve) const {
@@ -304,7 +316,7 @@ Ratio divider_ratios[] = {
 void SegmentGenerator::ProcessTapLFO(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
   float ramp[12];
-  Ratio r = ramp_division_quantizer_.Lookup(
+  Ratio r = function_quantizer_.Lookup(
       divider_ratios, parameters_[0].primary * 1.03f, 7);
   ramp_extractor_.Process(r, gate_flags, ramp, size);
   for (size_t i = 0; i < size; ++i) {
@@ -392,7 +404,6 @@ void SegmentGenerator::ProcessPortamento(
 
 void SegmentGenerator::ProcessZero(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
-  
   value_ = 0.0f;
   active_segment_ = 1;
   while (size--) {
@@ -449,6 +460,143 @@ void SegmentGenerator::ShapeLFO(
   }
 }
 
+enum Direction {
+  DIRECTION_UP,
+  DIRECTION_DOWN,
+  DIRECTION_UP_DOWN,
+  DIRECTION_RANDOM,
+  DIRECTION_ADDRESSABLE,
+  DIRECTION_LAST
+};
+
+void SegmentGenerator::ProcessSequencer(
+    const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
+  bool change_step = false;
+  
+  // Read the value of the small pot to determine the direction.
+  Direction direction = Direction(function_quantizer_.Process(
+      parameters_[0].secondary, DIRECTION_LAST));
+  
+  if (direction == DIRECTION_ADDRESSABLE) {
+    reset_ = false;
+    active_segment_ = address_quantizer_.Process(
+        parameters_[0].primary, last_step_ - first_step_ + 1) + first_step_;
+    change_step = true;
+  } else {
+    // Detect a rising edge on the slider/CV to reset to the first step.
+    if (parameters_[0].primary > 0.125f && !reset_) {
+      reset_ = true;
+      active_segment_ = direction == DIRECTION_DOWN ? last_step_ : first_step_;
+      up_down_counter_ = 0;
+      change_step = true;
+      inhibit_clock_ = kClockInhibitDelay;
+    }
+    if (reset_ && parameters_[0].primary < 0.0625f) {
+      reset_ = false;
+    }
+  }
+  while (size--) {
+    ONE_POLE(
+        lp_,
+        value_,
+        PortamentoRateToLPCoefficient(parameters_[active_segment_].secondary));
+    if (inhibit_clock_) {
+      --inhibit_clock_;
+    }
+    
+    bool clockable = !inhibit_clock_ && !reset_ && \
+        direction != DIRECTION_ADDRESSABLE;
+    
+    // If a rising edge is detected on the gate input, advance to the next step.
+    if ((*gate_flags & GATE_FLAG_RISING) && clockable) {
+      switch (direction) {
+        case DIRECTION_UP:
+          ++active_segment_;
+          if (active_segment_ > last_step_) {
+            active_segment_ = first_step_;
+          }
+          break;
+
+        case DIRECTION_DOWN:
+          --active_segment_;
+          if (active_segment_ < first_step_) {
+            active_segment_ = last_step_;
+          }
+          break;
+
+        case DIRECTION_UP_DOWN:
+          {
+            if (first_step_ == last_step_) {
+              active_segment_ = first_step_;
+            } else {
+              int n = last_step_ - first_step_ + 1;
+              up_down_counter_ = (up_down_counter_ + 1) % (2 * (n - 1));
+              active_segment_ = first_step_ + (up_down_counter_ < n
+                ? up_down_counter_
+                : 2 * (n - 1) - up_down_counter_);
+            }
+          }
+          break;
+
+        case DIRECTION_RANDOM:
+          active_segment_ = first_step_ + static_cast<int>(
+              Random::GetFloat() * static_cast<float>(
+                  last_step_ - first_step_ + 1));
+          break;
+          
+        case DIRECTION_ADDRESSABLE:
+        case DIRECTION_LAST:
+          break;
+      }
+      change_step = true;
+    }
+    
+    if (change_step) {
+      value_ = parameters_[active_segment_].primary;
+      if (quantized_output_) {
+        int note = step_quantizer_[active_segment_].Process(value_, 13);
+        value_ = static_cast<float>(note) / 96.0f;
+      }
+      change_step = false;
+    }
+    
+    out->value = lp_;
+    out->phase = 0.0f;
+    out->segment = active_segment_;
+    ++gate_flags;
+    ++out;
+  }
+}
+
+void SegmentGenerator::ConfigureSequencer(
+    const Configuration* segment_configuration,
+    int num_segments) {
+  num_segments_ = num_segments;
+
+  first_step_ = 0;
+  for (int i = 1; i < num_segments; ++i) {
+    if (segment_configuration[i].loop) {
+      if (!first_step_) {
+        first_step_ = last_step_ = i;
+      } else {
+        last_step_ = i;
+      }
+    }
+  }
+  if (!first_step_) {
+    // No loop has been found, use the whole group.
+    first_step_ = 1;
+    last_step_ = num_segments - 1;
+  }
+  
+  inhibit_clock_ = up_down_counter_ = 0;
+  quantized_output_ = segment_configuration[0].type == TYPE_RAMP;
+  reset_ = false;
+  lp_ = value_ = 0.0f;
+  active_segment_ = first_step_;
+  process_fn_ = &SegmentGenerator::ProcessSequencer;
+}
+
 void SegmentGenerator::Configure(
     bool has_trigger,
     const Configuration* segment_configuration,
@@ -457,6 +605,18 @@ void SegmentGenerator::Configure(
     ConfigureSingleSegment(has_trigger, segment_configuration[0]);
     return;
   }
+  
+  bool sequencer_mode = segment_configuration[0].type != TYPE_STEP && \
+      !segment_configuration[0].loop && num_segments >= 3;
+  for (int i = 1; i < num_segments; ++i) {
+    sequencer_mode = sequencer_mode && \
+        segment_configuration[i].type == TYPE_STEP;
+  }
+  if (sequencer_mode) {
+    ConfigureSequencer(segment_configuration, num_segments);
+    return;
+  }
+  
   num_segments_ = num_segments;
   
   // assert(has_trigger);

@@ -120,6 +120,10 @@ class SegmentGenerator {
       const segment::Configuration* segment_configuration,
       int num_segments);
 
+  void ConfigureSequencer(
+      const segment::Configuration* segment_configuration,
+      int num_segments);
+
   inline void ConfigureSingleSegment(
       bool has_trigger,
       segment::Configuration segment_configuration) {
@@ -150,6 +154,7 @@ class SegmentGenerator {
  private:
   // Process function for the general case.
   DECLARE_PROCESS_FN(MultiSegment);
+  DECLARE_PROCESS_FN(Sequencer)
   DECLARE_PROCESS_FN(DecayEnvelope);
   DECLARE_PROCESS_FN(TimedPulseGenerator);
   DECLARE_PROCESS_FN(GateGenerator);
@@ -189,13 +194,23 @@ class SegmentGenerator {
   ProcessFn process_fn_;
   
   RampExtractor ramp_extractor_;
-  stmlib::HysteresisQuantizer ramp_division_quantizer_;
+  stmlib::HysteresisQuantizer function_quantizer_;
   
   Segment segments_[kMaxNumSegments + 1];  // There's a sentinel!
   segment::Parameters parameters_[kMaxNumSegments];
   
   DelayLine16Bits<kMaxDelay> delay_line_;
   stmlib::DelayLine<stmlib::GateFlags, 128> gate_delay_;
+  
+  int first_step_;
+  int last_step_;
+  bool quantized_output_;
+
+  int up_down_counter_;
+  bool reset_;
+  int inhibit_clock_;
+  stmlib::HysteresisQuantizer address_quantizer_;
+  stmlib::HysteresisQuantizer step_quantizer_[kMaxNumSegments];
   
   static ProcessFn process_fn_table_[12];
   
