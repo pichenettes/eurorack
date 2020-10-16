@@ -101,9 +101,12 @@ void SegmentGenerator::Init() {
   address_quantizer_.Init();
   
   num_segments_ = 0;
+  
   first_step_ = 1;
   last_step_ = 1;
-  
+  quantized_output_ = false;
+  up_down_counter_ = inhibit_clock_ = 0;
+  reset_ = false;
   for (int i = 0; i < kMaxNumSegments; ++i) {
     step_quantizer_[i].Init();
   }
@@ -460,19 +463,8 @@ void SegmentGenerator::ShapeLFO(
   }
 }
 
-enum Direction {
-  DIRECTION_UP,
-  DIRECTION_DOWN,
-  DIRECTION_UP_DOWN,
-  DIRECTION_RANDOM,
-  DIRECTION_ADDRESSABLE,
-  DIRECTION_LAST
-};
-
 void SegmentGenerator::ProcessSequencer(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
-  bool change_step = false;
-  
   // Read the value of the small pot to determine the direction.
   Direction direction = Direction(function_quantizer_.Process(
       parameters_[0].secondary, DIRECTION_LAST));
@@ -481,14 +473,12 @@ void SegmentGenerator::ProcessSequencer(
     reset_ = false;
     active_segment_ = address_quantizer_.Process(
         parameters_[0].primary, last_step_ - first_step_ + 1) + first_step_;
-    change_step = true;
   } else {
     // Detect a rising edge on the slider/CV to reset to the first step.
     if (parameters_[0].primary > 0.125f && !reset_) {
       reset_ = true;
       active_segment_ = direction == DIRECTION_DOWN ? last_step_ : first_step_;
       up_down_counter_ = 0;
-      change_step = true;
       inhibit_clock_ = kClockInhibitDelay;
     }
     if (reset_ && parameters_[0].primary < 0.0625f) {
@@ -496,10 +486,6 @@ void SegmentGenerator::ProcessSequencer(
     }
   }
   while (size--) {
-    ONE_POLE(
-        lp_,
-        value_,
-        PortamentoRateToLPCoefficient(parameters_[active_segment_].secondary));
     if (inhibit_clock_) {
       --inhibit_clock_;
     }
@@ -526,14 +512,32 @@ void SegmentGenerator::ProcessSequencer(
 
         case DIRECTION_UP_DOWN:
           {
-            if (first_step_ == last_step_) {
+            int n = last_step_ - first_step_ + 1;
+            if (n == 1) {
               active_segment_ = first_step_;
             } else {
-              int n = last_step_ - first_step_ + 1;
               up_down_counter_ = (up_down_counter_ + 1) % (2 * (n - 1));
               active_segment_ = first_step_ + (up_down_counter_ < n
-                ? up_down_counter_
-                : 2 * (n - 1) - up_down_counter_);
+                  ? up_down_counter_
+                  : 2 * (n - 1) - up_down_counter_);
+            }
+          }
+          break;
+          
+        case DIRECTION_ALTERNATING:
+          {
+            int n = last_step_ - first_step_ + 1;
+            if (n == 1) {
+              active_segment_ = first_step_;
+            } else if (n == 2) {
+              up_down_counter_ = (up_down_counter_ + 1) % 2;
+              active_segment_ = first_step_ + up_down_counter_;
+            } else {
+              up_down_counter_ = (up_down_counter_ + 1) % (4 * n - 8);
+              int i = (up_down_counter_ - 1) / 2;
+              active_segment_ = first_step_ + ((up_down_counter_ & 1)
+                  ? 1 + ((i < (n - 1)) ? i : 2 * (n - 2) - i)
+                  : 0);
             }
           }
           break;
@@ -544,22 +548,33 @@ void SegmentGenerator::ProcessSequencer(
                   last_step_ - first_step_ + 1));
           break;
           
+        case DIRECTION_RANDOM_WITHOUT_REPEAT:
+          {
+            int n = last_step_ - first_step_ + 1;
+            int r = static_cast<int>(
+                Random::GetFloat() * static_cast<float>(n - 1));
+            active_segment_ = first_step_ + \
+                ((active_segment_ - first_step_ + r + 1) % n);
+          }
+          break;
+          
         case DIRECTION_ADDRESSABLE:
         case DIRECTION_LAST:
           break;
       }
-      change_step = true;
     }
     
-    if (change_step) {
-      value_ = parameters_[active_segment_].primary;
-      if (quantized_output_) {
-        int note = step_quantizer_[active_segment_].Process(value_, 13);
-        value_ = static_cast<float>(note) / 96.0f;
-      }
-      change_step = false;
+    value_ = parameters_[active_segment_].primary;
+    if (quantized_output_) {
+      int note = step_quantizer_[active_segment_].Process(value_, 13);
+      value_ = static_cast<float>(note) / 96.0f;
     }
     
+    ONE_POLE(
+        lp_,
+        value_,
+        PortamentoRateToLPCoefficient(parameters_[active_segment_].secondary));
+
     out->value = lp_;
     out->phase = 0.0f;
     out->segment = active_segment_;
