@@ -71,7 +71,7 @@ const char* const voicing_oscillator_values[] = {
 };
 
 const char* const voicing_allocation_priority_values[] = {
-  "LAST", "LOW", "HIGH"
+  "LAST", "LOW", "HIGH", "FIRST"
 };
 
 const char* const trigger_shape_values[] = {
@@ -256,7 +256,7 @@ const Setting Settings::settings_[] = {
   {
     "NP", "NOTE PRIORITY",
     SETTING_DOMAIN_PART, { PART_VOICING_ALLOCATION_PRIORITY, 0 },
-    SETTING_UNIT_ENUMERATION, 0, 2, voicing_allocation_priority_values,
+    SETTING_UNIT_ENUMERATION, 0, 3, voicing_allocation_priority_values,
     19, 9,
   },
   {
@@ -564,6 +564,7 @@ const SettingIndex dual_poly_menu[] = {
   SETTING_MIDI_CHANNEL,
   SETTING_MIDI_OUT_MODE,
   SETTING_VOICING_ALLOCATION_MODE,
+  SETTING_VOICING_ALLOCATION_PRIORITY,
   SETTING_VOICING_PORTAMENTO,
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
@@ -601,6 +602,7 @@ const SettingIndex quad_poly_menu[] = {
   SETTING_MIDI_CHANNEL,
   SETTING_MIDI_OUT_MODE,
   SETTING_VOICING_ALLOCATION_MODE,
+  SETTING_VOICING_ALLOCATION_PRIORITY,
   SETTING_VOICING_PORTAMENTO,
   SETTING_VOICING_PITCH_BEND_RANGE,
   SETTING_VOICING_VIBRATO_RANGE,
