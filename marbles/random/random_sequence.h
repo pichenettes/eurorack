@@ -167,7 +167,7 @@ class RandomSequence {
     const float p = p_sqrt * p_sqrt;
     float rho = random_stream_->GetFloat();
 
-    if (rho <= p && deja_vu_ <= 0.5f) {
+    if (rho < p && deja_vu_ <= 0.5f) {
       // Generate a new value and put it at the end of the loop.
       redo_write_ptr_ = &loop_[loop_write_head_];
       *redo_write_ptr_ = deterministic
@@ -179,7 +179,7 @@ class RandomSequence {
       // Do not generate a new value, just replay the loop or jump randomly.
       // through it.
       redo_write_ptr_ = NULL;
-      if (rho <= p) {
+      if (rho < p) {
         step_ = static_cast<int>(
             random_stream_->GetFloat() * static_cast<float>(length_));
       } else {
