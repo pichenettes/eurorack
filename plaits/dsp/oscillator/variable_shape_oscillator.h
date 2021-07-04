@@ -44,8 +44,8 @@ class VariableShapeOscillator {
   VariableShapeOscillator() { }
   ~VariableShapeOscillator() { }
 
-  void Init() {
-    master_phase_ = 0.0f;
+  void Init(float initphase=0.0f) {
+    master_phase_ = initphase;
     slave_phase_ = 0.0f;
     next_sample_ = 0.0f;
     previous_pw_ = 0.5f;
