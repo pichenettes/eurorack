@@ -25,7 +25,7 @@
 // -----------------------------------------------------------------------------
 //
 // Class monitoring a sequence of notes on the MIDI input and automatically
-// chosing the best layout
+// choosing the best layout
 
 #ifndef YARNS_LAYOUT_CONFIGURATOR_H_
 #define YARNS_LAYOUT_CONFIGURATOR_H_

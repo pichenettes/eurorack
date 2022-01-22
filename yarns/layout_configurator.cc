@@ -25,7 +25,7 @@
 // -----------------------------------------------------------------------------
 //
 // Class monitoring a sequence of notes on the MIDI input and automatically
-// chosing the best layout
+// choosing the best layout
 
 #include "yarns/layout_configurator.h"
 #include "yarns/multi.h"

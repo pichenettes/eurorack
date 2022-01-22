@@ -131,7 +131,7 @@ class Ui {
   
   int active_engine_;
   
-  float cv_c1_;  // For calibraiton
+  float cv_c1_;  // For calibration
   
   static const CvAdcChannel normalized_channels_[kNumNormalizedChannels];
     
