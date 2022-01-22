@@ -24,7 +24,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// A ramp that follows a mater ramp through division/multiplication.
+// A ramp that follows a master ramp through division/multiplication.
 
 #ifndef MARBLES_RAMP_SLAVE_RAMP_H_
 #define MARBLES_RAMP_SLAVE_RAMP_H_
