@@ -1,4 +1,4 @@
-## Mutable Instruments' Eurorack Modules.
+# Mutable Instruments' Eurorack Modules.
 
 * [Blades](http://mutable-instruments.net/modules/blades): Dual multimode filter.
 * [Blinds](http://mutable-instruments.net/modules/blinds): Quad VC-polarizer.
