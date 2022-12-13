@@ -36,7 +36,7 @@
 #include "tides2/factory_test.h"
 #include "tides2/io_buffer.h"
 #include "tides2/poly_slope_generator.h"
-#include "tides2/ramp_extractor.h"
+#include "tides2/ramp/ramp_extractor.h"
 #include "tides2/resources.h"
 #include "tides2/settings.h"
 #include "tides2/ui.h"
@@ -49,11 +49,13 @@ const bool skip_factory_test = false;
 const bool test_adc_noise = false;
 const size_t kDacBlockSize = 2;
 
+// #define PROFILE_INTERRUPT
+
 CvReader cv_reader;
 Dac dac;
 FactoryTest factory_test;
 GateInputs gate_inputs;
-HysteresisQuantizer ratio_index_quantizer;
+HysteresisQuantizer2 ratio_index_quantizer;
 IOBuffer io_buffer;
 PolySlopeGenerator poly_slope_generator;
 RampExtractor ramp_extractor;
@@ -113,8 +115,8 @@ static Ratio kRatios[20] = {
   { 0.6666666f, 3 },
   { 0.75f, 4 },
   { 0.8f, 5 },
-  { 1, 1 },
-  { 1, 1 },
+  { 1.0f, 1 },
+  { 1.0f, 1 },
   { 1.25f, 4 },
   { 1.3333333f, 3 },
   { 1.5f, 2 },
@@ -133,13 +135,16 @@ OutputMode previous_output_mode;
 bool must_reset_ramp_extractor;
 
 void Process(IOBuffer::Block* block, size_t size) {
-  // TIC
+#ifdef PROFILE_INTERRUPT
+  ScopedDebugPinToggler toggler;
+#endif  // PROFILE_INTERRUPT
   const State& state = settings.state();
   const RampMode ramp_mode = RampMode(state.mode);
   const OutputMode output_mode = OutputMode(state.output_mode);
   const Range range = state.range < 2 ? RANGE_CONTROL : RANGE_AUDIO;
   const bool half_speed = output_mode >= OUTPUT_MODE_SLOPE_PHASE;
-  const float transposition = block->parameters.frequency + block->parameters.fm;
+  float transposition = block->parameters.frequency + block->parameters.fm;
+  CONSTRAIN(transposition, -128.0f, 127.0f);
   
   if (test_adc_noise) {
     static float note_lp = 0.0f;
@@ -179,7 +184,7 @@ void Process(IOBuffer::Block* block, size_t size) {
     }
     
     Ratio r = ratio_index_quantizer.Lookup(
-        kRatios, 0.5f + transposition * 0.0105f, 20);
+        kRatios, 0.5f + transposition * 0.0105f);
     frequency = ramp_extractor.Process(
         range == RANGE_AUDIO,
         range == RANGE_AUDIO && ramp_mode == RAMP_MODE_AR,
@@ -229,7 +234,6 @@ void Process(IOBuffer::Block* block, size_t size) {
       }
     }
   }
-  // TOC
 }
 
 void Init() {
@@ -251,12 +255,14 @@ void Init() {
   if (freshly_baked && !skip_factory_test) {
     factory_test.Start();
     ui.set_factory_test(true);
+  } else {
+#ifdef PROFILE_INTERRUPT
+    DebugPin::Init();
+#endif  // PROFILE_INTERRUPT
   }
   
-  // DebugPin::Init();
-  
   poly_slope_generator.Init();
-  ratio_index_quantizer.Init();
+  ratio_index_quantizer.Init(20, 0.05f, false);
   ramp_extractor.Init(kSampleRate, 40.0f / kSampleRate);
   std::fill(&no_gate[0], &no_gate[kBlockSize], GATE_FLAG_LOW);
 

@@ -26,8 +26,8 @@
 //
 // Clock division ratio
 
-#ifndef TIDES_RATIO_H_
-#define TIDES_RATIO_H_
+#ifndef TIDES_RAMP_RATIO_H_
+#define TIDES_RAMP_RATIO_H_
 
 #include "stmlib/stmlib.h"
 
@@ -40,4 +40,4 @@ struct Ratio {
 
 }  // namespace tides
 
-#endif  // TIDES_RATIO_H_
+#endif  // TIDES_RAMP_RATIO_H_

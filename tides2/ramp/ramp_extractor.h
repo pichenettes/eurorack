@@ -34,13 +34,13 @@
 // All prediction strategies are concurrently tested, and the output from the
 // best performing one is selected (à la early Scheirer/Goto beat trackers).
 
-#ifndef TIDES_RAMP_EXTRACTOR_H_
-#define TIDES_RAMP_EXTRACTOR_H_
+#ifndef TIDES_RAMP_RAMP_EXTRACTOR_H_
+#define TIDES_RAMP_RAMP_EXTRACTOR_H_
 
 #include "stmlib/stmlib.h"
 #include "stmlib/utils/gate_flags.h"
 
-#include "tides2/ratio.h"
+#include "tides2/ramp/ratio.h"
 
 namespace tides {
 
@@ -112,4 +112,4 @@ class RampExtractor {
 
 }  // namespace tides
 
-#endif  // TIDES_RAMP_EXTRACTOR_H_
+#endif  // TIDES_RAMP_RAMP_EXTRACTOR_H_

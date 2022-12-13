@@ -22,6 +22,7 @@
 
 #include "tides2/poly_slope_generator.h"
 #include "tides2/resources.h"
+#include "tides2/ramp/ramp_extractor.h"
 #include "tides2/ramp_generator.h"
 #include "tides2/ramp_shaper.h"
 #include "tides2/test/fixtures.h"
@@ -179,8 +180,165 @@ void TestPolySlopeGenerator() {
   }
 }
 
+void TestModeChangeCrash() {
+  PolySlopeGenerator poly_slope_generator;
+  RampMode ramp_mode = RAMP_MODE_LOOPING;
+  OutputMode output_mode = OUTPUT_MODE_GATES;
+  GateFlags no_gate[kBlockSize];
+  
+  poly_slope_generator.Init();
+  
+  for (int i = 0; i < 1000; ++i) {
+    Range range = Range(i % 3);
+    const float kRoot[3] = {
+      0.125f / kSampleRate,
+      2.0f / kSampleRate,
+      130.81f / kSampleRate
+    };
+  
+    const float frequency = kRoot[range];
+    std::fill(&no_gate[0], &no_gate[kBlockSize], GATE_FLAG_LOW);
+    PolySlopeGenerator::OutputSample out[kBlockSize];
+    
+    for (int j = 0; j < 100; ++j) {
+      poly_slope_generator.Render(
+          RAMP_MODE_LOOPING,
+          OUTPUT_MODE_GATES,
+          range,
+          frequency,
+          0.5f,
+          0.5f,
+          0.99f,
+          1.0f,
+          no_gate,
+          NULL,
+          out,
+          kBlockSize);
+    }
+  }
+}
+
+void TestVerySlowClock() {
+  WavWriter wav_writer(6, kSampleRate, 60);
+  wav_writer.Open("tides2_slow_clock.wav");
+    
+  PulseGenerator pulses;
+  RampExtractor ramp_extractor;
+  PolySlopeGenerator poly_slope_generator;
+  GateFlags no_gate[kBlockSize];
+
+  pulses.AddPulses(kSampleRate * 5, 1000, 3);
+  pulses.AddPulses(kSampleRate * 5 + 10, 1000, 1);
+  pulses.AddPulses(kSampleRate * 5, 1000, 2);
+  pulses.AddPulses(kSampleRate * 7 + 10, 1000, 1);
+  pulses.AddPulses(kSampleRate * 7, 1000, 2);
+
+  ramp_extractor.Init(kSampleRate, 40.0f / kSampleRate);
+  poly_slope_generator.Init();
+  fill(&no_gate[0], &no_gate[kBlockSize], GATE_FLAG_LOW);
+  
+  const float audio_mode = true;
+    
+  for (size_t i = 0; i < kSampleRate * 60; i += kBlockSize) {
+    GateFlags external_clock[kBlockSize];
+    float ramp[kBlockSize];
+    
+    pulses.Render(external_clock, kBlockSize);
+    Ratio r = { 1, 1.0f };
+    const float f0 = ramp_extractor.Process(
+        audio_mode, false, r, external_clock, ramp, kBlockSize);
+
+    PolySlopeGenerator::OutputSample out[kBlockSize];
+    
+    poly_slope_generator.Render(
+        RAMP_MODE_LOOPING,
+        OUTPUT_MODE_GATES,
+        audio_mode ? RANGE_AUDIO : RANGE_CONTROL,
+        f0,
+        0.5f,  // pw
+        0.5f,  // shape
+        0.5f,  // smoothness
+        1.0f,  // shift
+        no_gate,
+        ramp,
+        out,
+        kBlockSize);
+      
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      float s[6];
+      s[0] = external_clock[j] & GATE_FLAG_HIGH ? 0.8f : 0.0f;
+      s[1] = ramp[j];
+      s[2] = out[j].channel[0] * 0.1f;
+      s[3] = out[j].channel[1] * 0.1f;
+      s[4] = out[j].channel[2] * 0.1f;
+      s[5] = out[j].channel[3] * 0.1f;
+      wav_writer.Write(s, 6, 32767.0f);
+    }
+  }
+}
+
+void TestPLL() {
+  WavWriter wav_writer(6, kSampleRate, 10);
+  wav_writer.Open("tides2_pll.wav");
+    
+  PulseGenerator pulses;
+  RampExtractor ramp_extractor;
+  PolySlopeGenerator poly_slope_generator;
+  GateFlags no_gate[kBlockSize];
+
+  pulses.AddPulses(200, 100, 800);
+  pulses.AddPulses(80, 50, 1600);
+  pulses.AddPulses(135, 50, 400);
+  pulses.AddPulses(145, 50, 400);
+  pulses.AddPulses(120, 50, 400);
+
+  ramp_extractor.Init(kSampleRate, 40.0f / kSampleRate);
+  poly_slope_generator.Init();
+  fill(&no_gate[0], &no_gate[kBlockSize], GATE_FLAG_LOW);
+  
+  for (size_t i = 0; i < kSampleRate * 10; i += kBlockSize) {
+    GateFlags external_clock[kBlockSize];
+    float ramp[kBlockSize];
+    
+    pulses.Render(external_clock, kBlockSize);
+    Ratio r = { 2.0f, 1 };
+    const float f0 = ramp_extractor.Process(
+        true, false, r, external_clock, ramp, kBlockSize);
+
+    PolySlopeGenerator::OutputSample out[kBlockSize];
+    
+    poly_slope_generator.Render(
+        RAMP_MODE_LOOPING,
+        OUTPUT_MODE_GATES,
+        RANGE_AUDIO,
+        f0,
+        0.5f,  // pw
+        0.5f,  // shape
+        0.5f,  // smoothness
+        1.0f,  // shift
+        no_gate,
+        ramp,
+        out,
+        kBlockSize);
+      
+    for (size_t j = 0; j < kBlockSize; ++j) {
+      float s[6];
+      s[0] = external_clock[j] & GATE_FLAG_HIGH ? 0.8f : 0.0f;
+      s[1] = ramp[j];
+      s[2] = out[j].channel[0] * 0.1f;
+      s[3] = out[j].channel[1] * 0.1f;
+      s[4] = out[j].channel[2] * 0.1f;
+      s[5] = out[j].channel[3] * 0.1f;
+      wav_writer.Write(s, 6, 32767.0f);
+    }
+  }
+}
+
 int main(void) {
   _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
   TestRampGenerator();
   TestPolySlopeGenerator();
+  TestModeChangeCrash();
+  TestVerySlowClock();
+  TestPLL();
 }

@@ -38,6 +38,7 @@ UPLOAD_COMMAND  = upload_combo_jtag_erase_first
 # Packages to build
 TARGET         = tides2
 PACKAGES       = tides2 \
+		tides2/ramp \
 		tides2/drivers \
 		stmlib/dsp \
 		stmlib/utils \
