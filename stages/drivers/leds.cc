@@ -120,7 +120,7 @@ void Leds::Write() {
   for (uint16_t i = 0; i < 16; ++i) {
     // GPIO_WriteBit(GPIOB, kPinClk, Bit_RESET);
     GPIOB->BRR = kPinClk;
-    
+    __asm__("nop");
     if (leds_data & 0x8000) {
       // GPIO_WriteBit(GPIOB, kPinData, Bit_SET);
       GPIOB->BSRR = kPinData;
@@ -132,6 +132,7 @@ void Leds::Write() {
 
     // GPIO_WriteBit(GPIOB, kPinClk, Bit_SET);
     GPIOB->BSRR = kPinClk;
+    __asm__("nop");
   }
   // GPIO_WriteBit(GPIOB, kPinEnable, Bit_SET);
   GPIOB->BSRR = kPinEnable;

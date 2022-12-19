@@ -174,8 +174,11 @@ inline float RampExtractor::ProcessInternal(
             
             // Compensates for the latency in the acquisition of the
             // external signal.
-            const float expected_phase = 2.0f * \
+            float expected_phase = 2.0f * \
                 float(block_size) / period * f_ratio_;
+            while (expected_phase >= 1.0f) {
+              expected_phase -= 1.0f;
+            }
             phase_error = train_phase_ - expected_phase;
             if (phase_error > 0.5f) {
               phase_error -= 1.0f;
@@ -186,8 +189,9 @@ inline float RampExtractor::ProcessInternal(
           }
         
           const float frequency = 1.0f / period;
-          const float pll_adjustment = 1.0f - \
+          float pll_adjustment = 1.0f - \
               lp_coefficient_ * phase_error / f_ratio_;
+          CONSTRAIN(pll_adjustment, 0.99f, 1.01f)
           target_frequency_ = std::min(
               f_ratio_ * frequency * pll_adjustment, 0.125f);
         

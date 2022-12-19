@@ -166,6 +166,7 @@ class ChainState {
   
   enum Request {
     REQUEST_NONE,
+    REQUEST_SET_ALT_SEGMENT_TYPE = 0xfd,
     REQUEST_SET_SEGMENT_TYPE = 0xfe,
     REQUEST_SET_LOOP = 0xff
   };

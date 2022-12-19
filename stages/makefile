@@ -39,7 +39,7 @@ UPLOAD_COMMAND  = upload_combo_jtag_erase_first
 TARGET         = stages
 PACKAGES       = stages \
 		stages/drivers \
-		stages/ramp \
+		tides2/ramp \
 		stmlib/dsp \
 		stmlib/utils \
 		stmlib/system
