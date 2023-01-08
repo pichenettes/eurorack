@@ -47,6 +47,7 @@ using namespace stmlib;
 
 const float kLogOneFourth = 1.189207115f;
 const float kPulseWidthTolerance = 0.05f;
+const int kNumConsistentPulses = 3;
 
 inline bool IsWithinTolerance(float x, float y, float error) {
   return x >= y * (1.0f - error) && x <= y * (1.0f + error);
@@ -61,6 +62,7 @@ void RampExtractor::Init(float max_frequency) {
 
 void RampExtractor::Reset() {
   audio_rate_ = false;
+  num_consistent_audio_rate_pulses_ = 0;
   train_phase_ = 0.0f;
   target_frequency_ = frequency_ = 0.0001f;
   lp_coefficient_ = 0.5f;
@@ -69,6 +71,7 @@ void RampExtractor::Reset() {
   reset_counter_ = 1;
   reset_frequency_ = 0.0f;
   reset_interval_ = 32000 * 3;
+  reset_at_next_pulse_ = false;
   
   Pulse p;
   p.bucket = 1;
@@ -166,13 +169,16 @@ RampExtractor::Prediction RampExtractor::PredictNextPeriod() {
   return p;
 }
 
-bool RampExtractor::Process(
+void RampExtractor::Process(
     Ratio ratio,
     bool always_ramp_to_maximum,
+    bool* reset,
     const GateFlags* gate_flags,
     float* ramp, 
     size_t size) {
-  bool reset_observed = false;
+  if (*reset) {
+    reset_at_next_pulse_ = true;
+  }
   while (size--) {
     GateFlags flags = *gate_flags++;
     // We are done with the previous pulse.
@@ -187,13 +193,29 @@ bool RampExtractor::Process(
         train_phase_ = 0.0f;
         reset_counter_ = ratio.q;
         reset_interval_ = 4 * p.total_duration;
-        reset_observed = true;
+        
+        // Flag a reset so that everything can be reset downstream.
+        *reset = true;
       } else {
+        if (reset_at_next_pulse_) {
+          reset_counter_ = 1;
+          reset_at_next_pulse_ = false;
+        }
+        
         float period = float(p.total_duration);
         if (period <= audio_rate_period_hysteresis_) {
-          audio_rate_ = true;
+          num_consistent_audio_rate_pulses_ = min(
+              num_consistent_audio_rate_pulses_ + 1, kNumConsistentPulses);
           audio_rate_period_hysteresis_ = audio_rate_period_ * 1.1f;
-
+        } else {
+          num_consistent_audio_rate_pulses_ = 0;
+          audio_rate_period_hysteresis_ = audio_rate_period_;
+        }
+        
+        // Only switch to audio rate after a consistent number of uninterrupted
+        // audio rate pulses.
+        audio_rate_ = num_consistent_audio_rate_pulses_ == kNumConsistentPulses;
+        if (audio_rate_) {
           average_pulse_width_ = 0.0f;
           
           bool no_glide = f_ratio_ != ratio.to_float();
@@ -205,11 +227,8 @@ bool RampExtractor::Process(
           float down_tolerance = (0.98f - 2.0f * frequency) * frequency_;
           no_glide |= target_frequency_ > up_tolerance ||
               target_frequency_ < down_tolerance;
-          lp_coefficient_ = no_glide ? 1.0f : period * 0.00001f;
+          lp_coefficient_ = no_glide ? 1.0f : min(period * 0.00001f, 0.1f);
         } else {
-          audio_rate_ = false;
-          audio_rate_period_hysteresis_ = audio_rate_period_;
-
           // Compute the pulse width of the previous pulse, and check if the
           // PW has been consistent over the past pulses.
           p.pulse_width = static_cast<float>(p.on_duration) / period;
@@ -309,7 +328,6 @@ bool RampExtractor::Process(
       *ramp++ = output_phase;
     }
   }
-  return reset_observed;
 }
 
 }  // namespace marbles

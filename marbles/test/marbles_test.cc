@@ -224,6 +224,172 @@ void TestRampExtractorPause() {
   }
 }
 
+void TestReset() {
+  const char* reset_mode_name[] = {
+    "t_auto_xy_linked_123",
+    "t_explicit_xy_linked_123",
+    "t_auto_xy_linked_1",
+    "t_explicit_xy_linked_1",
+    "t_auto_xy_auto",
+    "t_explicit_xy_explicit",
+  };
+  
+  const char* mode_name[] = {
+    "bernoulli",
+    "clusters",
+    "drums",
+    "divider",
+  };
+  
+  for (int reset_mode = 0; reset_mode < 6; ++reset_mode) {
+    for (int mode = 0; mode < (reset_mode <= 3 ? 4 : 1); ++mode) {
+      WavWriter wav_writer(10, ::kSampleRate, 60);
+      char file_name[100];
+      sprintf(
+          file_name,
+          "marbles_reset_%s_%s.wav",
+          reset_mode_name[reset_mode],
+          mode_name[mode]);
+      printf("rendering %s\n", file_name);
+      wav_writer.Open(file_name);
+      
+      RandomGenerator random_generator;
+      RandomStream random_stream;
+      random_generator.Init(33);
+      random_stream.Init(&random_generator);
+  
+      TGenerator t_generator;
+      t_generator.Init(&random_stream, kSampleRate);
+      t_generator.set_rate(-24.0f);
+      t_generator.set_pulse_width_mean(0.0f);
+      t_generator.set_pulse_width_std(0.0f);
+      t_generator.set_jitter(0.0f);
+      t_generator.set_range(T_GENERATOR_RANGE_1X);
+      
+      if (mode == 0) {
+        t_generator.set_model(T_GENERATOR_MODEL_COMPLEMENTARY_BERNOULLI);
+        t_generator.set_bias(0.5f);
+        t_generator.set_deja_vu(0.5f);
+        t_generator.set_length(8);
+      } else if (mode == 1) {
+        t_generator.set_model(T_GENERATOR_MODEL_CLUSTERS);
+        t_generator.set_bias(0.8f);
+        t_generator.set_deja_vu(0.5f);
+        t_generator.set_length(4);
+      } else if (mode == 2) {
+        t_generator.set_model(T_GENERATOR_MODEL_DRUMS);
+        t_generator.set_bias(0.5f);
+      } else if (mode == 3) {
+        t_generator.set_model(T_GENERATOR_MODEL_DIVIDER);
+        t_generator.set_bias(0.78f);
+      }
+      
+      ClockGeneratorPatterns t_patterns(
+          (reset_mode & 1) ? REGULAR_PATTERNS : PAUSE_PATTERNS);
+      ClockGeneratorPatterns xy_patterns(
+          (reset_mode & 1) ? REGULAR_PATTERNS : PAUSE_PATTERNS);
+      
+      XYGenerator xy_generator;
+      xy_generator.Init(&random_stream, ::kSampleRate);
+      
+      GroupSettings x_settings, y_settings;
+      x_settings.control_mode = CONTROL_MODE_IDENTICAL;
+      x_settings.voltage_range = VOLTAGE_RANGE_FULL;
+      x_settings.register_mode = false;
+      x_settings.register_value = 0.0f;
+      x_settings.spread = 0.8f;
+      x_settings.bias = 0.8f;
+      x_settings.steps = 0.5f;
+      x_settings.deja_vu = 0.5f;
+      x_settings.length = 4;
+      x_settings.ratio.p = 1;
+      x_settings.ratio.q = 1;
+      x_settings.scale_index = 0;
+      
+      y_settings.control_mode = CONTROL_MODE_IDENTICAL;
+      y_settings.voltage_range = VOLTAGE_RANGE_FULL;
+      y_settings.register_mode = false;
+      y_settings.register_value = 0.0f;
+      y_settings.spread = 0.5f;
+      y_settings.bias = 0.5f;
+      y_settings.steps = 0.5f;
+      y_settings.deja_vu = 0.5f;
+      y_settings.length = 8;
+      y_settings.ratio.p = 1;
+      y_settings.ratio.q = 4;
+      y_settings.scale_index = 0;
+      
+      MasterSlaveRampGenerator ms_ramp_generator;
+      Ramps ramps = ms_ramp_generator.ramps();
+      bool reset = false;
+      for (size_t i = 0; i < ::kSampleRate * 60; i += kAudioBlockSize) {
+        bool x_external_reset = false;
+        if ((reset_mode == 5) && ((i + kSampleRate) % (kSampleRate * 2)) == 0) {
+          x_external_reset = true;
+        }
+        
+        bool gate[kAudioBlockSize * 2];
+        bool t_reset = false;
+        if ((reset_mode & 1) && (i % (kSampleRate * 2)) == 0) {
+          t_reset = true;
+        }
+        t_patterns.Render(kAudioBlockSize);
+        t_generator.Process(
+            true,
+            &t_reset,
+            t_patterns.clock(),
+            ramps,
+            gate,
+            kAudioBlockSize);
+        
+        ClockSource clock_source;
+        bool xy_reset = false;
+        if (reset_mode < 2) {
+          clock_source = CLOCK_SOURCE_INTERNAL_T1_T2_T3;
+          xy_reset = t_reset;
+        } else if (reset_mode < 4) {
+          clock_source = CLOCK_SOURCE_INTERNAL_T1;
+          xy_reset = t_reset;
+        } else {
+          clock_source = CLOCK_SOURCE_EXTERNAL;
+          xy_reset = x_external_reset;
+        }
+
+        float samples[kAudioBlockSize * 4];
+        xy_patterns.Render(kAudioBlockSize);
+        xy_generator.Process(
+            clock_source,
+            x_settings,
+            y_settings,
+            &xy_reset,
+            xy_patterns.clock(),
+            ramps,
+            samples,
+            kAudioBlockSize);
+        for (size_t j = 0; j < kAudioBlockSize; ++j) {
+          float s[10];
+          // t section.
+          s[0] = t_patterns.clock()[j] & GATE_FLAG_HIGH ? 0.4f : 0.0f;
+          if (t_reset) s[0] = 1.0f;
+          s[1] = ramps.master[j];
+          s[2] = gate[2 * j] ? 0.8f : 0.0f;
+          s[3] = gate[2 * j + 1] ? 0.8f : 0.0f;
+          
+          // x section.
+          s[4] = xy_patterns.clock()[j] & GATE_FLAG_HIGH ? 0.4f : 0.0f;
+          if (xy_reset) s[4] = 1.0f;
+          s[5] = samples[j * 4] * 0.1f;
+          s[6] = samples[j * 4 + 1] * 0.1f;
+          s[7] = samples[j * 4 + 2] * 0.1f;
+          s[8] = samples[j * 4 + 3] * 0.1f;
+          s[9] = 0.0f;
+          wav_writer.Write(s, 10, 32767.0f);
+        }
+      }
+    }
+  }
+}
+
 void TestRampDivider(PatternDifficulty difficulty, const char* file_name) {
   WavWriter wav_writer(4, ::kSampleRate, 10);
   wav_writer.Open(file_name);
@@ -360,6 +526,7 @@ void TestXYGenerator() {
   x_settings.length = 8;
   x_settings.ratio.p = 1;
   x_settings.ratio.q = 1;
+  x_settings.scale_index = 0;
 
   y_settings.control_mode = CONTROL_MODE_IDENTICAL;
   y_settings.voltage_range = VOLTAGE_RANGE_FULL;
@@ -372,6 +539,7 @@ void TestXYGenerator() {
   y_settings.length = 8;
   y_settings.ratio.p = 1;
   y_settings.ratio.q = 8;
+  y_settings.scale_index = 0;
   
   ClockGeneratorPatterns patterns(TRICKY_PATTERNS);
   MasterSlaveRampGenerator ms_ramp_generator;
@@ -418,6 +586,7 @@ void TestXYGeneratorASR() {
   x_settings.length = 8;
   x_settings.ratio.p = 1;
   x_settings.ratio.q = 1;
+  x_settings.scale_index = 0;
 
   y_settings.control_mode = CONTROL_MODE_IDENTICAL;
   y_settings.voltage_range = VOLTAGE_RANGE_FULL;
@@ -430,6 +599,7 @@ void TestXYGeneratorASR() {
   y_settings.length = 8;
   y_settings.ratio.p = 1;
   y_settings.ratio.q = 8;
+  y_settings.scale_index = 0;
   
   ClockGeneratorPatterns patterns(TRICKY_PATTERNS);
   MasterSlaveRampGenerator ms_ramp_generator;
@@ -696,6 +866,243 @@ void TestScaleRecorder() {
   }
 }
 
+float ADCNoise() {
+  float z = 0.0;
+  int N = 12;
+  if (Random::GetFloat() > 0.9f) {
+    return (Random::GetFloat() > 0.5f ? -4.0f : +4.0f);
+  }
+  for (int i = 0; i < N; ++i) {
+    z += Random::GetFloat();
+  }
+  z -= N / 2;
+  return z;
+}
+
+void TestNoteFilter() {
+  float sample_rate = 6400.0f;
+  float clock_rate = 25.0f;
+  float sample_delay = 2e-3;
+  float duration = 8.0f;
+  int half_clock_period = sample_rate / (2.0f * clock_rate);
+  
+  float clock_ramp = 0.0f;
+  
+  FILE* fp = fopen("marbles_denoising.txt", "w");
+  FILE* fp2 = fopen("marbles_denoising_error.txt", "w");
+  
+  float y0 = 0.0f;
+  float y1 = 0.0f;
+  float y2 = 0.0f;
+  
+  float x0 = 0.0f;
+  float x1 = 0.0f;
+  float x2 = 0.0f;
+  
+  NoteFilter n;
+  n.Init();
+  
+  for (int i = 0; i < int(duration * sample_rate); ++i) {
+    clock_ramp += clock_rate / sample_rate;
+    if (clock_ramp >= 1.0f) clock_ramp -= 1.0f;
+    
+    float clock_voltage = clock_ramp > 0.5f ? 0.0f : 1.0f;
+    
+    x2 = x1;
+    x1 = x0;
+    x0 = clock_voltage;
+    y2 = y1;
+    y1 = y0;
+    y0 = x0 * 0.0082f + x1 * 0.0164f + x2 * 0.0082f + 1.678f * y1 - 0.7109f * y2;
+    
+    float filtered_clock_voltage = fabs(x0);
+    
+    float adc_voltage = ADCNoise() * 0.01f + filtered_clock_voltage;
+
+    float filtered_value = 10.0f * n.Process(adc_voltage * 0.1f);
+    
+    fprintf(fp, "%f %f %f\n", filtered_clock_voltage, adc_voltage, filtered_value);
+    
+    if ((i % half_clock_period) == int(sample_delay * sample_rate)) {
+      fprintf(fp2, "%f %f\n", filtered_clock_voltage, filtered_value);
+    }
+  }
+  fclose(fp);
+  fclose(fp2);
+}
+
+void TestCVChannel() {
+  float sample_rate = 6400.0f;
+  float slow_ramp = 0.0f;
+  float fast_ramp = 0.0f;
+  float slow_tri = 0.0f;
+  
+  FILE* fp = fopen("marbles_cv_channel.txt", "w");
+
+  CvReaderChannel::Settings s = { 0.1f, 1.0f, 0.0f, 0.005f, 0.0f, 1.0f, 0.02f };
+  CvReaderChannel c;
+  float scale = +2.0f;
+  float offset = -1.0f;
+  c.Init(&scale, &offset, s);
+  
+  for (int i = 0; i < 8; ++i) {
+    for (int j = 0; j < int(sample_rate); ++j) {
+      slow_ramp += 1.0f / sample_rate;
+      if (slow_ramp >= 1.0f) slow_ramp -= 1.0f;
+      slow_tri = slow_ramp < 0.5f ? slow_ramp * 2.0f : 2.0f - 2.0f * slow_ramp;
+      
+      slow_tri = max(min(slow_tri * 1.2f - 0.1f, 1.0f), 0.0f);
+      
+      fast_ramp += 20.0f / sample_rate;
+      if (fast_ramp >= 1.0f) fast_ramp -= 1.0f;
+      
+      float pot = 0.0f;
+      float cv = 0.0f;
+      switch (i) {
+        case 0:
+          pot = slow_tri;
+          cv = 0.5f;
+          break;
+        case 1:
+          pot = slow_ramp;
+          cv = 0.5f;
+          break;
+        case 2:
+          pot = 0.5f;
+          cv = 0.5f;
+          break;
+        case 3:
+          pot = 1.0f - slow_ramp;
+          cv = 0.5f;
+          break;
+        case 4:
+          pot = 0.5f;
+          cv = fast_ramp > 0.5f ? 0.4f : 0.6f;
+          break;
+        case 5:
+          pot = slow_tri;
+          cv = fast_ramp > 0.5f ? 0.6f : 0.4f;
+          break;
+        case 6:
+          pot = 0.5f;
+          cv = fast_ramp * 0.5f + 0.25f;
+          break;
+        case 7:
+          pot = 0.5f + 0.1f * sinf(2.0f * slow_ramp * 2 * M_PI);
+          cv = 0.5f;
+          break;
+      }
+      
+      pot += ADCNoise() * 0.005f;
+      cv += ADCNoise() * 0.005f;
+      
+      CONSTRAIN(pot, 0.0f, 1.0f);
+      CONSTRAIN(cv, 0.0f, 1.0f);
+      
+      float value = c.Process(pot, cv, 1.0f);
+      fprintf(fp, "%f %f %f\n", pot, cv, value);
+    }
+  }
+  fclose(fp);
+}
+
+void TestClockSourceChange() {
+  WavWriter wav_writer(4, ::kSampleRate, 10);
+  wav_writer.Open("marbles_clock_source_change.wav");
+  
+  RandomGenerator random_generator;
+  RandomStream random_stream;
+  random_generator.Init(32);
+  random_stream.Init(&random_generator);
+  
+  XYGenerator generator;
+  generator.Init(&random_stream, ::kSampleRate);
+  
+  GroupSettings x_settings, y_settings;
+
+  x_settings.control_mode = CONTROL_MODE_IDENTICAL;
+  x_settings.voltage_range = VOLTAGE_RANGE_FULL;
+  x_settings.register_mode = false;
+  x_settings.register_value = 0.0f;
+  x_settings.spread = 0.5f;
+  x_settings.bias = 0.5f;
+  x_settings.steps = 0.5f;
+  x_settings.deja_vu = 0.0f;
+  x_settings.length = 4;
+  x_settings.ratio.p = 1;
+  x_settings.ratio.q = 1;
+  x_settings.scale_index = 0;
+
+  y_settings.control_mode = CONTROL_MODE_IDENTICAL;
+  y_settings.voltage_range = VOLTAGE_RANGE_FULL;
+  y_settings.register_mode = false;
+  y_settings.register_value = 0.0f;
+  y_settings.spread = 0.5f;
+  y_settings.bias = 0.5f;
+  y_settings.steps = 0.1f;
+  y_settings.deja_vu = 0.0f;
+  y_settings.length = 8;
+  y_settings.ratio.p = 1;
+  y_settings.ratio.q = 8;
+  y_settings.scale_index = 0;
+  
+  ClockGeneratorPatterns patterns(REGULAR_PATTERNS);
+  MasterSlaveRampGenerator ms_ramp_generator;
+  
+  TGenerator t_generator;
+  t_generator.Init(&random_stream, kSampleRate);
+  t_generator.set_model(T_GENERATOR_MODEL_COMPLEMENTARY_BERNOULLI);
+  t_generator.set_rate(0.0f);
+  t_generator.set_pulse_width_mean(0.0f);
+  t_generator.set_pulse_width_std(0.0f);
+  t_generator.set_bias(0.5f);
+  t_generator.set_jitter(0.0f);
+  t_generator.set_deja_vu(0.0f);
+  t_generator.set_length(8);
+  t_generator.set_range(T_GENERATOR_RANGE_4X);
+  
+  for (size_t i = 0; i < ::kSampleRate * 10; i += kAudioBlockSize) {
+    patterns.Render(kAudioBlockSize);
+    ms_ramp_generator.Process(patterns.clock(), kAudioBlockSize);
+    
+    float samples[kAudioBlockSize * 4];
+    
+    x_settings.register_mode = true;
+    x_settings.register_value = wav_writer.triangle(1);
+    
+    if (i >= kSampleRate) {
+      x_settings.deja_vu = 0.5f;
+    }
+    
+    bool reset = false;
+    if (i >= kSampleRate * 2) {
+      GateFlags clock[kAudioBlockSize];
+      bool gate[kAudioBlockSize * 2];
+      t_generator.Process(
+          false, clock, ms_ramp_generator.ramps(), gate, kAudioBlockSize);
+      
+      generator.Process(
+          CLOCK_SOURCE_INTERNAL_T1_T2_T3,
+          x_settings,
+          y_settings,
+          patterns.clock(),
+          ms_ramp_generator.ramps(),
+          samples,
+          kAudioBlockSize);
+    } else {
+      generator.Process(
+          CLOCK_SOURCE_EXTERNAL,
+          x_settings,
+          y_settings,
+          patterns.clock(),
+          ms_ramp_generator.ramps(),
+          samples,
+          kAudioBlockSize);
+    }
+    wav_writer.Write(samples, kAudioBlockSize * 4, 3276.7f);
+  }
+}
+
 int main(void) {
   // Test distributions and value processors.
   // TestBetaDistribution();
@@ -715,7 +1122,13 @@ int main(void) {
   // TestXYGenerator();
   // TestXYGeneratorASR();
   // TestTGeneratorRampIntegrity();
-  TestTGenerator();
+  // TestTGenerator();
   
   // TestScaleRecorder();
+  // TestNoteFilter();
+  
+  // TestCVChannel();
+
+  TestReset();
+  TestClockSourceChange();
 }

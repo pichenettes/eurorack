@@ -150,14 +150,15 @@ void TGenerator::Init(RandomStream* random_stream, float sr) {
   drum_pattern_index_ = 0;
 
   sequence_.Init(random_stream);
-  ramp_divider_.Init();
   ramp_extractor_.Init(1000.0f / sr);
   ramp_generator_.Init();
   for (size_t i = 0; i < kNumTChannels; ++i) {
     slave_ramp_[i].Init();
   }
-  bias_quantizer_.Init();
-  rate_quantizer_.Init();
+  // Ideal Hysteresis : voltage error / voltage range * num_values
+  // Or: 1 / 2^(adc_reliable_bits) * num_values
+  bias_quantizer_.Init(kNumDividerPatterns, 0.1f, false);
+  rate_quantizer_.Init(kNumInputDividerRatios, 0.05f, false);
   
   use_external_clock_ = false;
 }
@@ -293,10 +294,7 @@ void TGenerator::ConfigureSlaveRamps(const RandomVector& x) {
       if (divider_pattern_length_ <= 0) {
         DividerPattern pattern;
         if (model_ == T_GENERATOR_MODEL_DIVIDER) {
-          pattern = bias_quantizer_.Lookup(
-              fixed_divider_patterns,
-              bias_,
-              kNumDividerPatterns);
+          pattern = bias_quantizer_.Lookup(fixed_divider_patterns, bias_);
         } else {
           float strength = fabs(bias_ - 0.5f) * 2.0f;
           float u = x.variables.u[0];
@@ -324,11 +322,13 @@ void TGenerator::ConfigureSlaveRamps(const RandomVector& x) {
 
 void TGenerator::Process(
     bool use_external_clock,
+    bool* reset,
     const GateFlags* external_clock,
     Ramps ramps,
     bool* gate,
     size_t size) {
   float internal_frequency;
+  
   if (use_external_clock) {
     if (!use_external_clock_) {
       ramp_extractor_.Reset();
@@ -336,29 +336,15 @@ void TGenerator::Process(
     
     Ratio ratio = rate_quantizer_.Lookup(
         input_divider_ratios, 
-        1.05f * rate_ / 96.0f + 0.5f,
-        kNumInputDividerRatios);
+        1.05f * rate_ / 96.0f + 0.5f);
     if (range_ == T_GENERATOR_RANGE_0_25X) {
       ratio.q *= 4;
     } else if (range_ == T_GENERATOR_RANGE_4X) {
       ratio.p *= 4;
     }
     ratio.Simplify<2>();
-    bool reset_observed = ramp_extractor_.Process(
-        ratio, true, external_clock, ramps.external, size);
-    if (reset_observed) {
-      if (model_ == T_GENERATOR_MODEL_DRUMS) {
-        drum_pattern_step_ = kDrumPatternSize;
-        RandomVector random_vector;
-        sequence_.NextVector(
-            random_vector.x,
-            sizeof(random_vector.x) / sizeof(float));
-        ConfigureSlaveRamps(random_vector);
-      } else if (model_ == T_GENERATOR_MODEL_CLUSTERS ||
-                model_ == T_GENERATOR_MODEL_DIVIDER) {
-        divider_pattern_length_ = 0;
-      }
-    }
+    ramp_extractor_.Process(
+        ratio, true, reset, external_clock, ramps.external, size);
     internal_frequency = 0.0f;
   } else {
     float rate = 2.0f;
@@ -372,6 +358,23 @@ void TGenerator::Process(
   
   use_external_clock_ = use_external_clock;
   
+  if (*reset) {
+    for (size_t i = 0; i < kNumTChannels; ++i) {
+      slave_ramp_[i].Reset();
+    }
+    sequence_.Reset();
+
+    divider_pattern_length_ = 0;
+    drum_pattern_step_ = kDrumPatternSize;
+    if (model_ != T_GENERATOR_MODEL_DIVIDER) {
+      RandomVector random_vector;
+      sequence_.NextVector(
+          random_vector.x,
+          sizeof(random_vector.x) / sizeof(float));
+      ConfigureSlaveRamps(random_vector);
+    }
+  }
+  
   while (size--) {
     float frequency = use_external_clock
         ? *ramps.external - previous_external_ramp_value_
@@ -384,7 +387,6 @@ void TGenerator::Process(
     
     if (master_phase_ > 1.0f) {
       master_phase_ -= 1.0f;
-      
       RandomVector random_vector;
       sequence_.NextVector(
           random_vector.x,

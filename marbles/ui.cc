@@ -264,6 +264,14 @@ void Ui::UpdateLEDs() {
       leds_.set(LED_X_CONTROL_MODE, !blink ? LED_COLOR_RED : LED_COLOR_OFF);
       leds_.set(LED_X_RANGE, blink ? LED_COLOR_RED : LED_COLOR_OFF);
       break;
+      
+    case UI_MODE_DISPLAY_RESET_MODE:
+      {
+        const bool l = blink && state.explicit_reset;
+        leds_.set(LED_T_MODEL, l ? LED_COLOR_YELLOW : LED_COLOR_OFF);
+        leds_.set(LED_X_CONTROL_MODE, l ? LED_COLOR_YELLOW : LED_COLOR_OFF);
+      }
+      break;
   }
   leds_.Write();
 }
@@ -293,6 +301,14 @@ void Ui::OnSwitchReleased(const Event& e) {
   }
   
   State* state = settings_->mutable_state();
+  if ((e.control_id == SWITCH_T_MODEL && switches_.pressed(SWITCH_X_MODE)) ||
+      (e.control_id == SWITCH_X_MODE && switches_.pressed(SWITCH_T_MODEL))) {
+    ignore_release_[SWITCH_T_MODEL] = ignore_release_[SWITCH_X_MODE] = true;
+    state->explicit_reset = !state->explicit_reset;
+    mode_ = UI_MODE_DISPLAY_RESET_MODE;
+    return;
+  }
+  
   switch (e.control_id) {
     case SWITCH_T_DEJA_VU:
       if (state->t_deja_vu == DEJA_VU_OFF) {
@@ -478,7 +494,7 @@ void Ui::DoEvents() {
   if (queue_.idle_time() > 800 && mode_ == UI_MODE_PANIC) {
     mode_ = UI_MODE_NORMAL;
   }
-  if (mode_ == UI_MODE_SELECT_SCALE) {
+  if (mode_ == UI_MODE_SELECT_SCALE || mode_ == UI_MODE_DISPLAY_RESET_MODE) {
     if (queue_.idle_time() > 4000) {
       mode_ = UI_MODE_NORMAL;
       queue_.Touch();

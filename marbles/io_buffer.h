@@ -43,6 +43,7 @@ const size_t kNumInputs = 2;
 const size_t kNumCvOutputs = 4;
 const size_t kNumGateOutputs = 3;
 const size_t kNumParameters = 8;
+const size_t kMaximumGateDelay = 4;
 
 class IOBuffer {
  public:
@@ -52,7 +53,7 @@ class IOBuffer {
     
     stmlib::GateFlags input[kNumInputs][kBlockSize];
     uint16_t cv_output[kNumCvOutputs][kBlockSize];
-    bool gate_output[kNumGateOutputs][kBlockSize + 2];
+    bool gate_output[kNumGateOutputs][kBlockSize + kMaximumGateDelay];
   };
   
   struct Slice {

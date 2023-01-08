@@ -99,7 +99,11 @@ class CvReader {
   }
   
   void Copy(uint16_t* output);
-  void Process(const uint16_t* values, float* output);
+  void Process(
+      const bool treat_cv_as_reset_inputs,
+      const uint16_t* values,
+      float* output,
+      stmlib::GateFlags* gates);
   
   inline const CvReaderChannel& channel(size_t index) {
     return channel_[index];
