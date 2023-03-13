@@ -65,7 +65,6 @@ class Window {
     phase_increment_ = phase_increment;
     phase_ = 0;
     regenerated_ = false;
-    done_ = false;
     envelope_phase_increment_ = 2.0f / static_cast<float>(width);
   }
   
