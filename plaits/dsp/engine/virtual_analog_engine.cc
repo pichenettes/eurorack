@@ -39,7 +39,7 @@ using namespace stmlib;
 
 void VirtualAnalogEngine::Init(BufferAllocator* allocator) {
   primary_.Init();
-  auxiliary_.Init();
+  auxiliary_.Init(0.25f);
   sync_.Init();
   variable_saw_.Init();
   
