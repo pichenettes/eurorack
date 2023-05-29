@@ -29,25 +29,14 @@
 #ifndef PLAITS_DSP_ENGINE_CHORD_ENGINE_H_
 #define PLAITS_DSP_ENGINE_CHORD_ENGINE_H_
 
-#include "stmlib/dsp/hysteresis_quantizer.h"
-
+#include "plaits/dsp/chords/chord_bank.h"
 #include "plaits/dsp/engine/engine.h"
 #include "plaits/dsp/oscillator/string_synth_oscillator.h"
 #include "plaits/dsp/oscillator/wavetable_oscillator.h"
 
 namespace plaits {
 
-const int kChordNumNotes = 4;
-const int kChordNumVoices = 5;
 const int kChordNumHarmonics = 3;
-
-// #define JON_CHORDS
-
-#ifdef JON_CHORDS
-const int kChordNumChords = 17;
-#else
-const int kChordNumChords = 11;
-#endif  // JON_CHORDS
 
 class ChordEngine : public Engine {
  public:
@@ -56,6 +45,7 @@ class ChordEngine : public Engine {
   
   virtual void Init(stmlib::BufferAllocator* allocator);
   virtual void Reset();
+  virtual void LoadUserData(const uint8_t* user_data) { }
   virtual void Render(const EngineParameters& parameters,
       float* out,
       float* aux,
@@ -65,20 +55,16 @@ class ChordEngine : public Engine {
  private:
   void ComputeRegistration(float registration, float* amplitudes);
   int ComputeChordInversion(
-      int chord_index,
       float inversion,
       float* ratios,
       float* amplitudes);
   
   StringSynthOscillator divide_down_voice_[kChordNumVoices];
-  WavetableOscillator<256, 15> wavetable_voice_[kChordNumVoices];
-  stmlib::HysteresisQuantizer chord_index_quantizer_;
+  WavetableOscillator<128, 15> wavetable_voice_[kChordNumVoices];
+  ChordBank chords_;
   
   float morph_lp_;
   float timbre_lp_;
-  float previous_root_normalization_;
-  
-  float* ratios_;
   
   DISALLOW_COPY_AND_ASSIGN(ChordEngine);
 };

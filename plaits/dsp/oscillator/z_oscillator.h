@@ -35,7 +35,7 @@
 #include "stmlib/dsp/parameter_interpolator.h"
 #include "stmlib/dsp/polyblep.h"
 
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 
 namespace plaits {
 
@@ -155,10 +155,6 @@ class ZOscillator {
   }
 
  private:
-  inline float Sine(float phase) {
-    return stmlib::InterpolateWrap(lut_sine, phase, 1024.0f);
-  }
-
   inline float Z(float c, float d, float f, float shape, float mode) {
     float ramp_down = 0.5f * (1.0f + Sine(0.5f * d + 0.25f));
     

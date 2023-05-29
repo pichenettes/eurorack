@@ -33,6 +33,7 @@
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/parameter_interpolator.h"
 
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 #include "plaits/dsp/oscillator/oscillator.h"
 #include "plaits/resources.h"
 
@@ -55,7 +56,7 @@ void SAMSpeechSynth::Init() {
 // Phoneme data
 
 /* static */
-SAMSpeechSynth::Phoneme SAMSpeechSynth::phonemes_[] = {
+const SAMSpeechSynth::Phoneme SAMSpeechSynth::phonemes_[] = {
   { { { 60, 15 }, { 90, 13 }, { 200, 1 } } },
   { { { 40, 13 }, { 114, 12 }, { 139, 6 } } },
   { { { 33, 14 }, { 155, 12 }, { 209, 7 } } },
@@ -72,11 +73,12 @@ SAMSpeechSynth::Phoneme SAMSpeechSynth::phonemes_[] = {
   { { { 36, 14 }, { 83, 8 }, { 249, 1 } } },
   { { { 40, 14 }, { 114, 12 }, { 139, 6 } } },
   { { { 13, 5 }, { 58, 5 }, { 182, 5 } } },
-  { { { 13, 7 }, { 164, 10 }, { 222, 14 } } }
+  { { { 13, 7 }, { 164, 10 }, { 222, 14 } } },
+  { { { 13, 7 }, { 164, 10 }, { 222, 14 } } }  // GUARD
 };
 
 /* static */
-float SAMSpeechSynth::formant_amplitude_lut[] = {
+const float SAMSpeechSynth::formant_amplitude_lut[] = {
   0.03125000f,  0.03756299f,  0.04515131f,  0.05427259f,  0.06523652f,
   0.07841532f,  0.09425646f,  0.11329776f,  0.13618570f,  0.16369736f,
   0.19676682f,  0.23651683f,  0.28429697f,  0.34172946f,  0.41076422f,
@@ -171,9 +173,9 @@ void SAMSpeechSynth::Render(
     *excitation++ = d;
   
     float s = 0;
-    s += lut_sine[formant_phase_[0] >> 22] * formant_amplitude[0];
-    s += lut_sine[formant_phase_[1] >> 22] * formant_amplitude[1];
-    s += lut_sine[formant_phase_[2] >> 22] * formant_amplitude[2];
+    s += SineRaw(formant_phase_[0]) * formant_amplitude[0];
+    s += SineRaw(formant_phase_[1]) * formant_amplitude[1];
+    s += SineRaw(formant_phase_[2]) * formant_amplitude[2];
     s *= (1.0f - phase_);
     *output++ = s;
   }

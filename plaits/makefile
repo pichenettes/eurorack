@@ -40,11 +40,15 @@ TARGET         = plaits
 PACKAGES       = plaits \
 		plaits/drivers \
 		plaits/dsp \
+		plaits/dsp/fm \
 		plaits/dsp/fx \
+		plaits/dsp/chords \
 		plaits/dsp/drum_modelling \
 		plaits/dsp/engine \
+		plaits/dsp/engine2 \
 		plaits/dsp/physical_modelling \
 		plaits/dsp/speech \
+		stm_audio_bootloader/fsk \
 		stmlib/dsp \
 		stmlib/utils \
 		stmlib/system
@@ -59,3 +63,8 @@ wav:  $(TARGET_BIN)
 	python stm_audio_bootloader/qpsk/encoder.py \
 		-t stm32f3 -k -s 48000 -b 12000 -c 6000 -p 256 \
 		$(TARGET_BIN)
+
+user_data_image:
+	$(BASE_JTAG_CMD) \
+		-c "dump_image plaits_user_data.bin 0x08007000 0x01000" \
+		$(POSTLUDE)

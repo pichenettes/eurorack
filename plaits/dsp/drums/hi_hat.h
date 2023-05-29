@@ -116,25 +116,25 @@ class RingModNoise {
     const float f2b = 8075.0f / kSampleRate * ratio;
     const float f3a = 730.0f / kSampleRate * ratio;
     const float f3b = 10500.0f / kSampleRate * ratio;
+    const float f[3][2] = { { f1a, f1b }, { f2a, f2b }, { f3a, f3b } };
     
     std::fill(&out[0], &out[size], 0.0f);
     
-    RenderPair(&oscillator_[0], f1a, f1b, temp_1, temp_2, out, size);
-    RenderPair(&oscillator_[2], f2a, f2b, temp_1, temp_2, out, size);
-    RenderPair(&oscillator_[4], f3a, f3b, temp_1, temp_2, out, size);
+    for (int i = 0; i < 3; ++i) {
+      RenderPair(&oscillator_[2 * i], f[i], temp_1, temp_2, out, size);
+    }
   }
 
  private:
   void RenderPair(
       Oscillator* osc,
-      float f1,
-      float f2,
+      const float* f,
       float* temp_1,
       float* temp_2,
       float* out,
       size_t size) {
-    osc[0].Render<OSCILLATOR_SHAPE_SQUARE>(f1, 0.5f, temp_1, size);
-    osc[1].Render<OSCILLATOR_SHAPE_SAW>(f2, 0.5f, temp_2, size);
+    osc[0].Render<OSCILLATOR_SHAPE_SQUARE>(f[0], 0.5f, temp_1, size);
+    osc[1].Render<OSCILLATOR_SHAPE_SAW>(f[1], 0.5f, temp_2, size);
     while (size--) {
       *out++ += *temp_1++ * *temp_2++;
     }
@@ -147,9 +147,9 @@ class RingModNoise {
 class SwingVCA {
  public:
   float operator()(float s, float gain) {
-   s *= s > 0.0f ? 10.0f : 0.1f;
+   s *= s > 0.0f ? 4.0f : 0.1f;
    s = s / (1.0f + fabsf(s));
-   return (s + 1.0f) * gain;
+   return (s + 0.1f) * gain;
   }
 };
 
@@ -160,7 +160,11 @@ class LinearVCA {
   }
 };
 
-template<typename MetallicNoiseSource, typename VCA, bool resonance>
+template<
+    typename MetallicNoiseSource,
+    typename VCA,
+    bool resonance,
+    bool two_stage_envelope>
 class HiHat {
  public:
   HiHat() { }
@@ -206,7 +210,7 @@ class HiHat {
         tone * 72.0f);
     CONSTRAIN(cutoff, 0.0f, 16000.0f / kSampleRate);
     noise_coloration_svf_.set_f_q<stmlib::FREQUENCY_ACCURATE>(
-        cutoff, resonance ? 3.0f + 6.0f * tone : 1.0f);
+        cutoff, resonance ? 3.0f + 3.0f * tone : 1.0f);
     noise_coloration_svf_.Process<stmlib::FILTER_MODE_BAND_PASS>(
         out, out, size);
     
@@ -233,7 +237,9 @@ class HiHat {
         size);
     for (size_t i = 0; i < size; ++i) {
       VCA vca;
-      envelope_ *= envelope_ > 0.5f ? envelope_decay : cut_decay;
+      envelope_ *= envelope_ > 0.5f || !two_stage_envelope
+          ? envelope_decay
+          : cut_decay;
       out[i] = vca(out[i], sustain ? sustain_gain.Next() : envelope_);
     }
     

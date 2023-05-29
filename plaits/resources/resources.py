@@ -67,16 +67,22 @@ includes = """
 #include "stmlib/stmlib.h"
 """
 
+import fm_patches
 import lookup_tables
 import wavetables
+import waveterrains
 
 create_specialized_manager = True
 
 resources = [
+  (fm_patches.patches,
+   'fm_patches', 'SYX', 'uint8_t', int, False),
   (lookup_tables.lookup_tables,
    'lookup_table', 'LUT', 'float', float, False),
   (lookup_tables.lookup_tables_i16,
    'lookup_table_i16', 'LUT', 'int16_t', int, False),
+  (lookup_tables.lookup_tables_i32,
+   'lookup_table_i32', 'LUT', 'int32_t', int, False),
   (lookup_tables.lookup_tables_i8,
    'lookup_table_i8', 'LUT', 'int8_t', int, False),
   (wavetables.wavetables,

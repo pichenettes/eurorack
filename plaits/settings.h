@@ -57,7 +57,9 @@ struct State {
   uint8_t decay;
   uint8_t octave;
   uint8_t color_blind;
-  uint8_t padding[3];
+  uint8_t fine_tune;
+  uint8_t enable_alt_navigation;
+  uint8_t padding[1];
   enum { tag = 0x54415453 };  // STAT
 };
 
@@ -93,7 +95,7 @@ class Settings {
   
   stmlib::ChunkStorage<
       0x08004000,
-      0x08008000,
+      0x08007000,
       PersistentData,
       State> chunk_storage_;
   

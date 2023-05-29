@@ -45,6 +45,7 @@ class SpeechEngine : public Engine {
   
   virtual void Init(stmlib::BufferAllocator* allocator);
   virtual void Reset();
+  virtual void LoadUserData(const uint8_t* user_data) { }
   virtual void Render(const EngineParameters& parameters,
       float* out,
       float* aux,
@@ -60,7 +61,7 @@ class SpeechEngine : public Engine {
   }
 
  private:
-  stmlib::HysteresisQuantizer word_bank_quantizer_;
+  stmlib::HysteresisQuantizer2 word_bank_quantizer_;
   
   NaiveSpeechSynth naive_speech_synth_;
   SAMSpeechSynth sam_speech_synth_;

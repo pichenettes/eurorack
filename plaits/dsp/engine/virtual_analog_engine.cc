@@ -40,6 +40,7 @@ using namespace stmlib;
 void VirtualAnalogEngine::Init(BufferAllocator* allocator) {
   primary_.Init();
   auxiliary_.Init();
+  auxiliary_.set_master_phase(0.25f);
   sync_.Init();
   variable_saw_.Init();
   
@@ -105,14 +106,13 @@ void VirtualAnalogEngine::Render(
   float pw_2 = 0.5f + (parameters.morph - 0.66f) * 1.4f;
   CONSTRAIN(pw_2, 0.5f, 0.99f);
   
-  primary_.Render<false>(
-      primary_f, primary_f, pw_1, shape_1, temp_buffer_, size);
-  auxiliary_.Render<false>(auxiliary_f, auxiliary_f, pw_2, shape_2, aux, size);
+  primary_.Render(primary_f, pw_1, shape_1, temp_buffer_, size);
+  auxiliary_.Render(auxiliary_f, pw_2, shape_2, aux, size);
   for (size_t i = 0; i < size; ++i) {
     out[i] = (aux[i] + temp_buffer_[i]) * 0.5f;
   }
   
-  sync_.Render<true>(primary_f, sync_f, pw_2, shape_2, aux, size);
+  sync_.Render(primary_f, sync_f, pw_2, shape_2, aux, size);
   for (size_t i = 0; i < size; ++i) {
     aux[i] = (aux[i] + temp_buffer_[i]) * 0.5f;
   }
@@ -142,8 +142,8 @@ void VirtualAnalogEngine::Render(
   float pw = 0.5f + (parameters.morph - 0.66f) * 1.4f;
   CONSTRAIN(pw, 0.5f, 0.99f);
 
-  primary_.Render<false>(primary_f, primary_f, pw, shape, out, size);
-  sync_.Render<true>(primary_f, sync_f, pw, shape, aux, size);
+  primary_.Render(primary_f, pw, shape, out, size);
+  sync_.Render(primary_f, sync_f, pw, shape, aux, size);
 
   ParameterInterpolator xmod_amount_modulation(
       &xmod_amount_,
@@ -153,7 +153,7 @@ void VirtualAnalogEngine::Render(
     out[i] += (aux[i] - out[i]) * xmod_amount_modulation.Next();
   }
 
-  auxiliary_.Render<false>(auxiliary_f, auxiliary_f, pw, shape, aux, size);
+  auxiliary_.Render(auxiliary_f, pw, shape, aux, size);
 
   ParameterInterpolator auxiliary_amount_modulation(
       &auxiliary_amount_,
@@ -186,8 +186,8 @@ void VirtualAnalogEngine::Render(
   CONSTRAIN(pw, 0.5f, 0.995f);
   
   // Render monster sync to AUX.
-  primary_.Render<true>(primary_f, primary_sync_f, pw, shape, out, size);
-  auxiliary_.Render<true>(auxiliary_f, auxiliary_sync_f, pw, shape, aux, size);
+  primary_.Render(primary_f, primary_sync_f, pw, shape, out, size);
+  auxiliary_.Render(auxiliary_f, auxiliary_sync_f, pw, shape, aux, size);
   for (size_t i = 0; i < size; ++i) {
     aux[i] = (aux[i] - out[i]) * 0.5f;
   }
@@ -217,7 +217,7 @@ void VirtualAnalogEngine::Render(
   const float square_sync_f = NoteToFrequency(
       parameters.note + square_sync_ratio);
   
-  sync_.Render<true>(
+  sync_.Render(
       primary_f, square_sync_f, square_pw, 1.0f, temp_buffer_, size);
   variable_saw_.Render(auxiliary_f, saw_pw, saw_shape, out, size);
   

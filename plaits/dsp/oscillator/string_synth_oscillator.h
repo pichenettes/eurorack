@@ -73,7 +73,7 @@ class StringSynthOscillator {
     
     // Deal with very high frequencies by shifting everything 1 or 2 octave
     // down: Instead of playing the 1st harmonic of a 8kHz wave, we play the
-    // 2nd harmonic of a 4kHz wave.
+    // second harmonic of a 4kHz wave.
     size_t shift = 0;
     while (frequency > 0.5f) {
       shift += 2;

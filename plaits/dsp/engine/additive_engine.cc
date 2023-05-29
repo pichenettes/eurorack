@@ -31,8 +31,7 @@
 #include <algorithm>
 
 #include "stmlib/dsp/cosine_oscillator.h"
-
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 
 namespace plaits {
 
@@ -40,17 +39,17 @@ using namespace std;
 using namespace stmlib;
 
 void AdditiveEngine::Init(BufferAllocator* allocator) {
-  fill(
-      &amplitudes_[0],
-      &amplitudes_[kNumHarmonics],
-      0.0f);
+  amplitudes_ = allocator->Allocate<float>(kNumHarmonics);
   for (int i = 0; i < kNumHarmonicOscillators; ++i) {
     harmonic_oscillator_[i].Init();
   }
 }
 
 void AdditiveEngine::Reset() {
-
+  fill(
+      &amplitudes_[0],
+      &amplitudes_[kNumHarmonics],
+      0.0f);
 }
 
 void AdditiveEngine::UpdateAmplitudes(
@@ -73,7 +72,7 @@ void AdditiveEngine::UpdateAmplitudes(
     gain *= gain;
 
     float b = 0.25f + order * bumps;
-    float bump_factor = 1.0f + InterpolateWrap(lut_sine, b, 1024.0f);
+    float bump_factor = 1.0f + Sine(b);
 
     gain *= bump_factor;
     gain *= gain;
