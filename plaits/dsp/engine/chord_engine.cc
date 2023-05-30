@@ -83,7 +83,7 @@ void ChordEngine::ComputeRegistration(
 
 #define WAVE(bank, row, column) &wav_integrated_waves[(bank * 64 + row * 8 + column) * 132]
 
-const int16_t* wavetable[] = {
+const int16_t* const wavetable[] = {
   WAVE(2, 6, 1),
   WAVE(2, 6, 6),
   WAVE(2, 6, 4),

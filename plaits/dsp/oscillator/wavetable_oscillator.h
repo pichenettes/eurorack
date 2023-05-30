@@ -112,7 +112,7 @@ class WavetableOscillator {
       float frequency,
       float amplitude,
       float waveform,
-      const int16_t** wavetable,
+      const int16_t* const* wavetable,
       float* out,
       size_t size) {
     CONSTRAIN(frequency, 0.0000001f, kMaxFrequency)
