@@ -70,7 +70,6 @@ includes = """
 import fm_patches
 import lookup_tables
 import wavetables
-import waveterrains
 
 create_specialized_manager = True
 
