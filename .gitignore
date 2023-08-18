@@ -45,3 +45,7 @@ build
 *_BETA.sch
 *_beta.brd
 *_BETA.brd
+
+# include cmake but still ignore other .txt
+!CMakeLists.txt
+
