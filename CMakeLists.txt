@@ -86,16 +86,18 @@ add_module(
         elements/resources.cc
 )
 
-file(GLOB PLAITS_SOURCES_0 ${CMAKE_CURRENT_SOURCE_DIR}/plaits/dsp/*.cc)
-file(GLOB PLAITS_SOURCES_1 ${CMAKE_CURRENT_SOURCE_DIR}/plaits/dsp/engine/*.cc)
-file(GLOB PLAITS_SOURCES_2 ${CMAKE_CURRENT_SOURCE_DIR}/plaits/dsp/speech/*.cc)
-file(GLOB PLAITS_SOURCES_3 ${CMAKE_CURRENT_SOURCE_DIR}/plaits/dsp/physical_modelling/*.cc)
+file(GLOB PLAITS_SOURCES
+    plaits/dsp/*.cc
+    plaits/dsp/chords/*.cc
+    plaits/dsp/engine/*.cc
+    plaits/dsp/engine2/*.cc
+    plaits/dsp/fm/*.cc
+    plaits/dsp/speech/*.cc
+    plaits/dsp/physical_modelling/*.cc)
 add_module(
     TARGET  plaits
     SOURCES
-        ${PLAITS_SOURCES_0}
-        ${PLAITS_SOURCES_1}
-        ${PLAITS_SOURCES_2}
-        ${PLAITS_SOURCES_3}
+        ${PLAITS_SOURCES}
         plaits/resources.cc
 )
+
