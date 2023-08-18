@@ -1,12 +1,14 @@
+BUILD_DIR=build
+
 default: gen build
 
 clean:
-	rm -rf build
+	rm -rf ${BUILD_DIR}
 
 gen:
-	cmake -Bbuild -S .
-.PHONY: gen
+	cmake -B ${BUILD_DIR} -S .
 
 build:
-	cmake --build build
-.PHONY: build
+	cmake --build ${BUILD_DIR}
+
+.PHONY: clean gen build

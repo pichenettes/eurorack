@@ -37,9 +37,6 @@ add_module(
         stmlib/utils/random.cc
         stmlib/dsp/atan.cc
         stmlib/dsp/units.cc
-        stmlib/utils/random.cc
-        stmlib/dsp/atan.cc
-        stmlib/dsp/units.cc
 )
 
 add_module(
