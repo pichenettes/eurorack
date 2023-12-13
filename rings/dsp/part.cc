@@ -124,7 +124,7 @@ void Part::ConfigureResonators() {
 #ifdef BRYAN_CHORDS
 
 // Chord table by Bryan Noll:
-float chords[kMaxPolyphony][11][8] = {
+const float part_chords[kMaxPolyphony][11][8] = {
   {
     { -12.0f, -0.01f, 0.0f,  0.01f, 0.02f, 11.98f, 11.99f, 12.0f }, // OCT
     { -12.0f, -5.0f,  0.0f,  6.99f, 7.0f,  11.99f, 12.0f,  19.0f }, // 5
@@ -182,7 +182,7 @@ float chords[kMaxPolyphony][11][8] = {
 #else
 
 // Original chord table
-float chords[kMaxPolyphony][11][8] = {
+const float part_chords[kMaxPolyphony][11][8] = {
   {
     { -12.0f, 0.0f, 0.01f, 0.02f, 0.03f, 11.98f, 11.99f, 12.0f },
     { -12.0f, 0.0f, 3.0f,  3.01f, 7.0f,  9.99f,  10.0f,  19.0f },
@@ -265,7 +265,7 @@ void Part::ComputeSympatheticStringsNotes(
   if (parameter >= 2.0f) {
     // Quantized chords
     int32_t chord_index = parameter - 2.0f;
-    const float* chord = chords[polyphony_ - 1][chord_index];
+    const float* chord = part_chords[polyphony_ - 1][chord_index];
     for (size_t i = 0; i < num_strings; ++i) {
       destination[i] = chord[i] + note;
     }
