@@ -242,12 +242,13 @@ void SysTick_Handler() {
   cv[5] = 0.0f;                                // VCA R CV
 
   // Buttons
-  // Switch 0 = Freeze button = IN
-  // Switch 1 = Button left of LEDs = Shift
-  // Switch 2 = Button top right = SC/model
-  bool btn_in    = switches.pressed(0);  // Freeze button
-  bool btn_shift = switches.pressed(1);  // Shift button
-  bool btn_sc    = switches.pressed(2);  // SC/model button
+  // Hardware pin mapping (from switches.cc Debounce()):
+  //   switch_state_[0] = GPIOC Pin 11 = Mode/Shift button
+  //   switch_state_[1] = GPIOC Pin 10 = Write/SC button
+  //   switch_state_[2] = GPIOB Pin 8  = Freeze/IN button
+  bool btn_in    = switches.pressed(2);  // Freeze button (GPIOB Pin 8)
+  bool btn_shift = switches.pressed(0);  // Mode button   (GPIOC Pin 11)
+  bool btn_sc    = switches.pressed(1);  // Write button  (GPIOC Pin 10)
 
   // Jack detection via gate inputs
   // freeze() = Freeze/SC1 jack, trigger() = Trigger/SC2 jack
