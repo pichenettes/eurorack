@@ -329,7 +329,7 @@ inline void UI::Process(
 
   // CV bypass gate
   if (params_->cv_bypass) {
-    params_->engaged = false;
+    // params_->engaged = false; // DEBUG: disabled
   }
 
   // --- VCA CV ---

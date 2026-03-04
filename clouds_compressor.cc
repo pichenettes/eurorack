@@ -96,6 +96,10 @@ void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t size) {
     in_l[i] = input[i].l * kShortToFloat;
     in_r[i] = input[i].r * kShortToFloat;
   }
+for (size_t i = 0; i < size; i++) {
+    in_l[i] = input[i].l * kShortToFloat;
+    in_r[i] = input[i].r * kShortToFloat;
+  }
 
   engine.Process(
     in_l, in_r,
@@ -104,8 +108,9 @@ void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t size) {
     out_l, out_r,
     &meter,
     params);
-
+  // Pack float back to int16
   for (size_t i = 0; i < size; i++) {
+  
     float l = out_l[i];
     float r = out_r[i];
     if (l >  1.0f) l =  1.0f;
@@ -245,9 +250,9 @@ void SysTick_Handler() {
   // Switch 0 = Freeze button = IN
   // Switch 1 = Button left of LEDs = Shift
   // Switch 2 = Button top right = SC/model
-  bool btn_in    = switches.pressed(0);
-  bool btn_shift = switches.pressed(1);
-  bool btn_sc    = switches.pressed(2);
+  bool btn_in    = switches.just_pressed(2);  // Freeze = GPIOB Pin 8
+  bool btn_shift = switches.pressed(0);       // Mode button = GPIOC Pin 11
+  bool btn_sc    = switches.pressed(1);       // Write button = GPIOC Pin 10
 
   // Jack detection via gate inputs
   // freeze() = Freeze/SC1 jack, trigger() = Trigger/SC2 jack
@@ -291,11 +296,16 @@ int main(void) {
   // Safe power-up defaults
   params.model        = MODEL_SSL_BUS;
   params.stereo_link  = true;
-  params.engaged      = false;
-  params.soft_knee    = true;
-  params.alt_mode     = false;
-  params.sc_mode      = SC_INTERNAL;
-  params.clock_period = 0.5f;
+  params.engaged      = true;
+  params.threshold  = 0.0f;   // -40dBFS threshold — compress everything
+  params.ratio      = 1.0f;   // maximum ratio
+  params.attack     = 0.1f;   // fast attack
+  params.release    = 0.5f;   // medium release
+  params.input_gain = 0.5f;   // unity input
+  params.output_gain = 0.5f; // now = unity  // unity output
+
+params.sc_hpf_freq  = 0.0f;
+params.sc_mode      = SC_INTERNAL;
   params.vca_cv_l     = 1.0f;
   params.vca_cv_r     = 1.0f;
 
