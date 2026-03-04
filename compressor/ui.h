@@ -23,9 +23,7 @@ namespace compressor {
 // Thresholds for LED colour switching (0..1 normalised)
 static const float kLedYellowThresh = 0.5f;   // input: above = yellow (both on)
 static const float kLedRedThresh    = 0.85f;  // input: above = red only
-static const float kGrGreenMax      = 0.15f;  // GR: below = green (healthy)
-static const float kGrYellowMax     = 0.5f;   // GR: below = yellow
-                                               // GR: above = red (heavy compression)
+static const float kGrYellowMax     = 0.5f;   // GR: below = green, above = red
 
 struct LedState {
   bool red;
@@ -44,14 +42,16 @@ inline LedState InputLevelToLed(float level) {
   return s;
 }
 
+static const float kGrDeadzone = 0.05f;  // < ~1dB GR = LEDs off
+
 inline LedState GrToLed(float gr) {
-  LedState s;
-  if (gr < kGrGreenMax) {
-    s.green = true;  s.red = false; // Green: little/no GR
+  LedState s = {false, false};
+  if (gr < kGrDeadzone) {
+    // No reduction — LEDs off
   } else if (gr < kGrYellowMax) {
-    s.green = true;  s.red = true;  // Yellow: moderate GR
+    s.green = true;  s.red = false; // Green: light compression
   } else {
-    s.green = false; s.red = true;  // Red: heavy GR
+    s.green = false; s.red = true;  // Red: heavy compression
   }
   return s;
 }

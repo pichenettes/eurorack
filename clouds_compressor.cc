@@ -104,7 +104,7 @@ void FillBuffer(Codec::Frame* input, Codec::Frame* output, size_t size) {
     out_l, out_r,
     &meter,
     params);
-
+  // Pack float back to int16
   for (size_t i = 0; i < size; i++) {
     float l = out_l[i];
     float r = out_r[i];
@@ -245,9 +245,9 @@ void SysTick_Handler() {
   // Switch 0 = Freeze button = IN
   // Switch 1 = Button left of LEDs = Shift
   // Switch 2 = Button top right = SC/model
-  bool btn_in    = switches.pressed(0);
-  bool btn_shift = switches.pressed(1);
-  bool btn_sc    = switches.pressed(2);
+  bool btn_in    = switches.pressed(0);  // Freeze button
+  bool btn_shift = switches.pressed(1);  // Shift button
+  bool btn_sc    = switches.pressed(2);  // SC/model button
 
   // Jack detection via gate inputs
   // freeze() = Freeze/SC1 jack, trigger() = Trigger/SC2 jack
@@ -292,10 +292,14 @@ int main(void) {
   params.model        = MODEL_SSL_BUS;
   params.stereo_link  = true;
   params.engaged      = false;
-  params.soft_knee    = true;
-  params.alt_mode     = false;
+  params.threshold    = 0.5f;  // -20dBFS
+  params.ratio        = 0.3f;  // mild ratio
+  params.attack       = 0.3f;  // medium-fast attack
+  params.release      = 0.4f;  // medium release
+  params.input_gain   = 0.5f;  // unity
+  params.output_gain  = 0.5f;  // unity
+  params.sc_hpf_freq  = 0.0f;
   params.sc_mode      = SC_INTERNAL;
-  params.clock_period = 0.5f;
   params.vca_cv_l     = 1.0f;
   params.vca_cv_r     = 1.0f;
 
