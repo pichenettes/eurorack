@@ -21,7 +21,8 @@ void CompressorEngine::ResetModel() {
 }
 
 float CompressorEngine::ScaleThreshold(float n) {
-  return -60.0f; // DEBUG // 0→-40dBFS  1→0dBFS
+  // 0→-40dBFS  1→0dBFS
+  return -40.0f + n * 40.0f;
 }
 
 float CompressorEngine::ScaleRatio(float n) {
