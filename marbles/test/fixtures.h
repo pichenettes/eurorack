@@ -80,6 +80,7 @@ enum PatternDifficulty {
   FAST_PATTERNS,
   TRICKY_PATTERNS,
   PAUSE_PATTERNS,
+  REGULAR_PATTERNS,
 };
 
 class ClockGeneratorPatterns {
@@ -116,9 +117,14 @@ class ClockGeneratorPatterns {
       pulse_generator_.AddPulses(12, 6, 100);
       return;
     } else if (difficulty == PAUSE_PATTERNS) {
-      pulse_generator_.AddPulses(800, 400, 100);
-      pulse_generator_.AddPulses(32000 * 5 + 10, 400, 1);
-      pulse_generator_.AddPulses(800, 400, 100);
+      for (int i = 0; i < 15; ++i) {
+        pulse_generator_.AddPulses(600, 300, 80 + i);
+        pulse_generator_.AddPulses(32000 * 3 + 10, 400, 1);
+      }
+      return;
+    } else if (difficulty == REGULAR_PATTERNS) {
+      pulse_generator_.AddPulses(2500, 1000, 1000);
+      return;
     }
     
     // Steady clock

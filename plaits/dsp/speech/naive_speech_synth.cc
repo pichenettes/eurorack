@@ -43,7 +43,7 @@ using namespace std;
 using namespace stmlib;
 
 /* static */
-NaiveSpeechSynth::Phoneme NaiveSpeechSynth::phonemes_[][kNaiveSpeechNumRegisters] = {
+const NaiveSpeechSynth::Phoneme NaiveSpeechSynth::phonemes_[][kNaiveSpeechNumRegisters] = {
   {
     { { { 74, 255 }, { 83, 114 }, { 97, 90 }, { 98, 90 }, { 100, 25 } } },
     { { { 75, 255 }, { 84, 128 }, { 100, 114 }, { 101, 101 }, { 103, 20 } } },

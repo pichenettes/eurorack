@@ -46,11 +46,11 @@ class RampShaper {
   void Init() {
     next_sample_ = 0.0f;
     previous_phase_shift_ = 0.0f;
-    going_up_ = true;
   }
   
   inline float BandLimitedPulse(float phase, float frequency, float pw) {
     CONSTRAIN(pw, frequency * 2.0f, 1.0f - 2.0f * frequency);
+    
     float this_sample = next_sample_;
     float next_sample = 0.0f;
     
@@ -61,8 +61,10 @@ class RampShaper {
       wrap_point = 1.0f;
     }
     
-    if (going_up_ ^ (phase < pw)) {
-      float t = (phase - wrap_point) / frequency;
+    const float d = phase - wrap_point;
+    
+    if (d >= 0.0f && d < frequency) {
+      const float t = d / frequency;
       float discontinuity = 1.0f;
       if (wrap_point != pw) {
         discontinuity = -discontinuity;
@@ -72,10 +74,11 @@ class RampShaper {
       }
       this_sample += stmlib::ThisBlepSample(t) * discontinuity;
       next_sample += stmlib::NextBlepSample(t) * discontinuity;
-      going_up_ = phase < pw;
     }
+    
     next_sample += phase < pw ? 0.0f : 1.0f;
     next_sample_ = next_sample;
+    
     return this_sample;
   }
   
@@ -95,9 +98,9 @@ class RampShaper {
     }
   }
   
-  template<RampMode ramp_mode>
+  template<RampMode ramp_mode, Range range>
   inline float EOA(float phase, float frequency, float pw) {
-    if (ramp_mode == RAMP_MODE_LOOPING) {
+    if (ramp_mode == RAMP_MODE_LOOPING && range == RANGE_AUDIO) {
       return BandLimitedPulse(phase, frequency, pw);
     } else if (ramp_mode == RAMP_MODE_AR) {
       return phase >= 0.5f ? 1.0f : 0.0f;
@@ -106,11 +109,15 @@ class RampShaper {
     }
   }
 
-  template<RampMode ramp_mode>
+  template<RampMode ramp_mode, Range range>
   inline float EOR(float phase, float frequency, float pw) {
     if (ramp_mode == RAMP_MODE_LOOPING) {
-      return 1.0f - BandLimitedPulse(
-          phase, frequency, std::min(0.5f, 96.0f * frequency));
+      const float pw = std::min(0.5f, 96.0f * frequency);
+      if (range == RANGE_AUDIO) {
+        return 1.0f - BandLimitedPulse(phase, frequency, pw);
+      } else {
+        return phase < pw ? 1.0f : 0.0f;
+      }
     } else {
       return phase >= 1.0f;
     }
@@ -132,6 +139,7 @@ class RampShaper {
     }
     
     CONSTRAIN(pw, fabsf(frequency) * 2.0f, 1.0f - 2.0f * fabsf(frequency));
+
     float this_sample = next_sample_;
     float next_sample = 0.0f;
     
@@ -144,8 +152,10 @@ class RampShaper {
     
     const float slope_up = 1.0f / pw;
     const float slope_down = 1.0f / (1.0f - pw);
-    if (going_up_ ^ (phase < pw)) {
-      float t = (phase - wrap_point) / frequency;
+    const float d = phase - wrap_point;
+    
+    if (d >= 0.0f && d < frequency) {
+      const float t = d / frequency;
       float discontinuity = -(slope_up + slope_down) * frequency;
       if (wrap_point != pw) {
         discontinuity = -discontinuity;
@@ -155,12 +165,13 @@ class RampShaper {
       }
       this_sample += stmlib::ThisIntegratedBlepSample(t) * discontinuity;
       next_sample += stmlib::NextIntegratedBlepSample(t) * discontinuity;
-      going_up_ = phase < pw;
     }
-    next_sample += going_up_
+    
+    next_sample += phase < pw
       ? phase * slope_up
       : 1.0f - (phase - pw) * slope_down;
     next_sample_ = next_sample;
+    
     return this_sample;
   }
   
@@ -186,7 +197,6 @@ class RampShaper {
 
   float next_sample_;
   float previous_phase_shift_;
-  bool going_up_;
 
   DISALLOW_COPY_AND_ASSIGN(RampShaper);
 };

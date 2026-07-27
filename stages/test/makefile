@@ -1,4 +1,4 @@
-PACKAGES       = stages/test stmlib/utils stages stages/ramp stmlib/dsp
+PACKAGES       = stages/test stmlib/utils stages stmlib/dsp tides2/ramp
 
 VPATH          = $(PACKAGES)
 
@@ -9,6 +9,7 @@ CC_FILES       = ramp_extractor.cc \
 		stages_test.cc \
 		segment_generator.cc \
 		resources.cc \
+		random.cc \
 		units.cc
 OBJ_FILES      = $(CC_FILES:.cc=.o)
 OBJS           = $(patsubst %,$(BUILD_DIR)%,$(OBJ_FILES)) $(STARTUP_OBJ)

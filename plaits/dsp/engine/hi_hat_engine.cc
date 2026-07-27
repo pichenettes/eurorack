@@ -36,8 +36,7 @@ using namespace stmlib;
 void HiHatEngine::Init(BufferAllocator* allocator) {
   hi_hat_1_.Init();
   hi_hat_2_.Init();
-  temp_buffer_[0] = allocator->Allocate<float>(kMaxBlockSize);
-  temp_buffer_[1] = allocator->Allocate<float>(kMaxBlockSize);
+  temp_buffer_ = allocator->Allocate<float>(kMaxBlockSize * 2);
 }
 
 void HiHatEngine::Reset() {
@@ -60,8 +59,8 @@ void HiHatEngine::Render(
       parameters.timbre,
       parameters.morph,
       parameters.harmonics,
-      temp_buffer_[0],
-      temp_buffer_[1],
+      temp_buffer_,
+      temp_buffer_ + size,
       out,
       size);
   
@@ -73,8 +72,8 @@ void HiHatEngine::Render(
       parameters.timbre,
       parameters.morph,
       parameters.harmonics,
-      temp_buffer_[0],
-      temp_buffer_[1],
+      temp_buffer_,
+      temp_buffer_ + size,
       aux,
       size);
 }

@@ -62,12 +62,20 @@ class RampDivider {
     f_ratio_ = 0.99999f;
     reset_counter_ = 1;
   }
+  
+  void Reset() {
+    reset_at_next_pulse_ = true;
+  }
 
   void Process(Ratio ratio, const float* in, float* out, size_t size) {
     while (size--) {
       float new_phase = *in++;
       float frequency = new_phase - phase_;
       if (frequency < 0.0f) {
+        if (reset_at_next_pulse_) {
+          reset_at_next_pulse_ = false;
+          reset_counter_ = 1;
+        }
         frequency += 1.0f;
         --reset_counter_;
         if (!reset_counter_) {
@@ -98,6 +106,7 @@ class RampDivider {
   float max_train_phase_;
   float f_ratio_;
   int reset_counter_;
+  bool reset_at_next_pulse_;
   
   DISALLOW_COPY_AND_ASSIGN(RampDivider);
 };

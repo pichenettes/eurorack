@@ -49,6 +49,7 @@ void Resonator::Init() {
   set_brightness(0.5f);
   set_damping(0.3f);
   set_position(0.999f);
+  previous_position_ = 0.0f;
   set_resolution(kMaxModes);
 }
 

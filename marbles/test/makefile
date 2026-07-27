@@ -33,7 +33,7 @@ $(BUILD_DIR)%.d: %.cc
 	g++ -MM -DTEST -I. $< -MF $@ -MT $(@:.d=.o)
 
 marbles_test:  $(OBJS)
-	g++ -g -o $(TARGET) $(OBJS) -Wl,-no_pie -lm -lprofiler -L/opt/local/lib
+	g++ -g -o $(TARGET) $(OBJS) -Wl,-no_pie -lm -L/opt/local/lib
 
 depends:  $(DEPS)
 	cat $(DEPS) > $(DEP_FILE)

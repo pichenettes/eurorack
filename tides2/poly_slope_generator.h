@@ -110,7 +110,7 @@ class PolySlopeGenerator {
     }
     filter_.Init();
     
-    ratio_index_quantizer_.Init();
+    ratio_index_quantizer_.Init(21, 0.05f, false);
     
     // Force template instantiation for all combinations of settings.
     INSTANTIATE(RAMP_MODE_AD, OUTPUT_MODE_GATES, RANGE_CONTROL);
@@ -238,7 +238,7 @@ class PolySlopeGenerator {
         &fold_, std::max(2.0f * (smoothness - 0.5f), 0.0f), size);
     
     if (output_mode == OUTPUT_MODE_FREQUENCY) {
-      const int ratio_index = ratio_index_quantizer_.Process(shift, 21, 0.01f);
+      const int ratio_index = ratio_index_quantizer_.Process(shift);
       if (range == RANGE_CONTROL) {
         ramp_generator_.set_next_ratio(control_ratio_table_[ratio_index]);
       } else {
@@ -297,9 +297,9 @@ class PolySlopeGenerator {
             ? ramp_waveshaper_[1].Shape<ramp_mode>(
                 raw, &lut_wavetable[8200], 0.0f)
             : raw);
-        out[i].channel[2] = ramp_shaper_[2].EOA<ramp_mode>(
+        out[i].channel[2] = ramp_shaper_[2].EOA<ramp_mode, range>(
             phase, frequency, pw) * 8.0f;
-        out[i].channel[3] = ramp_shaper_[3].EOR<ramp_mode>(
+        out[i].channel[3] = ramp_shaper_[3].EOR<ramp_mode, range>(
             phase, frequency, pw) * 8.0f;
       } else if (output_mode == OUTPUT_MODE_AMPLITUDE) {
         const float phase = ramp_generator_.phase(0);
@@ -407,7 +407,7 @@ class PolySlopeGenerator {
   float shape_;
   float fold_;
   
-  stmlib::HysteresisQuantizer ratio_index_quantizer_;
+  stmlib::HysteresisQuantizer2 ratio_index_quantizer_;
 
   RampGenerator<num_channels> ramp_generator_;
 

@@ -41,13 +41,13 @@ using namespace std;
 using namespace stmlib;
 
 /* static */
-uint8_t LPCSpeechSynthWordBank::energy_lut_[16] = {
+const uint8_t LPCSpeechSynthWordBank::energy_lut_[16] = {
   0x00, 0x02, 0x03, 0x04, 0x05, 0x07, 0x0a, 0x0f,
   0x14, 0x20, 0x29, 0x39, 0x51, 0x72, 0xa1, 0xff
 };
 
 /* static */
-uint8_t LPCSpeechSynthWordBank::period_lut_[64] = {
+const uint8_t LPCSpeechSynthWordBank::period_lut_[64] = {
   0, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 45, 47, 49, 51, 53,
  54, 57, 59, 61, 63, 66, 69, 71, 73, 77, 79, 81, 85, 87, 92, 95, 99,
@@ -55,7 +55,7 @@ uint8_t LPCSpeechSynthWordBank::period_lut_[64] = {
 };
 
 /* static */
-int16_t LPCSpeechSynthWordBank::k0_lut_[32] = {
+const int16_t LPCSpeechSynthWordBank::k0_lut_[32] = {
   -32064, -31872, -31808, -31680, -31552, -31424, -31232, -30848,
   -30592, -30336, -30016, -29696, -29376, -28928, -28480, -27968,
   -26368, -24256, -21632, -18368, -14528, -10048,  -5184,      0,
@@ -63,7 +63,7 @@ int16_t LPCSpeechSynthWordBank::k0_lut_[32] = {
 };
 
 /* static */
-int16_t LPCSpeechSynthWordBank::k1_lut_[32] = {
+const int16_t LPCSpeechSynthWordBank::k1_lut_[32] = {
   -20992, -19328, -17536, -15552, -13440, -11200,  -8768,  -6272,
   -3712,   -1088,   1536,   4160,   6720,   9216,  11584,  13824,
   15936,   17856,  19648,  21248,  22656,  24000,  25152,  26176,
@@ -71,42 +71,42 @@ int16_t LPCSpeechSynthWordBank::k1_lut_[32] = {
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k2_lut_[16] = {
+const int8_t LPCSpeechSynthWordBank::k2_lut_[16] = {
 -110, -97, -83, -70, -56, -43, -29, -16, -2, 11, 25, 38, 52, 65, 79, 92
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k3_lut_[16] = {
+const int8_t LPCSpeechSynthWordBank::k3_lut_[16] = {
 -82, -68, -54, -40, -26, -12, 1, 15, 29, 43, 57, 71, 85, 99, 113, 126
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k4_lut_[16] = {
+const int8_t LPCSpeechSynthWordBank::k4_lut_[16] = {
  -82, -70, -59, -47, -35, -24, -12, -1, 11, 23, 34, 46, 57, 69, 81, 92
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k5_lut_[16] = {
+const int8_t LPCSpeechSynthWordBank::k5_lut_[16] = {
   -64, -53, -42, -31, -20, -9, 3, 14, 25, 36, 47, 58, 69, 80, 91, 102
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k6_lut_[16] = {
+const int8_t LPCSpeechSynthWordBank::k6_lut_[16] = {
   -77, -65, -53, -41, -29, -17, -5, 7, 19, 31, 43, 55, 67, 79, 90, 102
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k7_lut_[8] = {
+const int8_t LPCSpeechSynthWordBank::k7_lut_[8] = {
 -64, -40, -16, 7, 31, 55, 79, 102
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k8_lut_[8] = {
+const int8_t LPCSpeechSynthWordBank::k8_lut_[8] = {
   -64, -44, -24, -4, 16, 37, 57, 77
 };
 
 /* static */
-int8_t LPCSpeechSynthWordBank::k9_lut_[8] = {
+const int8_t LPCSpeechSynthWordBank::k9_lut_[8] = {
   -51, -33, -15, 4, 22, 32, 59, 77
 };
 
@@ -118,6 +118,7 @@ void LPCSpeechSynthWordBank::Init(
   num_banks_ = num_banks;
   frames_ = allocator->Allocate<LPCSpeechSynth::Frame>(
       kLPCSpeechSynthMaxFrames);
+  word_boundaries_ = allocator->Allocate<int>(kLPCSpeechSynthMaxWords);
   Reset();
 }
 

@@ -70,15 +70,17 @@ bool Settings::Init() {
   c[CV_ADC_CHANNEL_LEVEL].scale = -0.6f;
   c[CV_ADC_CHANNEL_LEVEL].normalization_detection_threshold = 21403;
   
-  state_.engine = 0;
+  state_.engine = 8;
   state_.lpg_colour = 0;
   state_.decay = 128;
   state_.octave = 255;
   state_.color_blind = 0;
+  state_.enable_alt_navigation = 0;
+  state_.fine_tune = 128;
   
   bool success = chunk_storage_.Init(&persistent_data_, &state_);
   
-  CONSTRAIN(state_.engine, 0, 15);
+  CONSTRAIN(state_.engine, 0, 23);
 
   return success;
 }

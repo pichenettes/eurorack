@@ -43,6 +43,7 @@ const uint32_t kRightKey = stmlib::FourCC<'o', 'v', 'e', 'r'>::value;
 // How long before unpatching an input actually breaks the chain.
 const uint32_t kUnpatchedInputDelay = 2000;
 const int32_t kLongPressDuration = 800;
+const int32_t kVeryLongPressDuration = 3000;
 
 void ChainState::Init(SerialLink* left, SerialLink* right) {
   index_ = 0;
@@ -298,6 +299,14 @@ void ChainState::Configure(SegmentGenerator* segment_generator) {
              !channel_state_[channel].input_patched();
       }
       if (dirty || num_segments != segment_generator[i].num_segments()) {
+        // The alt mode is only available for single segments.
+        if (num_segments != 1) {
+          for (int j = 0; j < num_segments; ++j) {
+            if (configuration[j].type == segment::TYPE_ALT) {
+              configuration[j].type = segment::TYPE_RAMP;
+            }
+          }
+        }
         segment_generator[i].Configure(true, configuration, num_segments);
       }
       set_loop_status(i, 0, last_loop);
@@ -471,16 +480,26 @@ void ChainState::PollSwitches() {
               request_ = MakeLoopChangeRequest(first_pressed, switch_index);
               switch_press_time_[first_pressed] = -1;
               switch_press_time_[switch_index] = -1;
-            } else if (switch_press_time_[switch_index] > kLongPressDuration) {
-              // Long press on a single button.
+            } else if (switch_press_time_[switch_index] == kLongPressDuration) {
+              // Long press on a single button: send the loop change message
+              // only once.
               request_ = MakeLoopChangeRequest(switch_index, switch_index);
+            } else if (switch_press_time_[switch_index] > kVeryLongPressDuration) {
+              request_ = MakeLoopChangeRequest(switch_index, switch_index);
+              const bool valid_loop = request_.request != REQUEST_NONE;
+              const bool single_segment = \
+                  request_.argument[0] == request_.argument[3] || \
+                  request_.argument[0] == (request_.argument[3] - 1);
+              if (valid_loop && single_segment) {
+                request_.request = REQUEST_SET_ALT_SEGMENT_TYPE;
+              }
               switch_press_time_[switch_index] = -1;
             } else {
               first_pressed = switch_index;
             }
           }
         } else {
-          if (switch_press_time_[switch_index] > 5) {
+          if (switch_press_time_[switch_index] > 5 && switch_press_time_[switch_index] < kLongPressDuration) {
             // A button has been released after having been held for a
             // sufficiently long time (5ms), but not for long enough to be
             // detected as a long press.
@@ -509,15 +528,22 @@ void ChainState::HandleRequest(Settings* settings) {
     uint8_t type_bits = s->segment_configuration[i] & 0x3;
     uint8_t loop_bit = s->segment_configuration[i] & 0x4;
 
-    if (request_.request == REQUEST_SET_SEGMENT_TYPE) {
+    if (request_.request == REQUEST_SET_ALT_SEGMENT_TYPE) {
       if (channel == request_.argument[0]) {
-        s->segment_configuration[i] = ((type_bits + 1) % 3) | loop_bit;
+        type_bits = 0x3;
+        loop_bit = 0x4;
+        dirty = true;
+      }
+    } else if (request_.request == REQUEST_SET_SEGMENT_TYPE) {
+      if (channel == request_.argument[0]) {
+        type_bits = ((type_bits + 1) % 3);
         dirty |= true;
       }
     } else if (request_.request == REQUEST_SET_LOOP) {
       uint8_t new_loop_bit = loop_bit;
       if ((channel >= request_.argument[0] && channel < request_.argument[3])) {
         new_loop_bit = 0x0;
+        type_bits = type_bits % 3;
       }
       if (channel == request_.argument[1] || channel == request_.argument[2]) {
         if (request_.argument[1] == request_.argument[2]) {
@@ -526,9 +552,10 @@ void ChainState::HandleRequest(Settings* settings) {
           new_loop_bit = 0x4;
         }
       }
-      s->segment_configuration[i] = type_bits | new_loop_bit;
       dirty |= new_loop_bit != loop_bit;
+      loop_bit = new_loop_bit;
     }
+    s->segment_configuration[i] = type_bits | loop_bit;
   }
   
   if (dirty) {

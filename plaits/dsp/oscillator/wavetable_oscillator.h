@@ -60,8 +60,9 @@ class Differentiator {
   DISALLOW_COPY_AND_ASSIGN(Differentiator);
 };
 
+template<typename T>
 inline float InterpolateWave(
-    const int16_t* table,
+    const T* table,
     int32_t index_integral,
     float index_fractional) {
   float a = static_cast<float>(table[index_integral]);
@@ -70,14 +71,15 @@ inline float InterpolateWave(
   return a + (b - a) * t;
 }
 
+template<typename T>
 inline float InterpolateWaveHermite(
-    const int16_t* table,
+    const T* table,
     int32_t index_integral,
     float index_fractional) {
-  const float xm1 = table[index_integral];
-  const float x0 = table[index_integral + 1];
-  const float x1 = table[index_integral + 2];
-  const float x2 = table[index_integral + 3];
+  const float xm1 = static_cast<float>(table[index_integral]);
+  const float x0 = static_cast<float>(table[index_integral + 1]);
+  const float x1 = static_cast<float>(table[index_integral + 2]);
+  const float x2 = static_cast<float>(table[index_integral + 3]);
   const float c = (x1 - xm1) * 0.5f;
   const float v = x0 - x1;
   const float w = c + v;
@@ -90,7 +92,8 @@ inline float InterpolateWaveHermite(
 template<
     size_t wavetable_size,
     size_t num_waves,
-    bool approximate_scale=true>
+    bool approximate_scale=true,
+    bool attenuate_high_frequencies=true>
 class WavetableOscillator {
  public:
   WavetableOscillator() { }
@@ -109,15 +112,16 @@ class WavetableOscillator {
       float frequency,
       float amplitude,
       float waveform,
-      const int16_t** wavetable,
+      const int16_t* const* wavetable,
       float* out,
       size_t size) {
-    if (frequency >= kMaxFrequency) {
-      frequency = kMaxFrequency;
+    CONSTRAIN(frequency, 0.0000001f, kMaxFrequency)
+
+    if (attenuate_high_frequencies) {
+      amplitude *= 1.0f - 2.0f * frequency;
     }
-    amplitude *= 1.0f - 2.0f * frequency;
     if (approximate_scale) {
-      amplitude *= 1.0f / (frequency * 131072.0f) * (0.95f - frequency);
+      amplitude *= 1.0f / (frequency * 131072.0f);
     }
 
     stmlib::ParameterInterpolator frequency_modulation(
@@ -138,8 +142,7 @@ class WavetableOscillator {
     while (size--) {
       const float f0 = frequency_modulation.Next();
       const float cutoff = std::min(float(wavetable_size) * f0, 1.0f);
-      
-      const float scale = approximate_scale ? 1.0f : 1.0f / (f0 * 131072.0f) * (0.95f - f0);
+      const float scale = approximate_scale ? 1.0f : 1.0f / (f0 * 131072.0f);
       
       phase += f0;
       if (phase >= 1.0f) {
@@ -159,8 +162,8 @@ class WavetableOscillator {
       
       const float s = differentiator_.Process(
           cutoff,
-          x0 + (x1 - x0) * waveform_fractional);
-      ONE_POLE(lp, s * scale, cutoff * 0.5f);
+          (x0 + (x1 - x0) * waveform_fractional) * scale);
+      ONE_POLE(lp, s, cutoff);
       *out++ += amplitude_modulation.Next() * lp;
     }
     lp_ = lp;

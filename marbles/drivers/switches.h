@@ -71,6 +71,8 @@ class Switches {
       return !GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11);
     } else if (s == SWITCH_X_MODE) {
       return !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_13);
+    } else if (s == SWITCH_X_DEJA_VU) {
+      return !GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_15);
     } else {
       return false;
     }

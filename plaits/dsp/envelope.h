@@ -43,6 +43,7 @@ class LPGEnvelope {
     gain_ = 1.0f;
     frequency_ = 0.5f;
     hf_bleed_ = 0.0f;
+    ramp_up_ = false;
   }
   
   inline void Trigger() {

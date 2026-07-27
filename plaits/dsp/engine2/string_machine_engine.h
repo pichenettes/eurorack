@@ -1,4 +1,4 @@
-// Copyright 2017 Emilie Gillet.
+// Copyright 2021 Emilie Gillet.
 //
 // Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 //
@@ -24,20 +24,47 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Clock division ratio
+// String machine emulation with filter and chorus.
 
-#ifndef TIDES_RATIO_H_
-#define TIDES_RATIO_H_
+#ifndef PLAITS_DSP_ENGINE_STRING_MACHINE_ENGINE_H_
+#define PLAITS_DSP_ENGINE_STRING_MACHINE_ENGINE_H_
 
-#include "stmlib/stmlib.h"
+#include "plaits/dsp/chords/chord_bank.h"
+#include "plaits/dsp/engine/chord_engine.h"
+#include "stmlib/dsp/filter.h"
+#include "plaits/dsp/fx/ensemble.h"
 
-namespace tides {
+namespace plaits {
 
-struct Ratio {
-  float ratio;
-  int q;
+class StringMachineEngine : public Engine {
+ public:
+  StringMachineEngine() { }
+  ~StringMachineEngine() { }
+  
+  virtual void Init(stmlib::BufferAllocator* allocator);
+  virtual void Reset();
+  virtual void LoadUserData(const uint8_t* user_data) { }
+  virtual void Render(const EngineParameters& parameters,
+      float* out,
+      float* aux,
+      size_t size,
+      bool* already_enveloped);
+
+ private:
+  void ComputeRegistration(float registration, float* amplitudes);
+  
+  ChordBank chords_;
+  
+  Ensemble ensemble_;
+  StringSynthOscillator divide_down_voice_[kChordNumNotes];
+  stmlib::NaiveSvf svf_[2];
+  
+  float morph_lp_;
+  float timbre_lp_;
+  
+  DISALLOW_COPY_AND_ASSIGN(StringMachineEngine);
 };
 
-}  // namespace tides
+}  // namespace plaits
 
-#endif  // TIDES_RATIO_H_
+#endif  // PLAITS_DSP_ENGINE_STRING_MACHINE_ENGINE_H_

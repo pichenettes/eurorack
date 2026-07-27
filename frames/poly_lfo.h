@@ -72,7 +72,7 @@ class PolyLfo {
   inline const uint8_t* color() const {
     return &color_[0];
   }
-  inline const uint16_t dac_code(uint8_t index) const {
+  inline uint16_t dac_code(uint8_t index) const {
     return dac_code_[index];
   }
   static uint32_t FrequencyToPhaseIncrement(int32_t frequency);

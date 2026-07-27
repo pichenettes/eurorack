@@ -75,8 +75,8 @@ class AnalogSnareDrum {
       float* out,
       size_t size) {
     const float decay_xt = decay * (1.0f + decay * (decay - 1.0f));
-    const int kTriggerPulseDuration = 1.0e-3 * kSampleRate;
-    const float kPulseDecayTime = 0.1e-3 * kSampleRate;
+    const int kTriggerPulseDuration = 1.0e-3f * kSampleRate;
+    const float kPulseDecayTime = 0.1e-3f * kSampleRate;
     const float q = 2000.0f * stmlib::SemitonesToRatio(decay_xt * 84.0f);
     const float noise_envelope_decay = 1.0f - 0.0017f * \
         stmlib::SemitonesToRatio(-decay * (50.0f + snappy * 10.0f));

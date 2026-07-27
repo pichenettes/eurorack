@@ -39,19 +39,31 @@
 #include "plaits/dsp/engine/waveshaping_engine.h"
 #include "plaits/dsp/engine/wavetable_engine.h"
 
+#include "plaits/dsp/engine2/chiptune_engine.h"
+#include "plaits/dsp/engine2/phase_distortion_engine.h"
+#include "plaits/dsp/engine2/string_machine_engine.h"
+#include "plaits/dsp/engine2/virtual_analog_vcf_engine.h"
+#include "plaits/dsp/engine2/wave_terrain_engine.h"
+
 #include "plaits/dsp/fx/sample_rate_reducer.h"
 
 #include "plaits/dsp/oscillator/formant_oscillator.h"
 #include "plaits/dsp/oscillator/grainlet_oscillator.h"
 #include "plaits/dsp/oscillator/harmonic_oscillator.h"
+#include "plaits/dsp/oscillator/nes_triangle_oscillator.h"
 #include "plaits/dsp/oscillator/oscillator.h"
 #include "plaits/dsp/oscillator/string_synth_oscillator.h"
+#include "plaits/dsp/oscillator/super_square_oscillator.h"
 #include "plaits/dsp/oscillator/variable_saw_oscillator.h"
 #include "plaits/dsp/oscillator/variable_shape_oscillator.h"
 #include "plaits/dsp/oscillator/vosim_oscillator.h"
+#include "plaits/dsp/oscillator/wavetable_oscillator.h"
 #include "plaits/dsp/oscillator/z_oscillator.h"
 
 #include "plaits/dsp/voice.h"
+
+#include "plaits/user_data.h"
+#include "plaits/user_data_receiver.h"
 
 #include "stmlib/test/wav_writer.h"
 
@@ -65,7 +77,7 @@ char ram_block[16 * 1024];
 
 void TestOscillator() {
   WavWriter wav_writer(1, kSampleRate, 20);
-  wav_writer.Open("plaits_simple_oscillator.wav");
+  wav_writer.Open("plaits_oscillator.wav");
   
   Oscillator osc;
   osc.Init();
@@ -81,7 +93,7 @@ void TestOscillator() {
 
 void TestVariableShapeOscillator() {
   WavWriter wav_writer(1, kSampleRate, 20);
-  wav_writer.Open("plaits_slave_oscillator.wav");
+  wav_writer.Open("plaits_variable_shape_oscillator.wav");
   
   VariableShapeOscillator osc;
   osc.Init();
@@ -91,7 +103,7 @@ void TestVariableShapeOscillator() {
   
   for (size_t i = 0; i < kSampleRate * 20; i += kAudioBlockSize) {
     float out[kAudioBlockSize];
-    osc.Render<true>(
+    osc.Render(
       master_f,
       master_f * (1.0f + 4.0f * wav_writer.triangle()),
       0.5f,
@@ -157,6 +169,85 @@ void TestHarmonicOscillator() {
     fill(&amplitudes[0], &amplitudes[16], 0.0f);
     amplitudes[15] = 1.0f;
     osc.Render<8>(f0, amplitudes, out, kAudioBlockSize);
+    wav_writer.Write(out, kAudioBlockSize);
+  }
+}
+
+void TestWavetableOscillator() {
+  WavWriter wav_writer(1, kSampleRate, 20);
+  wav_writer.Open("plaits_wavetable_oscillator.wav");
+  
+  #define WAVE(bank, row, column) &wav_integrated_waves[(bank * 64 + row * 8 + column) * 132]
+
+  const int16_t* wavetable[] = {
+    WAVE(2, 6, 1),
+    WAVE(2, 6, 6),
+    WAVE(2, 6, 4),
+    WAVE(0, 6, 0),
+    WAVE(0, 6, 1),
+    WAVE(0, 6, 2),
+    WAVE(0, 6, 7),
+    WAVE(2, 4, 7),
+    WAVE(2, 4, 6),
+    WAVE(2, 4, 5),
+    WAVE(2, 4, 4),
+    WAVE(2, 4, 3),
+    WAVE(2, 4, 2),
+    WAVE(2, 4, 1),
+    WAVE(2, 4, 0),
+  };
+  
+  WavetableOscillator<128, 15> osc;
+  osc.Init();
+  for (size_t i = 0; i < kSampleRate * 20; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    const float f0 = wav_writer.triangle(1) < 0.5f
+        ? 20.0f / kSampleRate : 40.0f / kSampleRate;
+    // const float f0 = wav_writer.triangle(3) * wav_writer.triangle(3) * 0.25f;
+    fill(&out[0], &out[kAudioBlockSize], 0.0f);
+    osc.Render(f0, 0.5f, wav_writer.triangle(7), wavetable, out, kAudioBlockSize);
+    wav_writer.Write(out, kAudioBlockSize);
+  }
+}
+
+void TestNESTriangleOscillator() {
+  WavWriter wav_writer(1, kSampleRate, 20);
+  wav_writer.Open("plaits_nes_triangle_oscillator.wav");
+  
+  NESTriangleOscillator<> osc;
+  osc.Init();
+  
+  for (size_t i = 0; i < kSampleRate * 20; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    const float fm = wav_writer.triangle(10);
+    const float f0 = i < (3 * kSampleRate)
+        ? 107.0f / kSampleRate
+        : i < (5 * kSampleRate)
+            ? 853.12f / kSampleRate
+            : fm * fm * fm * fm * 0.5f;
+    osc.Render(f0, out, kAudioBlockSize);
+    for (size_t j = 0; j < kAudioBlockSize; ++j) {
+      out[j] *= 0.8f;
+    }
+    wav_writer.Write(out, kAudioBlockSize);
+  }
+}
+
+void TestSuperSquareOscillator() {
+  WavWriter wav_writer(1, kSampleRate, 10);
+  wav_writer.Open("plaits_supersquare_oscillator.wav");
+  
+  SuperSquareOscillator osc;
+  osc.Init();
+  
+  for (size_t i = 0; i < kSampleRate * 10; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    const float f0 = 110.0f / kSampleRate;
+    const float shape = wav_writer.triangle(10);
+    osc.Render(f0, shape, out, kAudioBlockSize);
+    for (size_t j = 0; j < kAudioBlockSize; ++j) {
+      out[j] *= 0.8f;
+    }
     wav_writer.Write(out, kAudioBlockSize);
   }
 }
@@ -239,8 +330,9 @@ void TestAdditiveEngine() {
   WavWriter wav_writer(2, kSampleRate, 60);
   wav_writer.Open("plaits_additive_engine.wav");
   
+  BufferAllocator allocator(ram_block, 16384);
   AdditiveEngine e;
-  e.Init(NULL);
+  e.Init(&allocator);
   e.Reset();
   
   EngineParameters p;
@@ -270,14 +362,14 @@ void TestChordEngine() {
   
   EngineParameters p;
   p.trigger = TRIGGER_LOW;
-  p.note = 60.0f;
+  p.note = 48.0f;
 
   for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
     float out[kAudioBlockSize];
     float aux[kAudioBlockSize];
     p.harmonics = wav_writer.triangle(17) * 1.0f;
-    p.morph = wav_writer.triangle(11) * 0.2f + 0.4f;
-    p.timbre = wav_writer.triangle(13) * 1.0f;
+    p.morph = wav_writer.triangle(11) * 1.0f;
+    p.timbre = /*wav_writer.triangle(13) * 1.0f*/ 0.5f;
     bool already_enveloped;
     e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
     wav_writer.Write(out, aux, kAudioBlockSize);
@@ -426,6 +518,7 @@ void TestSpeechEngine() {
   
   EngineParameters p;
   p.trigger = TRIGGER_UNPATCHED;
+  p.accent = 0.8f;
 
   for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
     float out[kAudioBlockSize];
@@ -587,7 +680,7 @@ void TestSwarmEngine() {
     p.harmonics = 0.3f;
     p.morph = wav_writer.triangle(17);
     p.note = 48.0f;
-    p.trigger = TRIGGER_LOW;
+    //p.trigger = TRIGGER_LOW;
     bool already_enveloped;
     e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
     
@@ -614,12 +707,122 @@ void TestVirtualAnalogEngine() {
   for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
     float out[kAudioBlockSize];
     float aux[kAudioBlockSize];
-    // p.timbre = wav_writer.triangle(7);
-    // p.harmonics = wav_writer.triangle(11);
-    // p.morph = 1.0f - wav_writer.triangle(5);
-    p.timbre = wav_writer.triangle(3) * 0.0f + 0.0f;
-    p.harmonics = wav_writer.triangle(19);
-    p.morph = wav_writer.triangle(19) * 0.0f + 0.3f;
+    p.timbre = wav_writer.triangle(7);
+    p.harmonics = wav_writer.triangle(11);
+    p.morph = 1.0f - wav_writer.triangle(5);
+    // p.timbre = wav_writer.triangle(3) * 0.0f + 0.0f;
+    // p.harmonics = wav_writer.triangle(19);
+    // p.morph = wav_writer.triangle(19) * 0.0f + 0.3f;
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
+void TestPhaseDistortionEngine() {
+  WavWriter wav_writer(2, kSampleRate, 80);
+  wav_writer.Open("plaits_phase_distortion_engine.wav");
+  
+  BufferAllocator allocator(ram_block, 16384);
+  PhaseDistortionEngine e;
+  e.Init(&allocator);
+  e.Reset();
+  
+  EngineParameters p;
+  p.trigger = TRIGGER_LOW;
+  p.note = 36.0f;
+
+  for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    p.timbre = wav_writer.triangle(5);
+    p.harmonics = wav_writer.triangle(11);
+    p.morph = wav_writer.triangle(19);
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
+void TestVirtualAnalogVCFEngine() {
+  WavWriter wav_writer(2, kSampleRate, 80);
+  wav_writer.Open("plaits_virtual_analog_vcf_engine.wav");
+  
+  VirtualAnalogVCFEngine e;
+  e.Init(NULL);
+  e.Reset();
+  
+  EngineParameters p;
+  p.trigger = TRIGGER_LOW;
+  p.note = 48.0f;
+
+  for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    float out2[kAudioBlockSize];
+    p.timbre = wav_writer.triangle(31);
+    p.harmonics = wav_writer.triangle(17);
+    p.morph = wav_writer.triangle(7);
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
+void TestStringMachineEngine() {
+  WavWriter wav_writer(2, kSampleRate, 80);
+  wav_writer.Open("plaits_string_machine_engine.wav");
+  
+  BufferAllocator allocator(ram_block, 16384);
+  StringMachineEngine e;
+  e.Init(&allocator);
+  e.Reset();
+  
+  EngineParameters p;
+  p.trigger = TRIGGER_LOW;
+  p.note = 48.0f;
+
+  for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    p.timbre = 1.0f;
+    p.harmonics = 0.33f;
+    p.morph = wav_writer.triangle(7);
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
+void TestChiptuneEngine() {
+  WavWriter wav_writer(2, kSampleRate, 100);
+  wav_writer.Open("plaits_chiptune_engine.wav");
+  
+  BufferAllocator allocator(ram_block, 16384);
+  ChiptuneEngine e;
+  e.Init(&allocator);
+  e.Reset();
+  
+  EngineParameters p;
+  p.note = 48.0f;
+
+  for (size_t i = 0; i < kSampleRate * 100; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    p.morph = wav_writer.triangle(7);
+    p.harmonics = wav_writer.triangle(59);
+    p.timbre = wav_writer.triangle(31);
+    
+    p.trigger = i > kSampleRate * 60
+        ? TRIGGER_UNPATCHED
+        : (i % size_t(kSampleRate / 8) == 0
+              ? TRIGGER_RISING_EDGE
+              : TRIGGER_LOW);
+    
+    e.set_envelope_shape(p.trigger == TRIGGER_UNPATCHED
+        ? ChiptuneEngine::NO_ENVELOPE
+        : 2.0f * wav_writer.triangle(23) - 1.0f);
+    
     bool already_enveloped;
     e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
     wav_writer.Write(out, aux, kAudioBlockSize);
@@ -655,8 +858,10 @@ void TestWavetableEngine() {
   wav_writer.Open("plaits_wavetable_engine.wav");
   
   WavetableEngine e;
-  e.Init(NULL);
+  BufferAllocator allocator(ram_block, 16384);
+  e.Init(&allocator);
   e.Reset();
+  e.LoadUserData(NULL);
   
   EngineParameters p;
   p.trigger = TRIGGER_LOW;
@@ -666,9 +871,43 @@ void TestWavetableEngine() {
     float out[kAudioBlockSize];
     float aux[kAudioBlockSize];
     float phi = wav_writer.triangle(1);
-    p.timbre = phi > 0.9f ? 0.0f : 0.5f + 0.5f * sinf(phi * 24.3f);
+    p.timbre = /*phi > 0.9f ? 0.0f : 0.5f + 0.5f * sinf(phi * 24.3f)*/ phi;
     p.harmonics = wav_writer.triangle(11) * 0 + 0.0f;
     p.morph = wav_writer.triangle(5) * 0;
+    
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
+void TestWaveTerrainEngine() {
+  WavWriter wav_writer(2, kSampleRate, 80);
+  wav_writer.Open("plaits_wave_terrain_engine.wav");
+  
+  BufferAllocator allocator(ram_block, 16384);
+  WaveTerrainEngine e;
+  e.Init(&allocator);
+  e.Reset();
+  
+  int8_t custom_terrain[4096];
+  for (int x = 0; x < 64; ++x) {
+    for (int y = 0; y < 64; ++y) {
+      custom_terrain[x + 64 * y] = 127.0f * sinf((x * y) / 300.0f);
+    }
+  }
+  e.LoadUserData((uint8_t*)(custom_terrain));
+  
+  EngineParameters p;
+  p.trigger = TRIGGER_LOW;
+  p.note = 36.0f;
+
+  for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    p.timbre = wav_writer.triangle(7);
+    p.harmonics = wav_writer.triangle(37);
+    p.morph = wav_writer.triangle(19);
     
     bool already_enveloped;
     e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
@@ -836,7 +1075,7 @@ void TestVoice() {
   Patch patch;
   Modulations modulations;
   
-  patch.engine = 1;
+  patch.engine = 9;
   patch.note = 48.0f;
   patch.harmonics = 0.3f;
   patch.timbre = 0.7f;
@@ -882,7 +1121,7 @@ void TestFMGlitch() {
   Patch patch;
   Modulations modulations;
   
-  patch.engine = 4;
+  patch.engine = 12;
   patch.note = 48.0f;
   patch.harmonics = 0.5f;
   patch.timbre = 0.5f;
@@ -928,7 +1167,7 @@ void TestLPGAttackDecay() {
   Patch patch;
   Modulations modulations;
   
-  patch.engine = 1;
+  patch.engine = 9;
   patch.note = 48.0f;
   patch.harmonics = 0.5f;
   patch.timbre = 0.0f;
@@ -982,7 +1221,7 @@ void TestLimiterGlitch() {
   Patch patch;
   Modulations modulations;
   
-  patch.engine = 9;
+  patch.engine = 17;
   patch.note = 36.0f;
   patch.harmonics = 0.8f;
   patch.timbre = 0.6f;
@@ -1015,6 +1254,41 @@ void TestLimiterGlitch() {
   }
 }
 
+void TestSixOpEngine() {
+  WavWriter wav_writer(2, kSampleRate, 80);
+  wav_writer.Open("plaits_six_op_engine.wav");
+  
+  BufferAllocator allocator(ram_block, 16384);
+  SixOpEngine e;
+  e.Init(&allocator);
+  e.Reset();
+  e.LoadUserData(fm_patches_table[0]);
+  
+  EngineParameters p;
+  p.note = 48.0f;
+  p.accent = 0.8f;
+
+  for (size_t i = 0; i < kSampleRate * 80; i += kAudioBlockSize) {
+    float out[kAudioBlockSize];
+    float aux[kAudioBlockSize];
+    p.trigger = TRIGGER_UNPATCHED;
+    p.trigger = (i % size_t(kSampleRate)) <= 3 * kSampleRate / 4
+        ? TRIGGER_HIGH : TRIGGER_LOW;
+    p.trigger |= (i % size_t(kSampleRate)) == 0
+        ? TRIGGER_RISING_EDGE : TRIGGER_LOW;
+    if (p.trigger & TRIGGER_RISING_EDGE) {
+      p.note = 84.0f - p.note;
+    }
+    p.harmonics = wav_writer.triangle(61);
+    p.timbre = 0.5f; //wav_writer.triangle(23);
+    p.morph = 0.5f; //wav_writer.triangle(9);
+    
+    bool already_enveloped;
+    e.Render(p, out, aux, kAudioBlockSize, &already_enveloped);
+    wav_writer.Write(out, aux, kAudioBlockSize);
+  }
+}
+
 int main(void) {
   _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
   // TestFormantOscillator();
@@ -1026,25 +1300,33 @@ int main(void) {
   // TestVosimOscillator();
   // TestZOscillator();
   // TestHarmonicOscillator();
-
+  // TestWavetableOscillator();
+  // TestNESTriangleOscillator();
+  // TestSuperSquareOscillator();
+  // TestVariableSawOscillator();
+  
   // TestAdditiveEngine();
+  // TestChiptuneEngine();
   // TestChordEngine();
-  TestFMEngine();
+  // TestFMEngine();
   // TestGrainEngine();
   // TestModalEngine();
   // TestStringEngine();
   // TestNoiseEngine();
   // TestParticleEngine();
+  // TestPhaseDistortionEngine();
   // TestSpeechEngine();
+  // TestStringMachineEngine();
   // TestSwarmEngine();
   // TestVirtualAnalogEngine();
+  // TestVirtualAnalogVCFEngine();
   // TestWaveshapingEngine();
   // TestWavetableEngine();
+  // TestWaveTerrainEngine();
+
   // TestBassDrumEngine();
   // TestSnareDrumEngine();
   // TestHiHatEngine();
-  
-  // TestVariableSawOscillator();
   
   // TestSampleRateReducer();
   // TestVoice();
@@ -1053,4 +1335,5 @@ int main(void) {
   // EnumerateWavetables();
   
   // TestLPGAttackDecay();
+  TestSixOpEngine();
 }

@@ -34,7 +34,7 @@
 // All prediction strategies are concurrently tested, and the output from the
 // best performing one is selected (à la early Scheirer/Goto beat trackers).
 
-#include "tides2/ramp_extractor.h"
+#include "tides2/ramp/ramp_extractor.h"
 
 #include <algorithm>
 
@@ -67,7 +67,7 @@ void RampExtractor::Reset() {
   max_ramp_value_ = 1.0f;
   f_ratio_ = 1.0f;
   reset_counter_ = 1;
-  reset_interval_ = sample_rate_ * 3;
+  reset_interval_ = uint32_t(sample_rate_) * 3;
 
   Pulse p;
   p.on_duration = uint32_t(sample_rate_ * 0.25f);
@@ -146,6 +146,7 @@ inline float RampExtractor::ProcessInternal(
     const GateFlags* gate_flags,
     float* ramp, 
     size_t size) {
+  const size_t block_size = size;
   while (size--) {
     GateFlags flags = *gate_flags++;
     // We are done with the previous pulse.
@@ -164,15 +165,41 @@ inline float RampExtractor::ProcessInternal(
         if (smooth_audio_rate_tracking) {
           bool no_glide = f_ratio_ != ratio.ratio;
           f_ratio_ = ratio.ratio;
+          
+          --reset_counter_;
+
+          float phase_error = 0.0f;
+          if (!reset_counter_) {
+            reset_counter_ = ratio.q;
+            
+            // Compensates for the latency in the acquisition of the
+            // external signal.
+            float expected_phase = 2.0f * \
+                float(block_size) / period * f_ratio_;
+            while (expected_phase >= 1.0f) {
+              expected_phase -= 1.0f;
+            }
+            phase_error = train_phase_ - expected_phase;
+            if (phase_error > 0.5f) {
+              phase_error -= 1.0f;
+            }
+            if (phase_error < -0.5f) {
+              phase_error += 1.0f;
+            }
+          }
         
-          float frequency = 1.0f / period;
-          target_frequency_ = std::min(f_ratio_ * frequency, 0.125f);
+          const float frequency = 1.0f / period;
+          float pll_adjustment = 1.0f - \
+              lp_coefficient_ * phase_error / f_ratio_;
+          CONSTRAIN(pll_adjustment, 0.99f, 1.01f)
+          target_frequency_ = std::min(
+              f_ratio_ * frequency * pll_adjustment, 0.125f);
         
           float up_tolerance = (1.02f + 2.0f * frequency) * frequency_lp_;
           float down_tolerance = (0.98f - 2.0f * frequency) * frequency_lp_;
           no_glide |= target_frequency_ > up_tolerance ||
               target_frequency_ < down_tolerance;
-          lp_coefficient_ = no_glide ? 1.0f : period * 0.00001f;
+          lp_coefficient_ = no_glide ? 1.0f : min(period * 0.00001f, 0.1f);
         } else {
           // Compute the pulse width of the previous pulse, and check if the
           // PW has been consistent over the past pulses.

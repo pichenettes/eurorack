@@ -24,7 +24,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Drivers for the PCM5100 DAC.
+// Drivers for the PCM5100 codec.
 
 #ifndef PLAITS_DRIVERS_DAC_H_
 #define PLAITS_DRIVERS_DAC_H_

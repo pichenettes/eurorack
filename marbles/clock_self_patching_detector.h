@@ -26,7 +26,7 @@
 //
 // Class for detecting if the t1 or t2 gate outputs are patched into the X
 // clock input. This is done by comparing the number of synchronous transitions
-// on the gate ouputs and the clock input. A small margin of error is allowed
+// on the gate outputs and the clock input. A small margin of error is allowed
 // because of acquisition delays.
 
 #ifndef MARBLES_CLOCK_SELF_PATCHING_DETECTOR_H_

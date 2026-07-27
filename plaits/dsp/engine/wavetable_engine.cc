@@ -37,6 +37,14 @@ namespace plaits {
 using namespace std;
 using namespace stmlib;
 
+const int kNumBanks = 4;
+const int kNumWavesPerBank = 64;
+const int kNumWaves = 192;
+const int kNumCustomWaves = 15;
+
+const size_t kTableSize = 128;
+const float kTableSizeF = float(kTableSize);
+
 void WavetableEngine::Init(BufferAllocator* allocator) {
   phase_ = 0.0f;
 
@@ -54,10 +62,32 @@ void WavetableEngine::Init(BufferAllocator* allocator) {
   previous_f0_ = a0;
 
   diff_out_.Init();
+  
+  wave_map_ = allocator->Allocate<const int16_t*>(kNumWavesPerBank);
 }
 
 void WavetableEngine::Reset() {
   
+}
+
+void WavetableEngine::LoadUserData(const uint8_t* user_data) {
+  for (int bank = 0; bank < kNumBanks; ++bank) {
+    for (int wave = 0; wave < kNumWavesPerBank; ++wave) {
+      int i = bank * kNumWavesPerBank + wave;
+
+      int w = i;
+      if (bank == kNumBanks - 1) {
+        w = user_data ? user_data[wave] : (w * 101 % kNumWaves);
+      }
+
+      const int16_t* base = wav_integrated_waves;
+      if (w >= kNumWaves) {
+        base = (const int16_t*)(user_data + 64);
+        w = min(w - kNumWaves, kNumCustomWaves);
+      }
+      wave_map_[i] = base + size_t(w) * (kTableSize + 4);
+    }
+  }
 }
 
 inline float Clamp(float x, float amount) {
@@ -68,19 +98,14 @@ inline float Clamp(float x, float amount) {
   return x;
 }
 
-const size_t table_size = 256;
-const float table_size_f = float(table_size);
-
-inline float ReadWave(
+inline float WavetableEngine::ReadWave(
     int x,
     int y,
     int z,
-    int randomize,
     int phase_integral,
     float phase_fractional) {
-  int wave = ((x + y * 8 + z * 64) * randomize) % 192;
   return InterpolateWaveHermite(
-      wav_integrated_waves + wave * (table_size + 4),
+      wave_map_[x + y * 8 + z * kNumWavesPerBank],
       phase_integral,
       phase_fractional);
 }
@@ -126,7 +151,7 @@ void WavetableEngine::Render(
     const float f0 = f0_modulation.Next();
     
     const float gain = (1.0f / (f0 * 131072.0f)) * (0.95f - f0);
-    const float cutoff = min(table_size_f * f0, 1.0f);
+    const float cutoff = min(kTableSizeF * f0, 1.0f);
     
     ONE_POLE(x_lp_, x_modulation.Next(), lp_coefficient);
     ONE_POLE(y_lp_, y_modulation.Next(), lp_coefficient);
@@ -145,7 +170,7 @@ void WavetableEngine::Render(
       phase_ -= 1.0f;
     }
     
-    const float p = phase_ * table_size_f;
+    const float p = phase_ * kTableSizeF;
     MAKE_INTEGRAL_FRACTIONAL(p);
     
     {
@@ -163,25 +188,22 @@ void WavetableEngine::Render(
         z1 = 7 - z1;
       }
       
-      int r0 = z0 == 3 ? 101 : 1;
-      int r1 = z1 == 3 ? 101 : 1;
-
-      float x0y0z0 = ReadWave(x0, y0, z0, r0, p_integral, p_fractional);
-      float x1y0z0 = ReadWave(x1, y0, z0, r0, p_integral, p_fractional);
+      float x0y0z0 = ReadWave(x0, y0, z0, p_integral, p_fractional);
+      float x1y0z0 = ReadWave(x1, y0, z0, p_integral, p_fractional);
       float xy0z0 = x0y0z0 + (x1y0z0 - x0y0z0) * x_fractional;
 
-      float x0y1z0 = ReadWave(x0, y1, z0, r0, p_integral, p_fractional); 
-      float x1y1z0 = ReadWave(x1, y1, z0, r0, p_integral, p_fractional);
+      float x0y1z0 = ReadWave(x0, y1, z0, p_integral, p_fractional);
+      float x1y1z0 = ReadWave(x1, y1, z0, p_integral, p_fractional);
       float xy1z0 = x0y1z0 + (x1y1z0 - x0y1z0) * x_fractional;
 
       float xyz0 = xy0z0 + (xy1z0 - xy0z0) * y_fractional;
 
-      float x0y0z1 = ReadWave(x0, y0, z1, r1, p_integral, p_fractional);
-      float x1y0z1 = ReadWave(x1, y0, z1, r1, p_integral, p_fractional);
+      float x0y0z1 = ReadWave(x0, y0, z1, p_integral, p_fractional);
+      float x1y0z1 = ReadWave(x1, y0, z1, p_integral, p_fractional);
       float xy0z1 = x0y0z1 + (x1y0z1 - x0y0z1) * x_fractional;
 
-      float x0y1z1 = ReadWave(x0, y1, z1, r1, p_integral, p_fractional);
-      float x1y1z1 = ReadWave(x1, y1, z1, r1, p_integral, p_fractional);
+      float x0y1z1 = ReadWave(x0, y1, z1, p_integral, p_fractional);
+      float x1y1z1 = ReadWave(x1, y1, z1, p_integral, p_fractional);
       float xy1z1 = x0y1z1 + (x1y1z1 - x0y1z1) * x_fractional;
       
       float xyz1 = xy0z1 + (xy1z1 - xy0z1) * y_fractional;

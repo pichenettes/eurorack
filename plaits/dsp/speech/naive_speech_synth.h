@@ -75,7 +75,7 @@ class NaiveSpeechSynth {
   stmlib::Svf filter_[kNaiveSpeechNumFormants];
   stmlib::Svf pulse_coloration_;
 
-  static Phoneme phonemes_[kNaiveSpeechNumPhonemes][kNaiveSpeechNumRegisters];
+  static const Phoneme phonemes_[kNaiveSpeechNumPhonemes][kNaiveSpeechNumRegisters];
   
   DISALLOW_COPY_AND_ASSIGN(NaiveSpeechSynth);
 };

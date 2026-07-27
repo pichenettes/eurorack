@@ -32,12 +32,13 @@ FAMILY         = f37x
 APPLICATION_LARGE = TRUE
 BOOTLOADER        = tides2_bootloader
 
-# Prefered upload command
+# Preferred upload command
 UPLOAD_COMMAND  = upload_combo_jtag_erase_first
 
 # Packages to build
 TARGET         = tides2
 PACKAGES       = tides2 \
+		tides2/ramp \
 		tides2/drivers \
 		stmlib/dsp \
 		stmlib/utils \

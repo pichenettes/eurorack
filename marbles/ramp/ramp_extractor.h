@@ -51,12 +51,25 @@ class RampExtractor {
   ~RampExtractor() { }
   
   void Init(float max_frequency);
-  bool Process(
+
+  void Process(
+      Ratio r,
+      bool always_ramp_to_maximum,
+      bool* reset,
+      const stmlib::GateFlags* gate_flags,
+      float* ramp,
+      size_t size);
+
+  inline void Process(
       Ratio r,
       bool always_ramp_to_maximum,
       const stmlib::GateFlags* gate_flags,
       float* ramp,
-      size_t size);
+      size_t size) {
+    bool reset = false;
+    Process(r, always_ramp_to_maximum, &reset, gate_flags, ramp, size);
+  }
+
   void Reset();
   
  private:
@@ -119,10 +132,13 @@ class RampExtractor {
   int reset_counter_;
   uint32_t reset_interval_;
   bool audio_rate_;
+  int num_consistent_audio_rate_pulses_;
   
   float max_frequency_;
   float audio_rate_period_;
   float audio_rate_period_hysteresis_;
+  
+  bool reset_at_next_pulse_;
   
   DISALLOW_COPY_AND_ASSIGN(RampExtractor);
 };

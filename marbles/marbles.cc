@@ -69,7 +69,7 @@ CvReader cv_reader;
 Dac dac;
 DebugPort debug_port;
 GateOutputs gate_outputs;
-HysteresisQuantizer deja_vu_length_quantizer;
+HysteresisQuantizer2 deja_vu_length_quantizer;
 IOBuffer io_buffer;
 NoteFilter note_filter;
 Rng rng;
@@ -144,8 +144,9 @@ inline uint16_t DacCode(int index, float voltage) {
 
 void ProcessTest(IOBuffer::Block* block, size_t size) {
   float parameters[kNumParameters];
+  GateFlags hidden_gates[kNumParameters];
   static float phase;
-  cv_reader.Process(&block->adc_value[0], parameters);
+  cv_reader.Process(false, &block->adc_value[0], parameters, hidden_gates);
   for (size_t i = 0; i < size; ++i) {
     phase += 100.0f / static_cast<float>(kSampleRate);
     if (phase >= 1.0f) {
@@ -203,9 +204,10 @@ int loop_length[] = {
   8, 8, 8, 8, 8, 8, 8, 8, 8,
   10, 10, 10,
   12, 12, 12, 12, 12, 12, 12,
-  14,
+  14, 14,
   16
 };
+GateFlags hidden_gates[kNumParameters];
 float parameters[kNumParameters];
 float ramp_buffer[kBlockSize * 4];
 bool gates[kBlockSize * 2];
@@ -231,7 +233,11 @@ void Process(IOBuffer::Block* block, size_t size) {
   }
 
   // Filter CV values (3.5%)
-  cv_reader.Process(&block->adc_value[0], parameters);
+  cv_reader.Process(
+      settings.explicit_reset(),
+      &block->adc_value[0],
+      parameters,
+      hidden_gates);
   
   float deja_vu = parameters[ADC_CHANNEL_DEJA_VU_AMOUNT];
   
@@ -266,7 +272,7 @@ void Process(IOBuffer::Block* block, size_t size) {
       }
     }
   }
-
+  
   // Generate gates for T-section (16%).
   ramps.master = &ramp_buffer[0];
   ramps.external = &ramp_buffer[kBlockSize];
@@ -276,8 +282,10 @@ void Process(IOBuffer::Block* block, size_t size) {
   const State& state = settings.state();
   int deja_vu_length = deja_vu_length_quantizer.Lookup(
       loop_length,
-      parameters[ADC_CHANNEL_DEJA_VU_LENGTH],
-      sizeof(loop_length) / sizeof(int));
+      parameters[ADC_CHANNEL_DEJA_VU_LENGTH]);
+  
+  bool t_section_reset = settings.explicit_reset() && \
+      hidden_gates[ADC_CHANNEL_T_JITTER] & GATE_FLAG_RISING;
   
   t_generator.set_model(TGeneratorModel(state.t_model));
   t_generator.set_range(TGeneratorRange(state.t_range));
@@ -293,11 +301,12 @@ void Process(IOBuffer::Block* block, size_t size) {
   t_generator.set_pulse_width_std(float(state.t_pulse_width_std) / 256.0f);
   t_generator.Process(
       block->input_patched[0],
+      &t_section_reset,
       t_clock,
       ramps,
       gates,
       size);
-        
+
   // Generate voltages for X-section (40%).
   float note_cv_1 = cv_reader.channel(ADC_CHANNEL_X_SPREAD).scaled_raw_cv();
   float note_cv_2 = cv_reader.channel(ADC_CHANNEL_X_SPREAD_2).scaled_raw_cv();
@@ -364,11 +373,18 @@ void Process(IOBuffer::Block* block, size_t size) {
     }
     
     y.scale_index = x.scale_index = state.x_scale;
+    
+    bool x_section_reset = settings.explicit_reset() && \
+        hidden_gates[ADC_CHANNEL_X_STEPS] & GATE_FLAG_RISING;
+    if (xy_clock_source != CLOCK_SOURCE_EXTERNAL) {
+      x_section_reset |= t_section_reset;
+    }
 
     xy_generator.Process(
         xy_clock_source,
         x,
         y,
+        &x_section_reset,
         xy_clock,
         ramps,
         voltages,
@@ -377,8 +393,8 @@ void Process(IOBuffer::Block* block, size_t size) {
   
   const float* v = voltages;
   const bool* g = gates;
-  
   for (size_t i = 0; i < size; ++i) {
+    //block->cv_output[1][i] = DacCode(1, SineOscillator(*v++));
     block->cv_output[1][i] = DacCode(1, *v++);
     block->cv_output[2][i] = DacCode(2, *v++);
     block->cv_output[3][i] = DacCode(3, *v++);
@@ -412,7 +428,8 @@ void Init() {
   gate_outputs.Init();
   io_buffer.Init();
     
-  deja_vu_length_quantizer.Init();
+  deja_vu_length_quantizer.Init(
+      sizeof(loop_length) / sizeof(int), 0.25f, false);
   cv_reader.Init(settings.mutable_calibration_data());
   scale_recorder.Init();
   ui.Init(&settings, &cv_reader, &scale_recorder, &clock_inputs);

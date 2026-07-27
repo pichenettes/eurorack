@@ -743,7 +743,6 @@ void DigitalOscillator::RenderFm(
   
   END_INTERPOLATE_PARAMETER_0
   
-  previous_parameter_[0] = parameter_[0];
   state_.modulator_phase = modulator_phase;
 }
 

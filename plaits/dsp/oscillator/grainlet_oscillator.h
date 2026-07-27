@@ -35,7 +35,7 @@
 #include "stmlib/dsp/polyblep.h"
 
 #include "plaits/dsp/oscillator/oscillator.h"
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 
 namespace plaits {
 
@@ -139,10 +139,6 @@ class GrainletOscillator {
   }
 
  private:
-  inline float Sine(float phase) {
-    return stmlib::InterpolateWrap(lut_sine, phase, 1024.0f);
-  }
-  
   inline float Carrier(float phase, float shape) {
     shape *= 3.0f;
     MAKE_INTEGRAL_FRACTIONAL(shape);

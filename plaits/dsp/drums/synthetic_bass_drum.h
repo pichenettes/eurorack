@@ -35,7 +35,7 @@
 #include "stmlib/utils/random.h"
 
 #include "plaits/dsp/dsp.h"
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 
 namespace plaits {
 
@@ -117,8 +117,7 @@ class SyntheticBassDrum {
     phase = phase_fractional;
     float triangle = (phase < 0.5f ? phase : 1.0f - phase) * 4.0f - 1.0f;
     float sine = 2.0f * triangle / (1.0f + fabsf(triangle));
-    float clean_sine = stmlib::InterpolateWrap(
-        lut_sine, phase + 0.75f, 1024.0f);
+    float clean_sine = Sine(phase + 0.75f);
     return sine + (1.0f - dirtiness) * (clean_sine - sine);
   }
   

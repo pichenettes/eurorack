@@ -32,14 +32,14 @@ FAMILY         = f37x
 APPLICATION_LARGE = TRUE
 BOOTLOADER        = stages_bootloader
 
-# Prefered upload command
+# Preferred upload command
 UPLOAD_COMMAND  = upload_combo_jtag_erase_first
 
 # Packages to build
 TARGET         = stages
 PACKAGES       = stages \
 		stages/drivers \
-		stages/ramp \
+		tides2/ramp \
 		stmlib/dsp \
 		stmlib/utils \
 		stmlib/system

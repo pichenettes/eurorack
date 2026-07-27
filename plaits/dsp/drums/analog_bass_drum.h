@@ -82,10 +82,10 @@ class AnalogBassDrum {
       float self_fm_amount,
       float* out,
       size_t size) {
-    const int kTriggerPulseDuration = 1.0e-3 * kSampleRate;
-    const int kFMPulseDuration = 6.0e-3 * kSampleRate;
-    const float kPulseDecayTime = 0.2e-3 * kSampleRate;
-    const float kPulseFilterTime = 0.1e-3 * kSampleRate;
+    const int kTriggerPulseDuration = 1.0e-3f * kSampleRate;
+    const int kFMPulseDuration = 6.0e-3f * kSampleRate;
+    const float kPulseDecayTime = 0.2e-3f * kSampleRate;
+    const float kPulseFilterTime = 0.1e-3f * kSampleRate;
     const float kRetrigPulseDuration = 0.05f * kSampleRate;
     
     const float scale = 0.001f / f0;

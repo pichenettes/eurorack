@@ -33,9 +33,10 @@
 #include "stmlib/dsp/hysteresis_quantizer.h"
 #include "stmlib/utils/gate_flags.h"
 
+#include "tides2/ramp/ramp_extractor.h"
 #include "stages/delay_line_16_bits.h"
 
-#include "stages/ramp_extractor.h"
+#include "stages/variable_shape_oscillator.h"
 
 namespace stages {
 
@@ -47,7 +48,7 @@ const float kSampleRate = 31250.0f;
 // pre-allocated Segments shared by all SegmentGenerators!
 const int kMaxNumSegments = 36;
 
-const size_t kMaxDelay = 768;
+const size_t kMaxDelay = 576;
 
 #define DECLARE_PROCESS_FN(X) void Process ## X \
       (const stmlib::GateFlags* gate_flags, Output* out, size_t size);
@@ -59,6 +60,7 @@ enum Type {
   TYPE_RAMP = 0,
   TYPE_STEP = 1,
   TYPE_HOLD = 2,
+  TYPE_ALT = 3
 };
 
 struct Configuration {
@@ -104,7 +106,11 @@ class SegmentGenerator {
     int8_t if_complete;
   };
   
-  void Init();
+  void Init() {
+    Init(NULL);
+  }
+  
+  void Init(stmlib::HysteresisQuantizer2* step_quantizer);
   
   typedef void (SegmentGenerator::*ProcessFn)(
       const stmlib::GateFlags* gate_flags, Output* out, size_t size);
@@ -117,6 +123,10 @@ class SegmentGenerator {
   
   void Configure(
       bool has_trigger,
+      const segment::Configuration* segment_configuration,
+      int num_segments);
+
+  void ConfigureSequencer(
       const segment::Configuration* segment_configuration,
       int num_segments);
 
@@ -150,19 +160,26 @@ class SegmentGenerator {
  private:
   // Process function for the general case.
   DECLARE_PROCESS_FN(MultiSegment);
+  DECLARE_PROCESS_FN(Sequencer)
   DECLARE_PROCESS_FN(DecayEnvelope);
   DECLARE_PROCESS_FN(TimedPulseGenerator);
   DECLARE_PROCESS_FN(GateGenerator);
   DECLARE_PROCESS_FN(SampleAndHold);
   DECLARE_PROCESS_FN(TapLFO);
   DECLARE_PROCESS_FN(FreeRunningLFO);
+  DECLARE_PROCESS_FN(PLLOscillator);
+  DECLARE_PROCESS_FN(FreeRunningOscillator);
   DECLARE_PROCESS_FN(Delay);
   DECLARE_PROCESS_FN(Portamento);
   DECLARE_PROCESS_FN(Zero);
   DECLARE_PROCESS_FN(ClockedSampleAndHold);
   DECLARE_PROCESS_FN(Slave);
   
-  void ShapeLFO(float shape, Output* in_out, size_t size);
+  void ProcessOscillator(bool audio_rate, const stmlib::GateFlags* gate_flags,
+      Output* out,size_t size);
+  
+  
+  static void ShapeLFO(float shape, const float* phase, Output* out, size_t size);
   float WarpPhase(float t, float curve) const;
   float RateToFrequency(float rate) const;
   float PortamentoRateToLPCoefficient(float rate) const;
@@ -181,6 +198,7 @@ class SegmentGenerator {
   float one_;
   
   int active_segment_;
+  int previous_segment_;
   int monitored_segment_;
   int retrig_delay_;
   
@@ -188,8 +206,8 @@ class SegmentGenerator {
   
   ProcessFn process_fn_;
   
-  RampExtractor ramp_extractor_;
-  stmlib::HysteresisQuantizer ramp_division_quantizer_;
+  tides::RampExtractor ramp_extractor_;
+  stmlib::HysteresisQuantizer2 function_quantizer_;
   
   Segment segments_[kMaxNumSegments + 1];  // There's a sentinel!
   segment::Parameters parameters_[kMaxNumSegments];
@@ -197,7 +215,31 @@ class SegmentGenerator {
   DelayLine16Bits<kMaxDelay> delay_line_;
   stmlib::DelayLine<stmlib::GateFlags, 128> gate_delay_;
   
-  static ProcessFn process_fn_table_[12];
+  enum Direction {
+    DIRECTION_UP,
+    DIRECTION_DOWN,
+    DIRECTION_UP_DOWN,
+    DIRECTION_ALTERNATING,
+    DIRECTION_RANDOM,
+    DIRECTION_RANDOM_WITHOUT_REPEAT,
+    DIRECTION_ADDRESSABLE,
+    DIRECTION_LAST
+  };
+  
+  int first_step_;
+  int last_step_;
+  bool quantized_output_;
+
+  int up_down_counter_;
+  bool reset_;
+  bool accepted_gate_;
+  int inhibit_clock_;
+  stmlib::HysteresisQuantizer2 address_quantizer_;
+  stmlib::HysteresisQuantizer2* step_quantizer_;
+  
+  static ProcessFn process_fn_table_[16];
+  
+  VariableShapeOscillator audio_osc_;
   
   DISALLOW_COPY_AND_ASSIGN(SegmentGenerator);
 };

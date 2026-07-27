@@ -40,8 +40,6 @@ using namespace stmlib;
 
 static const int32_t kLongPressTime = 2000;
 
-#define ENABLE_LFO_MODE
-
 void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
   patch_ = patch;
   modulations_ = modulations;
@@ -55,6 +53,8 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
   ui_task_ = 0;
   mode_ = UI_MODE_NORMAL;
   
+  octave_quantizer_.Init(9, 0.01f, false);
+  
   LoadState();
   
   if (switches_.pressed_immediate(SWITCH_ROW_2)) {
@@ -65,23 +65,24 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
       state->color_blind = 1; 
     }
     settings_->SaveState();
+    ignore_release_[0] = ignore_release_[1] = true;
   }
   
   // Bind pots to parameters.
-  pots_[POTS_ADC_CHANNEL_FREQ_POT].Init(
-      &transposition_, NULL, 2.0f, -1.0f);
+  pots_[POTS_ADC_CHANNEL_FREQUENCY_POT].Init(
+      &transposition_, &fine_tune_, 0.005f, 2.0f, -1.0f);
   pots_[POTS_ADC_CHANNEL_HARMONICS_POT].Init(
-      &patch->harmonics, &octave_, 1.0f, 0.0f);
+      &patch->harmonics, &octave_, 0.005f, 1.0f, 0.0f);
   pots_[POTS_ADC_CHANNEL_TIMBRE_POT].Init(
-      &patch->timbre, &patch->lpg_colour, 1.0f, 0.0f);
+      &patch->timbre, &patch->lpg_colour, 0.01f, 1.0f, 0.0f);
   pots_[POTS_ADC_CHANNEL_MORPH_POT].Init(
-      &patch->morph, &patch->decay, 1.0f, 0.0f);
+      &patch->morph, &patch->decay, 0.01f, 1.0f, 0.0f);
   pots_[POTS_ADC_CHANNEL_TIMBRE_ATTENUVERTER].Init(
-      &patch->timbre_modulation_amount, NULL, 2.0f, -1.0f);
+      &patch->timbre_modulation_amount, NULL, 0.005f, 2.0f, -1.0f);
   pots_[POTS_ADC_CHANNEL_FM_ATTENUVERTER].Init(
-      &patch->frequency_modulation_amount, NULL, 2.0f, -1.0f);
+      &patch->frequency_modulation_amount, NULL, 0.005f, 2.0f, -1.0f);
   pots_[POTS_ADC_CHANNEL_MORPH_ATTENUVERTER].Init(
-      &patch->morph_modulation_amount, NULL, 2.0f, -1.0f);
+      &patch->morph_modulation_amount, NULL, 0.005f, 2.0f, -1.0f);
   
   // Keep track of the agreement between the random sequence sent to the 
   // switch and the value read by the ADC.
@@ -101,6 +102,7 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
   cv_c1_ = 0.0f;
   pitch_lp_ = 0.0f;
   pitch_lp_calibration_ = 0.0f;
+  data_transfer_progress_ = 0.0f;
 }
 
 void Ui::LoadState() {
@@ -109,6 +111,8 @@ void Ui::LoadState() {
   patch_->lpg_colour = static_cast<float>(state.lpg_colour) / 256.0f;
   patch_->decay = static_cast<float>(state.decay) / 256.0f;
   octave_ = static_cast<float>(state.octave) / 256.0f;
+  fine_tune_ = static_cast<float>(state.fine_tune) / 256.0f;
+  enable_alt_navigation_ = state.engine < 8 || state.enable_alt_navigation;
 }
 
 void Ui::SaveState() {
@@ -117,7 +121,19 @@ void Ui::SaveState() {
   state->lpg_colour = static_cast<uint8_t>(patch_->lpg_colour * 256.0f);
   state->decay = static_cast<uint8_t>(patch_->decay * 256.0f);
   state->octave = static_cast<uint8_t>(octave_ * 256.0f);
+  state->fine_tune = static_cast<uint8_t>(fine_tune_ * 256.0f);
+  state->enable_alt_navigation = enable_alt_navigation_;
   settings_->SaveState();
+}
+
+uint32_t Ui::BankToColor(int bank, bool color_blind, int pwm_counter) {
+  // pwm_counter is between 0 and 15
+  if (color_blind) {
+    return pwm_counter < (16 >> (2 * bank)) ? LED_COLOR_YELLOW : LED_COLOR_OFF;
+  } else {
+    uint32_t colors[3] = { LED_COLOR_YELLOW, LED_COLOR_GREEN, LED_COLOR_RED };
+    return colors[bank];
+  }
 }
 
 void Ui::UpdateLEDs() {
@@ -131,20 +147,23 @@ void Ui::UpdateLEDs() {
   switch (mode_) {
     case UI_MODE_NORMAL:
       {
-        LedColor red = settings_->state().color_blind == 1
-            ? ((pwm_counter & 7) ? LED_COLOR_OFF : LED_COLOR_YELLOW)
-            : LED_COLOR_RED;
-        LedColor green = settings_->state().color_blind == 1
-            ? LED_COLOR_YELLOW
-            : LED_COLOR_GREEN;
-        leds_.set(
-            active_engine_ & 7,
-            active_engine_ & 8 ? red : green);
-        if (pwm_counter < triangle) {
-          leds_.mask(
-              patch_->engine & 7,
-              patch_->engine & 8 ? red : green);
-        }
+        const bool color_blind = settings_->state().color_blind == 1;
+
+        // Selected with the buttons
+        const int selected_row = patch_->engine % 8;
+        const int selected_bank = patch_->engine / 8;
+        uint32_t selected_color = pwm_counter < triangle
+            ? BankToColor(selected_bank, color_blind, pwm_counter)
+            : LED_COLOR_OFF;
+
+        // With the CV modulation applied
+        const int active_row = active_engine_ % 8;
+        const int active_bank = active_engine_ / 8;
+        uint32_t active_color = BankToColor(
+            active_bank, color_blind, pwm_counter);
+
+        leds_.set(active_row, active_color);
+        leds_.mask(selected_row, selected_color);
       }
       break;
     
@@ -164,30 +183,51 @@ void Ui::UpdateLEDs() {
         }
       }
       break;
+      
+    case UI_MODE_DISPLAY_DATA_TRANSFER_PROGRESS:
+      {
+        if (data_transfer_progress_ == 1.0f) {
+          for (int i = 0; i < 8; ++i) {
+            leds_.set(
+                i, i == (triangle >> 1) ? LED_COLOR_OFF : LED_COLOR_GREEN);
+          }
+        } else if (data_transfer_progress_ < 0.0f) {
+          for (int i = 0; i < 8; ++i) {
+            leds_.set(
+                i, pwm_counter < triangle ? LED_COLOR_RED : LED_COLOR_OFF);
+          }
+        } else {
+          float value = data_transfer_progress_ - 0.001f;
+          for (int i = 0; i < 8; ++i) {
+            leds_.set(i, value * 128.0f > pwm_counter
+                ? LED_COLOR_GREEN : LED_COLOR_OFF);
+            value -= 0.125f;
+          }
+        }
+      }
+      if (pwm_counter_ > 3000) {
+        mode_ = UI_MODE_NORMAL;
+      }
+      break;
     
     case UI_MODE_DISPLAY_OCTAVE:
       {
-#ifdef ENABLE_LFO_MODE
-        int octave = static_cast<float>(octave_ * 10.0f);
+        int octave = static_cast<float>(octave_ * 11.0f);
         for (int i = 0; i < 8; ++i) {
           LedColor color = LED_COLOR_OFF;
           if (octave == 0) {
             color = i == (triangle >> 1) ? LED_COLOR_OFF : LED_COLOR_YELLOW;
-          } else if (octave == 9) {
+          } else if (octave == 10) {
             color = LED_COLOR_YELLOW;
+          } else if (octave == 9) {
+            color = (i & 1) == ((triangle >> 3) & 1)
+                ? LED_COLOR_OFF
+                : LED_COLOR_YELLOW;
           } else {
             color = (octave - 1) == i ? LED_COLOR_YELLOW : LED_COLOR_OFF;
           }
           leds_.set(7 - i, color);
         }
-#else
-        int octave = static_cast<float>(octave_ * 9.0f);
-        for (int i = 0; i < 8; ++i) {
-          leds_.set(
-              7 - i,
-              octave == i || (octave == 8) ? LED_COLOR_YELLOW : LED_COLOR_OFF);
-        }
-#endif  // ENABLE_LFO_MODE
       }
       break;
       
@@ -212,18 +252,38 @@ void Ui::UpdateLEDs() {
       break;
 
     case UI_MODE_TEST:
-    int color = (pwm_counter_ >> 10) % 3;
-      for (int i = 0; i < kNumLEDs; ++i) {
-        leds_.set(
-            i, pwm_counter > ((triangle + (i * 2)) & 15)
-                ? (color == 0
-                   ? LED_COLOR_GREEN
-                   : (color == 1 ? LED_COLOR_YELLOW : LED_COLOR_RED))
-                : LED_COLOR_OFF);
+      {
+        int color = (pwm_counter_ >> 10) % 3;
+        for (int i = 0; i < kNumLEDs; ++i) {
+          leds_.set(
+              i, pwm_counter > ((triangle + (i * 2)) & 15)
+                  ? (color == 0
+                     ? LED_COLOR_GREEN
+                      : (color == 1 ? LED_COLOR_YELLOW : LED_COLOR_RED))
+                  : LED_COLOR_OFF);
+        }
       }
       break;
+      
   }
   leds_.Write();
+}
+
+void Ui::Navigate(int button) {
+  ignore_release_[0] = ignore_release_[1] = true;
+  RealignPots();
+  if (enable_alt_navigation_) {
+    uint8_t increment = button == 0 ? 23 : 1;
+    patch_->engine = (patch_->engine + increment) % 24;
+  } else {
+    int new_bank = button + 1;
+    int current_bank = patch_->engine / 8;
+    int engine = patch_->engine % 8;
+    int cycle = new_bank == current_bank ? 1 : 0;
+    patch_->engine = new_bank * 8 + (engine + cycle) % 8;
+  }
+  
+  SaveState();
 }
 
 void Ui::ReadSwitches() {
@@ -249,6 +309,7 @@ void Ui::ReadSwitches() {
           pots_[POTS_ADC_CHANNEL_MORPH_POT].Lock();
         }
         if (switches_.just_pressed(Switch(1))) {
+          pots_[POTS_ADC_CHANNEL_FREQUENCY_POT].Lock();
           pots_[POTS_ADC_CHANNEL_HARMONICS_POT].Lock();
         }
         
@@ -257,7 +318,8 @@ void Ui::ReadSwitches() {
           mode_ = UI_MODE_DISPLAY_ALTERNATE_PARAMETERS;
         }
         
-        if (pots_[POTS_ADC_CHANNEL_HARMONICS_POT].editing_hidden_parameter()) {
+        if (pots_[POTS_ADC_CHANNEL_HARMONICS_POT].editing_hidden_parameter() ||
+            pots_[POTS_ADC_CHANNEL_FREQUENCY_POT].editing_hidden_parameter()) {
           mode_ = UI_MODE_DISPLAY_OCTAVE;
         }
         
@@ -280,24 +342,15 @@ void Ui::ReadSwitches() {
           mode_ = UI_MODE_DISPLAY_OCTAVE;
         }
         
-        if (switches_.released(Switch(0)) && !ignore_release_[0]) {
+        if ((switches_.released(Switch(0)) && !ignore_release_[0] && press_time_[1] > 0) || (switches_.released(Switch(1)) && !ignore_release_[1] && press_time_[0] > 0)) {
+          ignore_release_[0] = ignore_release_[1] = true;
           RealignPots();
-          if (patch_->engine >= 8) {
-            patch_->engine = patch_->engine & 7;
-          } else {
-            patch_->engine = (patch_->engine + 1) % 8;
-          }
+          enable_alt_navigation_ = !enable_alt_navigation_;
           SaveState();
-        }
-  
-        if (switches_.released(Switch(1)) && !ignore_release_[1]) {
-          RealignPots();
-          if (patch_->engine < 8) {
-            patch_->engine = (patch_->engine & 7) + 8;
-          } else {
-            patch_->engine = 8 + ((patch_->engine + 1) % 8);
-          }
-          SaveState();
+        } else if (switches_.released(Switch(0)) && !ignore_release_[0]) {
+          Navigate(0);
+        } else if (switches_.released(Switch(1)) && !ignore_release_[1]) {
+          Navigate(1);
         }
       }
       break;
@@ -309,10 +362,14 @@ void Ui::ReadSwitches() {
           pots_[POTS_ADC_CHANNEL_TIMBRE_POT].Unlock();
           pots_[POTS_ADC_CHANNEL_MORPH_POT].Unlock();
           pots_[POTS_ADC_CHANNEL_HARMONICS_POT].Unlock();
+          pots_[POTS_ADC_CHANNEL_FREQUENCY_POT].Unlock();
           press_time_[i] = 0;
           mode_ = UI_MODE_NORMAL;
         }
       }
+      break;
+    
+    case UI_MODE_DISPLAY_DATA_TRANSFER_PROGRESS:
       break;
     
     case UI_MODE_CALIBRATION_C1:
@@ -402,9 +459,10 @@ void Ui::Poll() {
   }
   
   ONE_POLE(pitch_lp_, modulations_->note, 0.7f);
+  modulations_->note = pitch_lp_;
+  
   ONE_POLE(
       pitch_lp_calibration_, cv_adc_.float_value(CV_ADC_CHANNEL_V_OCT), 0.1f);
-  modulations_->note = pitch_lp_;
   
   ui_task_ = (ui_task_ + 1) % 4;
   switch (ui_task_) {
@@ -428,25 +486,18 @@ void Ui::Poll() {
   cv_adc_.Convert();
   pots_adc_.Convert();
 
-#ifdef ENABLE_LFO_MODE
-  int octave = static_cast<int>(octave_ * 10.0f);
+  const int octave = static_cast<int>(octave_ * 11.0f);
   if (octave == 0) {
     patch_->note = -48.37f + transposition_ * 60.0f;
   } else if (octave == 9) {
+    patch_->note = 53.0f + fine_tune_ * 14.0f + 12.0f * static_cast<float>(
+        octave_quantizer_.Process(0.5f * transposition_ + 0.5f) - 4);
+  } else if (octave == 10) {
     patch_->note = 60.0f + transposition_ * 48.0f;
   } else {
     const float fine = transposition_ * 7.0f;
     patch_->note = fine + static_cast<float>(octave) * 12.0f;
   }
-#else
-  int octave = static_cast<int>(octave_ * 9.0f);
-  if (octave < 8) {
-    const float fine = transposition_ * 7.0f;
-    patch_->note = fine + static_cast<float>(octave) * 12.0f + 12.0f;
-  } else {
-    patch_->note = 60.0f + transposition_ * 48.0f;
-  }
-#endif  // ENABLE_LFO_MODE
 }
 
 void Ui::StartCalibration() {
