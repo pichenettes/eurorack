@@ -37,6 +37,7 @@
 #include "plaits/drivers/leds.h"
 #include "plaits/drivers/normalization_probe.h"
 #include "plaits/drivers/pots_adc.h"
+#include "plaits/drivers/ssd1306.h"
 #include "plaits/drivers/switches.h"
 #include "plaits/dsp/voice.h"
 #include "plaits/pot_controller.h"
@@ -77,8 +78,16 @@ class Ui {
   void Poll();
   
   void set_active_engine(int active_engine) {
-    active_engine_ = active_engine;
+    if (active_engine != active_engine_) {
+      active_engine_ = active_engine;
+      display_dirty_ = true;
+    }
   }
+
+  // Only safe to call from the main loop (never from the audio ISR):
+  // it performs a blocking I2C transfer and would stall audio
+  // rendering if called from within FillBuffer.
+  void RefreshDisplay();
   
   void DisplayDataTransferProgress(float progress) {
     mode_ = UI_MODE_DISPLAY_DATA_TRANSFER_PROGRESS;
@@ -122,6 +131,8 @@ class Ui {
   PotsAdc pots_adc_;
   Leds leds_;
   Switches switches_;
+  Ssd1306 display_;
+  volatile bool display_dirty_;
   
   int ui_task_;
   

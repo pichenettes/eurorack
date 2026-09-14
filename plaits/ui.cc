@@ -49,6 +49,8 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
   pots_adc_.Init();
   leds_.Init();
   switches_.Init();
+  display_.Init();
+  display_dirty_ = true;
 
   ui_task_ = 0;
   mode_ = UI_MODE_NORMAL;
@@ -267,6 +269,56 @@ void Ui::UpdateLEDs() {
       
   }
   leds_.Write();
+}
+
+
+namespace {
+// Short names for the 24 Plaits synthesis engines, in registration order
+// (see Voice::Init in dsp/voice.cc). Kept to <= 21 chars so they fit on a
+// single 128px-wide line of the 5x7 font (6px advance per glyph).
+const char* const kEngineNames[24] = {
+  "VIRTUAL ANALOG VCF",
+  "PHASE DISTORTION",
+  "6-OP FM 1",
+  "6-OP FM 2",
+  "6-OP FM 3",
+  "WAVE TERRAIN",
+  "STRING MACHINE",
+  "CHIPTUNE",
+  "VIRTUAL ANALOG",
+  "WAVESHAPING",
+  "FM",
+  "GRAIN",
+  "ADDITIVE",
+  "WAVETABLE",
+  "CHORD",
+  "SPEECH",
+  "SWARM",
+  "NOISE",
+  "PARTICLE NOISE",
+  "INHARM. STRING",
+  "MODAL RESONATOR",
+  "BASS DRUM",
+  "SNARE DRUM",
+  "HI-HAT",
+};
+}  // namespace
+
+void Ui::RefreshDisplay() {
+  if (!display_dirty_) {
+    return;
+  }
+  display_dirty_ = false;
+
+  int engine = active_engine_;
+  if (engine < 0) {
+    engine = 0;
+  } else if (engine > 23) {
+    engine = 23;
+  }
+  display_.Clear();
+  display_.Print(0, 1, kEngineNames[engine]);
+  display_.Flush();
 }
 
 void Ui::Navigate(int button) {
