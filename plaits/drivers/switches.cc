@@ -24,7 +24,8 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Driver for the 2 switches.
+// Driver for the 2 switches, on PB3 / PB4 -- moved off their original
+// PB6 / PB7 pins to free those for the OLED's hardware I2C1 peripheral.
 
 #include "plaits/drivers/switches.h"
 
@@ -40,8 +41,8 @@ struct SwitchDefinition {
 };
 
 const SwitchDefinition switch_definitions[] = {
-  { GPIOB, GPIO_Pin_7 },
-  { GPIOB, GPIO_Pin_6 },
+  { GPIOB, GPIO_Pin_4 },
+  { GPIOB, GPIO_Pin_3 },
 };
 
 void Switches::Init() {

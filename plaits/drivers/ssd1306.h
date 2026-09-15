@@ -24,11 +24,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Minimal driver for a 128x32 SSD1306 OLED over bit-banged I2C on the two
-// GPIOs freed by desoldering the LED column: GPIOA12 (was LEDS_SCK) as
-// SCL, GPIOF6 (was LEDS_SIN) as SDA. Bit-banged rather than the hardware
-// I2C1 peripheral because neither pin sits on I2C1's AF mux (PB6/PB7,
-// which are the two front-panel buttons on this board).
+// Minimal driver for a 128x32 SSD1306 OLED over I2C1 (PB6 = SCL, PB7 = SDA).
 // Blocking / polled, since it is only redrawn on preset change. Only draws
 // a single-line 5x7 bitmap-font string, which is all this UI mod needs.
 
@@ -71,11 +67,6 @@ class Ssd1306 {
   bool WriteDataBlock(const uint8_t* data, size_t size);
   bool WriteByte(uint8_t control, uint8_t data);
   bool WriteBytes(uint8_t control, const uint8_t* data, size_t size);
-
-  // Bit-bang primitives.
-  void I2cStart();
-  void I2cStop();
-  bool I2cWriteByte(uint8_t byte);
 
   uint8_t frame_buffer_[kSsd1306Width * kSsd1306PageCount];
   bool ready_;
