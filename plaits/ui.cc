@@ -47,7 +47,11 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
 
   cv_adc_.Init();
   pots_adc_.Init();
-  leds_.Init();
+  // leds_.Init() is intentionally not called: the LED column has been
+  // desoldered and its three GPIOs (GPIOF6/GPIOF7/GPIOA12, previously
+  // SPI1 MOSI/SS/SCK) are reused by display_ for bit-banged I2C. Calling
+  // Leds::Init() here would reclaim GPIOF6/GPIOA12 as SPI1 AF pins and
+  // fight the display driver for them.
   switches_.Init();
   display_.Init();
   display_dirty_ = true;
@@ -268,7 +272,10 @@ void Ui::UpdateLEDs() {
       break;
       
   }
-  leds_.Write();
+  // leds_.Write() is intentionally not called -- see the comment in
+  // Ui::Init(). The leds_.set()/mask() calls above are harmless no-ops:
+  // they only update Leds' private colour buffer, which is never sent
+  // anywhere now.
 }
 
 

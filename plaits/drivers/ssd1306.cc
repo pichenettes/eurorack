@@ -24,7 +24,11 @@
 //
 // -----------------------------------------------------------------------------
 //
-// SSD1306 128x32 OLED driver, I2C1 on PB6 (SCL) / PB7 (SDA).
+// SSD1306 128x32 OLED driver, bit-banged I2C on GPIOA12 (SCL, was
+// LEDS_SCK) / GPIOF6 (SDA, was LEDS_SIN) -- the two GPIOs freed by
+// desoldering the LED column. Neither pin sits on the I2C1 hardware
+// peripheral's AF mux (that's PB6/PB7, which are this board's two
+// front-panel buttons), so this bit-bangs instead of using I2C1.
 
 #include "plaits/drivers/ssd1306.h"
 
@@ -38,14 +42,28 @@ namespace {
 
 const uint8_t kSsd1306Address = 0x3C;  // 7-bit address.
 
-// I2C_TIMINGR value for 100kHz Standard-mode from an 8MHz I2C kernel clock
-// (HSI, the default I2CCLK source on F37x after reset). Taken from ST's
-// AN4235 timing tables for STM32F0/F3 I2C peripherals.
-const uint32_t kI2cTiming100kHzFrom8MHz = 0x10420F13;
+const uint16_t kSclPin = GPIO_Pin_12;  // GPIOA12, was LEDS_SCK.
+const uint16_t kSdaPin = GPIO_Pin_6;   // GPIOF6, was LEDS_SIN.
 
-// Number of loop iterations to wait for an I2C flag before giving up.
-// Generous, since this only ever runs a handful of times (preset changes).
-const uint32_t kI2cTimeout = 100000;
+// Both lines are configured once as open-drain outputs with pull-ups
+// (internal, plus the 4.7k externals already on the board): driving
+// "high" just releases the line for the pull-up to bring it up, so a
+// slave (or a clock-stretching peripheral, not that the SSD1306 does
+// that) can still pull it low. No need to flip direction between
+// output and input -- reading IDR works the same either way.
+inline void SclHigh() { GPIOA->BSRR = kSclPin; }
+inline void SclLow() { GPIOA->BRR = kSclPin; }
+inline void SdaHigh() { GPIOF->BSRR = kSdaPin; }
+inline void SdaLow() { GPIOF->BRR = kSdaPin; }
+inline bool SdaRead() { return (GPIOF->IDR & kSdaPin) != 0; }
+
+// Bit-bang half-period delay. Not calibrated to a specific frequency --
+// I2C tolerates an arbitrarily slow clock, so on a 72MHz core this loop
+// count gives a comfortably slow (sub-100kHz) bus without needing to be
+// precise about it.
+inline void Delay() {
+  for (volatile uint32_t i = 0; i < 200; ++i) { }
+}
 
 // A very small 5x7 font, columns are read bottom-to-top / LSB-first, one
 // byte per column, 5 columns per glyph -- the classic layout used by most
@@ -111,46 +129,58 @@ const uint8_t* FindGlyph(char c) {
 
 }  // namespace
 
+void Ssd1306::I2cStart() {
+  SdaHigh();
+  SclHigh();
+  Delay();
+  SdaLow();
+  Delay();
+  SclLow();
+  Delay();
+}
+
+void Ssd1306::I2cStop() {
+  SdaLow();
+  Delay();
+  SclHigh();
+  Delay();
+  SdaHigh();
+  Delay();
+}
+
+bool Ssd1306::I2cWriteByte(uint8_t byte) {
+  for (int i = 7; i >= 0; --i) {
+    if (byte & (1 << i)) {
+      SdaHigh();
+    } else {
+      SdaLow();
+    }
+    Delay();
+    SclHigh();
+    Delay();
+    SclLow();
+  }
+  // Release SDA and sample it during the 9th clock for the slave's ACK
+  // (it pulls SDA low to acknowledge).
+  SdaHigh();
+  Delay();
+  SclHigh();
+  Delay();
+  bool ack = !SdaRead();
+  SclLow();
+  Delay();
+  return ack;
+}
+
 bool Ssd1306::WriteBytes(uint8_t control, const uint8_t* data, size_t size) {
-  uint32_t timeout;
-
-  timeout = kI2cTimeout;
-  while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) == SET) {
-    if (!--timeout) return false;
+  I2cStart();
+  bool ok = I2cWriteByte(kSsd1306Address << 1);
+  ok = ok && I2cWriteByte(control);
+  for (size_t i = 0; ok && i < size; ++i) {
+    ok = I2cWriteByte(data[i]);
   }
-
-  I2C_TransferHandling(
-      I2C1, kSsd1306Address << 1, size + 1,
-      I2C_AutoEnd_Mode, I2C_Generate_Start_Write);
-
-  timeout = kI2cTimeout;
-  while (I2C_GetFlagStatus(I2C1, I2C_FLAG_TXIS) == RESET) {
-    if (I2C_GetFlagStatus(I2C1, I2C_FLAG_NACKF) == SET) {
-      I2C_ClearFlag(I2C1, I2C_FLAG_NACKF);
-      return false;
-    }
-    if (!--timeout) return false;
-  }
-  I2C_SendData(I2C1, control);
-
-  for (size_t i = 0; i < size; ++i) {
-    timeout = kI2cTimeout;
-    while (I2C_GetFlagStatus(I2C1, I2C_FLAG_TXIS) == RESET) {
-      if (I2C_GetFlagStatus(I2C1, I2C_FLAG_NACKF) == SET) {
-        I2C_ClearFlag(I2C1, I2C_FLAG_NACKF);
-        return false;
-      }
-      if (!--timeout) return false;
-    }
-    I2C_SendData(I2C1, data[i]);
-  }
-
-  timeout = kI2cTimeout;
-  while (I2C_GetFlagStatus(I2C1, I2C_FLAG_STOPF) == RESET) {
-    if (!--timeout) return false;
-  }
-  I2C_ClearFlag(I2C1, I2C_FLAG_STOPF);
-  return true;
+  I2cStop();
+  return ok;
 }
 
 bool Ssd1306::WriteByte(uint8_t control, uint8_t data) {
@@ -170,31 +200,26 @@ bool Ssd1306::WriteDataBlock(const uint8_t* data, size_t size) {
 }
 
 bool Ssd1306::Init() {
-  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
-  RCC_I2CCLKConfig(RCC_I2C1CLK_HSI);
+  // GPIOA is already clocked (pots/audio/etc all use it), but GPIOF was
+  // only clocked by Leds::Init(), which is no longer called -- enable it
+  // ourselves.
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOF, ENABLE);
 
   GPIO_InitTypeDef gpio_init;
-  gpio_init.GPIO_Mode = GPIO_Mode_AF;
+  gpio_init.GPIO_Mode = GPIO_Mode_OUT;
   gpio_init.GPIO_OType = GPIO_OType_OD;
-  gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+  gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
   gpio_init.GPIO_PuPd = GPIO_PuPd_UP;  // Internal pull-up in addition to
                                        // the 4.7k externals on the board.
-  gpio_init.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
-  GPIO_Init(GPIOB, &gpio_init);
-  GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_4);
-  GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_4);
 
-  I2C_InitTypeDef i2c_init;
-  i2c_init.I2C_Timing = kI2cTiming100kHzFrom8MHz;
-  i2c_init.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
-  i2c_init.I2C_DigitalFilter = 0x00;
-  i2c_init.I2C_Mode = I2C_Mode_I2C;
-  i2c_init.I2C_OwnAddress1 = 0x00;
-  i2c_init.I2C_Ack = I2C_Ack_Enable;
-  i2c_init.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-  I2C_Init(I2C1, &i2c_init);
-  I2C_Cmd(I2C1, ENABLE);
+  gpio_init.GPIO_Pin = kSclPin;
+  GPIO_Init(GPIOA, &gpio_init);
+  gpio_init.GPIO_Pin = kSdaPin;
+  GPIO_Init(GPIOF, &gpio_init);
+
+  SclHigh();
+  SdaHigh();
 
   Clear();
 
