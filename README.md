@@ -1,5 +1,6 @@
 Mutable Instruments' Eurorack Modules.
 
+* [Beads](http://mutable-instruments.net/modules/beads): Texture synthesizer.
 * [Blades](http://mutable-instruments.net/modules/blades): Dual multimode filter.
 * [Blinds](http://mutable-instruments.net/modules/blinds): Quad VC-polarizer.
 * [Braids](http://mutable-instruments.net/modules/braids): Macro-oscillator.
