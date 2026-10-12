@@ -168,5 +168,11 @@ void Init() {
 
 int main(void) {
   Init();
-  while (1) { }
+  // Runs at main-loop priority (below the audio ISR): draws the OLED
+  // preset name whenever set_active_engine() has flagged a change,
+  // since the display's blocking I2C writes must never happen inside
+  // FillBuffer / the audio interrupt.
+  while (1) {
+    ui.RefreshDisplay();
+  }
 }

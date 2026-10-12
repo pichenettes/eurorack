@@ -47,8 +47,14 @@ void Ui::Init(Patch* patch, Modulations* modulations, Settings* settings) {
 
   cv_adc_.Init();
   pots_adc_.Init();
-  leds_.Init();
+  // leds_.Init() is intentionally not called: the LED column has been
+  // desoldered and its three GPIOs (GPIOF6/GPIOF7/GPIOA12, previously
+  // SPI1 MOSI/SS/SCK) are reused by display_ for bit-banged I2C. Calling
+  // Leds::Init() here would reclaim GPIOF6/GPIOA12 as SPI1 AF pins and
+  // fight the display driver for them.
   switches_.Init();
+  display_.Init();
+  display_dirty_ = true;
 
   ui_task_ = 0;
   mode_ = UI_MODE_NORMAL;
@@ -266,7 +272,60 @@ void Ui::UpdateLEDs() {
       break;
       
   }
-  leds_.Write();
+  // leds_.Write() is intentionally not called -- see the comment in
+  // Ui::Init(). The leds_.set()/mask() calls above are harmless no-ops:
+  // they only update Leds' private colour buffer, which is never sent
+  // anywhere now.
+}
+
+
+namespace {
+// Short names for the 24 Plaits synthesis engines, in registration order
+// (see Voice::Init in dsp/voice.cc). Kept to <= 21 chars so they fit on a
+// single 128px-wide line of the 5x7 font (6px advance per glyph).
+const char* const kEngineNames[24] = {
+  "VIRTUAL ANALOG VCF",
+  "PHASE DISTORTION",
+  "6-OP FM 1",
+  "6-OP FM 2",
+  "6-OP FM 3",
+  "WAVE TERRAIN",
+  "STRING MACHINE",
+  "CHIPTUNE",
+  "VIRTUAL ANALOG",
+  "WAVESHAPING",
+  "FM",
+  "GRAIN",
+  "ADDITIVE",
+  "WAVETABLE",
+  "CHORD",
+  "SPEECH",
+  "SWARM",
+  "NOISE",
+  "PARTICLE NOISE",
+  "INHARM. STRING",
+  "MODAL RESONATOR",
+  "BASS DRUM",
+  "SNARE DRUM",
+  "HI-HAT",
+};
+}  // namespace
+
+void Ui::RefreshDisplay() {
+  if (!display_dirty_) {
+    return;
+  }
+  display_dirty_ = false;
+
+  int engine = active_engine_;
+  if (engine < 0) {
+    engine = 0;
+  } else if (engine > 23) {
+    engine = 23;
+  }
+  display_.Clear();
+  display_.Print(0, 1, kEngineNames[engine]);
+  display_.Flush();
 }
 
 void Ui::Navigate(int button) {
