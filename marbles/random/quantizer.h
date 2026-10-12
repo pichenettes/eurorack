@@ -33,7 +33,6 @@
 #include "stmlib/dsp/hysteresis_quantizer.h"
 
 #include "marbles/random/distributions.h"
-#include "marbles/random/quantizer.h"
 
 namespace marbles {
 
