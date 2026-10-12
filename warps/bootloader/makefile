@@ -45,3 +45,5 @@ RESOURCES      = warps/resources
 TOOLCHAIN_PATH ?= /usr/local/arm-4.8.3/
 
 include stmlib/makefile.inc
+
+CCFLAGS := $(CCFLAGS) -Os
