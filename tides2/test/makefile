@@ -1,4 +1,4 @@
-PACKAGES       = tides2/test stmlib/utils tides2 stmlib/dsp
+PACKAGES       = tides2/test stmlib/utils tides2 stmlib/dsp tides2/ramp
 
 VPATH          = $(PACKAGES)
 
@@ -7,6 +7,7 @@ BUILD_ROOT     = build/
 BUILD_DIR      = $(BUILD_ROOT)$(TARGET)/
 CC_FILES       = tides_test.cc \
 		poly_slope_generator.cc \
+		ramp_extractor.cc \
 		resources.cc \
 		units.cc
 OBJ_FILES      = $(CC_FILES:.cc=.o)

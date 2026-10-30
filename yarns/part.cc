@@ -210,7 +210,8 @@ bool Part::PitchBend(uint8_t channel, uint16_t pitch_bend) {
 bool Part::Aftertouch(uint8_t channel, uint8_t note, uint8_t velocity) {
   if (voicing_.allocation_mode != VOICE_ALLOCATION_MODE_MONO) {
     uint8_t voice_index = \
-        voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY ? \
+        (voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY || \
+         voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_STEAL_MOST_RECENT) ? \
         poly_allocator_.Find(note) : \
         FindVoiceForNote(note);
     if (voice_index < poly_allocator_.size()) {
@@ -479,18 +480,21 @@ void Part::DispatchSortedNotes(bool unison) {
   uint8_t n = mono_allocator_.size();
   for (uint8_t i = 0; i < num_voices_; ++i) {
     uint8_t index = 0xff;
-    if (unison) {
+    if (unison && n < num_voices_) {
       index = n ? (i * n / num_voices_) : 0xff;
     } else {
       index = i < mono_allocator_.size() ? i : 0xff;
     }
     if (index != 0xff) {
+      const NoteEntry& note_entry = mono_allocator_.note_by_priority(
+          static_cast<NoteStackFlags>(voicing_.allocation_priority),
+          index);
       voice_[i]->NoteOn(
-          Tune(mono_allocator_.sorted_note(index).note),
-          mono_allocator_.sorted_note(index).velocity,
+          Tune(note_entry.note),
+          note_entry.velocity,
           voicing_.portamento,
           !voice_[i]->gate_on());
-      active_note_[i] = mono_allocator_.sorted_note(index).note;
+      active_note_[i] = note_entry.note;
     } else {
       voice_[i]->NoteOff();
       active_note_[i] = VOICE_ALLOCATION_NOT_FOUND;
@@ -627,7 +631,8 @@ void Part::InternalNoteOff(uint8_t note) {
     }
   } else {
     uint8_t voice_index = \
-        voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY ? \
+        (voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY ||
+         voicing_.allocation_mode == VOICE_ALLOCATION_MODE_POLY_STEAL_MOST_RECENT) ? \
         poly_allocator_.NoteOff(note) : \
         FindVoiceForNote(note);
     if (voice_index < num_voices_) {

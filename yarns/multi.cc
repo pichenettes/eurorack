@@ -65,7 +65,7 @@ void Multi::Init(bool reset_calibration) {
   recording_ = false;
   
   // Put the multi in a usable state. Even if these settings will later be
-  // overriden with some data retrieved from Flash (presets).
+  // overridden with some data retrieved from Flash (presets).
   settings_.clock_tempo = 120;
   settings_.clock_swing = 0;
   settings_.clock_input_division = 1;

@@ -60,6 +60,7 @@ void XYGenerator::Process(
     ClockSource clock_source,
     const GroupSettings& x_settings,
     const GroupSettings& y_settings,
+    bool* reset,
     const GateFlags* external_clock,
     const Ramps& ramps,
     float* output,
@@ -83,7 +84,8 @@ void XYGenerator::Process(
     case CLOCK_SOURCE_EXTERNAL:
       {
         Ratio r = { 1, 1 };
-        ramp_extractor_.Process(r, false, external_clock, ramps.slave[0], size);
+        ramp_extractor_.Process(
+            r, false, reset, external_clock, ramps.slave[0], size);
         if (external_clock_stabilization_counter_) {
           fill(&ramps.slave[0][0], &ramps.slave[0][size], 0.0f);
         }
@@ -116,6 +118,10 @@ void XYGenerator::Process(
       channel_ramp[1] = ramps.master;
       channel_ramp[2] = ramps.slave[1];
       break;
+  }
+  
+  if (*reset) {
+    ramp_divider_.Reset();
   }
   
   ramp_divider_.Process(y_settings.ratio, channel_ramp[1], ramps.external, size);
@@ -163,6 +169,9 @@ void XYGenerator::Process(
     sequence->Record();
     sequence->set_length(settings.length);
     sequence->set_deja_vu(settings.deja_vu);
+    if (*reset) {
+      sequence->Reset();
+    }
     
     bool use_shifted_sequences = false;
     

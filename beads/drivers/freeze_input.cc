@@ -1,6 +1,8 @@
-// Copyright 2017 Emilie Gillet.
+// Copyright 2018 Fred's Lab and Mutable Instruments.
 //
 // Author: Emilie Gillet (emilie.o.gillet@gmail.com)
+// Author: Frédéric Meslin (fred@fredslab.net)
+// Author: Oliver Rockstedt (info@sourcebox.de)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,20 +26,24 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Clock division ratio
+// Driver for the FREEZE input.
 
-#ifndef TIDES_RATIO_H_
-#define TIDES_RATIO_H_
+#include "beads/drivers/freeze_input.h"
 
-#include "stmlib/stmlib.h"
+namespace beads {
 
-namespace tides2 {
+bool FreezeInput::Init() {
+  GPIO_InitTypeDef gpio_init;
+  gpio_init.Pin = FREEZE_GPIO_PIN;
+  gpio_init.Mode = GPIO_MODE_INPUT;
+  gpio_init.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(FREEZE_GPIO_PORT, &gpio_init);
 
-struct Ratio {
-  float ratio;
-  int q;
-};
+  return true;
+}
 
-}  // namespace tides2
+bool FreezeInput::Read() {
+  return !HAL_GPIO_ReadPin(FREEZE_GPIO_PORT, FREEZE_GPIO_PIN);
+}
 
-#endif  // TIDES_RATIO_H_
+}  // namespace beads

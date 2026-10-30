@@ -59,6 +59,7 @@ class PotController {
   inline void Init(
       float* main_parameter,
       float* hidden_parameter,
+      float lp_coefficient,
       float scale,
       float offset) {
     state_ = POT_STATE_TRACKING;
@@ -66,6 +67,7 @@ class PotController {
 
     main_parameter_ = main_parameter;
     hidden_parameter_ = hidden_parameter;
+    lp_coefficient_ = lp_coefficient;
 
     value_ = 0.0f;
     stored_value_ = 0.0f;
@@ -101,7 +103,7 @@ class PotController {
   }
   
   inline void ProcessControlRate(float adc_value) {
-    ONE_POLE(value_, adc_value, 0.01f);
+    ONE_POLE(value_, adc_value, lp_coefficient_);
     if (state_ == POT_STATE_TRACKING) {
       *main_parameter_ = value_ * scale_ + offset_;
     }
@@ -157,6 +159,7 @@ class PotController {
   
   float* main_parameter_;
   float* hidden_parameter_;
+  float lp_coefficient_;
   float value_;
   float stored_value_;
   float previous_value_;

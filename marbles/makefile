@@ -32,7 +32,7 @@ FAMILY         = f4xx
 APPLICATION_LARGE = TRUE
 BOOTLOADER        = marbles_bootloader
 
-# Prefered upload command
+# Preferred upload command
 UPLOAD_COMMAND  = upload_combo_jtag_erase_first
 
 # Packages to build

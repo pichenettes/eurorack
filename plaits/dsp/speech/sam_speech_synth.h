@@ -79,8 +79,8 @@ class SAMSpeechSynth {
   size_t consonant_samples_;
   float consonant_index_;
   
-  static Phoneme phonemes_[kSAMNumPhonemes];
-  static float formant_amplitude_lut[16];
+  static const Phoneme phonemes_[kSAMNumPhonemes + 1];
+  static const float formant_amplitude_lut[16];
   
   DISALLOW_COPY_AND_ASSIGN(SAMSpeechSynth);
 };

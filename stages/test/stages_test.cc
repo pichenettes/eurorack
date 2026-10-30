@@ -183,6 +183,16 @@ void TestDelayLine() {
   }
 }
 
+void TestAudioOscillator() {
+  SegmentGeneratorTest t;
+
+  segment::Configuration configuration = { segment::TYPE_ALT, true };
+
+  t.generator()->Configure(false, &configuration, 1);
+  t.set_segment_parameters(0, 0.5f, 0.7f);
+  t.Render("stages_audio_oscillator.wav", ::kSampleRate);
+}
+
 int main(void) {
   TestADSR();
   TestTwoStepSequence();
@@ -196,4 +206,5 @@ int main(void) {
   TestDelay();
   TestZero();
   TestClockedSampleAndHold();
+  TestAudioOscillator();
 }

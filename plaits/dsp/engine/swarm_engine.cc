@@ -36,14 +36,16 @@ using namespace std;
 using namespace stmlib;
 
 void SwarmEngine::Init(BufferAllocator* allocator) {
+  swarm_voice_ = allocator->Allocate<SwarmVoice>(kNumSwarmVoices);
+}
+
+void SwarmEngine::Reset() {
   const float n = (kNumSwarmVoices - 1) / 2;
   for (int i = 0; i < kNumSwarmVoices; ++i) {
     float rank = (static_cast<float>(i) - n) / n;
     swarm_voice_[i].Init(rank);
   }
 }
-
-void SwarmEngine::Reset() { }
 
 void SwarmEngine::Render(
     const EngineParameters& parameters,

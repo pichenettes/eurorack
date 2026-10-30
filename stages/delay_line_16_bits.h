@@ -65,7 +65,7 @@ class DelayLine16Bits {
     }
   }
   
-  inline const float Read(float delay) const {
+  inline float Read(float delay) const {
     MAKE_INTEGRAL_FRACTIONAL(delay)
     size_t read_ptr = (write_ptr_ + delay_integral) % max_delay;
     float a = static_cast<float>(line_[read_ptr]) / 32768.0f;

@@ -64,8 +64,14 @@ class DebugPin {
   DISALLOW_COPY_AND_ASSIGN(DebugPin);
 };
 
-#define TIC DebugPin::High();
-#define TOC DebugPin::Low();
+class ScopedDebugPinToggler {
+ public:
+  ScopedDebugPinToggler() { DebugPin::High(); }
+  ~ScopedDebugPinToggler() { DebugPin::Low(); }
+   
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ScopedDebugPinToggler);
+};
 
 }  // namespace tides2
 

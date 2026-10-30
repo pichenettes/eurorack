@@ -165,8 +165,9 @@ class RandomSequence {
     
     const float p_sqrt = 2.0f * deja_vu_ - 1.0f;
     const float p = p_sqrt * p_sqrt;
+    const bool mutate = random_stream_->GetFloat() < p;
 
-    if (random_stream_->GetFloat() <= p && deja_vu_ <= 0.5f) {
+    if (mutate && deja_vu_ <= 0.5f) {
       // Generate a new value and put it at the end of the loop.
       redo_write_ptr_ = &loop_[loop_write_head_];
       *redo_write_ptr_ = deterministic
@@ -178,7 +179,7 @@ class RandomSequence {
       // Do not generate a new value, just replay the loop or jump randomly.
       // through it.
       redo_write_ptr_ = NULL;
-      if (random_stream_->GetFloat() <= p) {
+      if (mutate /* implied: deja_vu_ > 0.5f */) {
         step_ = static_cast<int>(
             random_stream_->GetFloat() * static_cast<float>(length_));
       } else {
@@ -232,7 +233,11 @@ class RandomSequence {
   inline int length() const {
     return length_;
   }
-
+  
+  void Reset() {
+    step_ = length_ - 1;
+  }
+  
  private:
   RandomStream* random_stream_;
   float loop_[kDejaVuBufferSize];

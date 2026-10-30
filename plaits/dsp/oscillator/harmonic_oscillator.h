@@ -34,7 +34,7 @@
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/parameter_interpolator.h"
 
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
 
 namespace plaits {
 
@@ -78,16 +78,15 @@ class HarmonicOscillator {
       if (phase_ >= 1.0f) {
         phase_ -= 1.0f;
       }
-      const float two_x = 2.0f * stmlib::Interpolate(lut_sine, phase_, 1024.0f);
+      const float two_x = 2.0f * SineNoWrap(phase_);
       float previous, current;
       if (first_harmonic_index == 1) {
         previous = 1.0f;
         current = two_x * 0.5f;
       } else {
         const float k = first_harmonic_index;
-        previous = stmlib::InterpolateWrap(
-            lut_sine, phase_ * (k - 1.0f) + 0.25f, 1024.0f);
-        current = stmlib::InterpolateWrap(lut_sine, phase_ * k, 1024.0f);
+        previous = Sine(phase_ * (k - 1.0f) + 0.25f);
+        current = Sine(phase_ * k);
       }
       
       float sum = 0.0f;

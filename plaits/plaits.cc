@@ -32,8 +32,11 @@
 #include "plaits/dsp/voice.h"
 #include "plaits/settings.h"
 #include "plaits/ui.h"
+#include "plaits/user_data.h"
+#include "plaits/user_data_receiver.h"
 
 using namespace plaits;
+using namespace stm_audio_bootloader;
 using namespace stmlib;
 
 // #define PROFILE_INTERRUPT 1
@@ -46,6 +49,8 @@ Modulations modulations;
 Patch patch;
 Settings settings;
 Ui ui;
+UserData user_data;
+UserDataReceiver user_data_receiver;
 Voice voice;
 
 char shared_buffer[16384];
@@ -94,6 +99,26 @@ void FillBuffer(AudioDac::Frame* output, size_t size) {
       ++output;
     }
   } else {
+    if (modulations.timbre_patched) {
+      PacketDecoderState state = \
+          user_data_receiver.Process(modulations.timbre);
+      if (state == PACKET_DECODER_STATE_END_OF_TRANSMISSION) {
+        if (user_data_receiver.progress() == 1.0f) {
+          int slot = voice.active_engine();
+          bool success = user_data.Save(user_data_receiver.rx_buffer(), slot);
+          if (success) {
+            voice.ReloadUserData();
+          } else {
+            ui.DisplayDataTransferProgress(-1.0f);
+          }
+        }
+        user_data_receiver.Reset();
+      } else if (state == PACKET_DECODER_STATE_OK) {
+        ui.DisplayDataTransferProgress(user_data_receiver.progress());
+      } else if (state == PACKET_DECODER_STATE_ERROR_CRC) {
+        ui.DisplayDataTransferProgress(-1.0f);
+      }
+    }
     voice.Render(patch, modulations, (Voice::Frame*)(output), size);
     ui.set_active_engine(voice.active_engine());
   }
@@ -116,19 +141,22 @@ void Init() {
   
   BufferAllocator allocator(shared_buffer, 16384);
   voice.Init(&allocator);
+  user_data_receiver.Init(
+      (uint8_t*)(&shared_buffer[16384 - UserData::SIZE]),
+      UserData::SIZE);
   
   volatile size_t counter = 1000000;
   while (counter--);
   
-  bool freshly_baked = !settings.Init();
-
-  if (freshly_baked) {
 #ifdef PROFILE_INTERRUPT
-    DebugPin::Init();
+  settings.Init();
+  DebugPin::Init();
 #else
+  bool freshly_baked = !settings.Init();
+  if (freshly_baked) {
     debug_port.Init();
-#endif  // PROFILE_INTERRUPT
   }
+#endif  // PROFILE_INTERRUPT
 
   ui.Init(&patch, &modulations, &settings);
   

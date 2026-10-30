@@ -44,7 +44,7 @@ void ParticleEngine::Init(BufferAllocator* allocator) {
 }
 
 void ParticleEngine::Reset() {
-  diffuser_.Clear();
+  diffuser_.Reset();
 }
 
 void ParticleEngine::Render(

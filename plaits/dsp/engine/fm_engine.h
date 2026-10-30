@@ -40,6 +40,7 @@ class FMEngine : public Engine {
   
   virtual void Init(stmlib::BufferAllocator* allocator);
   virtual void Reset();
+  virtual void LoadUserData(const uint8_t* user_data) { }
   virtual void Render(const EngineParameters& parameters,
       float* out,
       float* aux,
@@ -47,8 +48,6 @@ class FMEngine : public Engine {
       bool* already_enveloped);
   
  private:
-  inline float SinePM(uint32_t phase, float fm) const;
-  
   uint32_t carrier_phase_;
   uint32_t modulator_phase_;
   uint32_t sub_phase_;

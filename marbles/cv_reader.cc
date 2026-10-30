@@ -90,12 +90,27 @@ void CvReader::Copy(uint16_t* output) {
   adc_.Convert();
 }
 
-void CvReader::Process(const uint16_t* raw_values, float* output) {
+void CvReader::Process(
+    const bool treat_cv_as_reset_inputs,
+    const uint16_t* raw_values,
+    float* output,
+    stmlib::GateFlags* gate_flags) {
+  if (treat_cv_as_reset_inputs) {
+    // Set virtual attenuverter to 12 o'clock to prevent the CV value
+    // from being added to the pot.
+    attenuverter_[ADC_CHANNEL_T_JITTER] = 0.5f;
+    attenuverter_[ADC_CHANNEL_X_STEPS] = 0.5f;
+  } else {
+    attenuverter_[ADC_CHANNEL_T_JITTER] = 1.01f;
+    attenuverter_[ADC_CHANNEL_X_STEPS] = 1.01f;
+  }
+  
   for (int i = 0; i < ADC_CHANNEL_LAST; ++i) {
     output[i] = channel_[i].Process(
         static_cast<float>(raw_values[ADC_GROUP_POT + i]) / 65536.0f,
         static_cast<float>(raw_values[ADC_GROUP_CV + i]) / 65536.0f,
         attenuverter_[i]);
+    gate_flags[i] = channel_[i].gate_flags();
   }
 }
 

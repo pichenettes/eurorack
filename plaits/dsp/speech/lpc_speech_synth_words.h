@@ -41,7 +41,7 @@ extern const uint8_t bank_2[1552];
 extern const uint8_t bank_3[2524];
 extern const uint8_t bank_4[4802];
 
-extern LPCSpeechSynthWordBankData word_banks_[LPC_SPEECH_SYNTH_NUM_WORD_BANKS];
+extern const LPCSpeechSynthWordBankData word_banks_[LPC_SPEECH_SYNTH_NUM_WORD_BANKS];
 
 }  // namespace plaits
 

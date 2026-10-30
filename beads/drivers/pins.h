@@ -1,0 +1,119 @@
+// Copyright 2018 Emilie Gillet.
+//
+// Author: Emilie Gillet (emilie.o.gillet@gmail.com)
+// Author: Frédéric Meslin (fred@fredslab.net)
+// Author: Oliver Rockstedt (info@sourcebox.de)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// See http://creativecommons.org/licenses/MIT/ for more information.
+
+#ifndef BEADS_DRIVERS_GPIO_PINS_H_
+#define BEADS_DRIVERS_GPIO_PINS_H_
+
+#include <stm32h7xx_hal.h>
+
+#define CODEC_MCK_GPIO_PIN GPIO_PIN_2
+#define CODEC_MCK_GPIO_PORT GPIOE
+#define CODEC_MISO_GPIO_PIN GPIO_PIN_3
+#define CODEC_MISO_GPIO_PORT GPIOE
+#define CODEC_WS_GPIO_PIN GPIO_PIN_4
+#define CODEC_WS_GPIO_PORT GPIOE
+#define CODEC_SCK_GPIO_PIN GPIO_PIN_5
+#define CODEC_SCK_GPIO_PORT GPIOE
+#define CODEC_MOSI_GPIO_PIN GPIO_PIN_6
+#define CODEC_MOSI_GPIO_PORT GPIOE
+#define CODEC_RESET_GPIO_PIN GPIO_PIN_13
+#define CODEC_RESET_GPIO_PORT GPIOC
+#define OSC_IN_GPIO_PIN GPIO_PIN_0
+#define OSC_IN_GPIO_PORT GPIOH
+#define OSC_OUT_GPIO_PIN GPIO_PIN_1
+#define OSC_OUT_GPIO_PORT GPIOH
+#define SIZE_CV_GPIO_PIN GPIO_PIN_0
+#define SIZE_CV_GPIO_PORT GPIOC
+#define SHAPE_CV_GPIO_PIN GPIO_PIN_1
+#define SHAPE_CV_GPIO_PORT GPIOC
+#define POT_MUX_GPIO_PIN GPIO_PIN_3
+#define POT_MUX_GPIO_PORT GPIOC
+#define ASSIGN_CV_GPIO_PIN GPIO_PIN_0
+#define ASSIGN_CV_GPIO_PORT GPIOA
+#define DENSITY_CV_GPIO_PIN GPIO_PIN_1
+#define DENSITY_CV_GPIO_PORT GPIOA
+#define PITCH_CV_GPIO_PIN GPIO_PIN_2
+#define PITCH_CV_GPIO_PORT GPIOA
+#define TIME_CV_GPIO_PIN GPIO_PIN_3
+#define TIME_CV_GPIO_PORT GPIOA
+#define TIME_POT_GPIO_PIN GPIO_PIN_4
+#define TIME_POT_GPIO_PORT GPIOA
+#define DENSITY_POT_GPIO_PIN GPIO_PIN_5
+#define DENSITY_POT_GPIO_PORT GPIOA
+#define PITCH_POT_GPIO_PIN GPIO_PIN_6
+#define PITCH_POT_GPIO_PORT GPIOA
+#define SIZE_POT_GPIO_PIN GPIO_PIN_7
+#define SIZE_POT_GPIO_PORT GPIOA
+#define SHAPE_POT_GPIO_PIN GPIO_PIN_4
+#define SHAPE_POT_GPIO_PORT GPIOC
+#define ASSIGN_SW_GPIO_PIN GPIO_PIN_7
+#define ASSIGN_SW_GPIO_PORT GPIOE
+#define MEDIA_SW_GPIO_PIN GPIO_PIN_8
+#define MEDIA_SW_GPIO_PORT GPIOE
+#define MEDIA_LED_R_GPIO_PIN GPIO_PIN_9
+#define MEDIA_LED_R_GPIO_PORT GPIOE
+#define MEDIA_LED_G_GPIO_PIN GPIO_PIN_11
+#define MEDIA_LED_G_GPIO_PORT GPIOE
+#define MEDIA_LED_B_GPIO_PIN GPIO_PIN_13
+#define MEDIA_LED_B_GPIO_PORT GPIOE
+#define NORMALIZATION_PROBE_GPIO_PIN GPIO_PIN_15
+#define NORMALIZATION_PROBE_GPIO_PORT GPIOE
+#define SEED_GPIO_PIN GPIO_PIN_10
+#define SEED_GPIO_PORT GPIOB
+#define FREEZE_GPIO_PIN GPIO_PIN_11
+#define FREEZE_GPIO_PORT GPIOB
+#define POT_MUX_S0_GPIO_PIN GPIO_PIN_8
+#define POT_MUX_S0_GPIO_PORT GPIOD
+#define POT_MUX_S1_GPIO_PIN GPIO_PIN_9
+#define POT_MUX_S1_GPIO_PORT GPIOD
+#define POT_MUX_S2_GPIO_PIN GPIO_PIN_10
+#define POT_MUX_S2_GPIO_PORT GPIOD
+#define ASSIGN_LED_1_GPIO_PIN GPIO_PIN_13
+#define ASSIGN_LED_1_GPIO_PORT GPIOD
+#define ASSIGN_LED_2_GPIO_PIN GPIO_PIN_14
+#define ASSIGN_LED_2_GPIO_PORT GPIOD
+#define ASSIGN_LED_3_GPIO_PIN GPIO_PIN_15
+#define ASSIGN_LED_3_GPIO_PORT GPIOD
+#define FREEZE_LED_GPIO_PIN GPIO_PIN_6
+#define FREEZE_LED_GPIO_PORT GPIOC
+#define SEED_LED_GPIO_PIN GPIO_PIN_7
+#define SEED_LED_GPIO_PORT GPIOC
+#define INPUT_LED_GPIO_PIN GPIO_PIN_8
+#define INPUT_LED_GPIO_PORT GPIOC
+#define TX_GPIO_PIN GPIO_PIN_9
+#define TX_GPIO_PORT GPIOA
+#define RX_GPIO_PIN GPIO_PIN_10
+#define RX_GPIO_PORT GPIOA
+#define FREEZE_SW_GPIO_PIN GPIO_PIN_11
+#define FREEZE_SW_GPIO_PORT GPIOA
+#define SEED_SW_GPIO_PIN GPIO_PIN_12
+#define SEED_SW_GPIO_PORT GPIOA
+#define SWDIO_GPIO_PIN GPIO_PIN_13
+#define SWDIO_GPIO_PORT GPIOA
+#define SWCLK_GPIO_PIN GPIO_PIN_14
+#define SWCLK_GPIO_PORT GPIOA
+
+#endif  // BEADS_DRIVERS_GPIO_PINS_H_

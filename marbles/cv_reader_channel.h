@@ -30,7 +30,9 @@
 #define MARBLES_CV_READER_CHANNEL_H_
 
 #include "stmlib/stmlib.h"
+
 #include "stmlib/dsp/dsp.h"
+#include "stmlib/utils/gate_flags.h"
 
 namespace marbles {
 
@@ -82,7 +84,7 @@ class CvReaderChannel {
     float max;
     float hysteresis;
   };
-
+  
   void Init(float* cv_scale, float* cv_offset, const Settings& settings) {
     cv_scale_ = cv_scale;
     cv_offset_ = cv_offset;
@@ -99,6 +101,8 @@ class CvReaderChannel {
     stored_pot_value_ = 0.0f;
     attenuverter_value_ = 0.0f;
     previous_pot_value_ = 0.0f;
+    
+    gate_flags_ = stmlib::GATE_FLAG_LOW;
 
     pot_state_ = POT_STATE_TRACKING;
     
@@ -112,6 +116,10 @@ class CvReaderChannel {
   inline float Process(float pot, float cv, float attenuverter) {
     cv *= *cv_scale_;
     cv += *cv_offset_;
+    
+    gate_flags_ = stmlib::ExtractGateFlags(
+        gate_flags_,
+        cv > ((gate_flags_ & stmlib::GATE_FLAG_HIGH) ? 0.1f : 0.2f));
 
     attenuverter -= 0.5f;
     attenuverter = attenuverter * attenuverter * attenuverter * 8.0f;
@@ -160,6 +168,7 @@ class CvReaderChannel {
     return value;
   }
 
+  inline stmlib::GateFlags gate_flags() const { return gate_flags_; }
   inline float cv() const { return cv_value_; }
   inline float scaled_raw_cv() const { return raw_cv_value_; }
   inline float unscaled_cv_lp() const {
@@ -193,6 +202,9 @@ class CvReaderChannel {
   float attenuverter_lp_;
   float min_;
   float max_;
+  
+  // Convert each CV input to a gate, for firmware hacking purposes!
+  stmlib::GateFlags gate_flags_;
 
   PotState pot_state_;
 

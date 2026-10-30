@@ -36,7 +36,7 @@
 
 #include <algorithm>
 
-#include "tides2/ratio.h"
+#include "tides2/ramp/ratio.h"
 
 namespace tides2 {
   

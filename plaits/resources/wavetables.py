@@ -32,7 +32,7 @@ import numpy
 import pylab
 
 
-WAVETABLE_SIZE = 256
+WAVETABLE_SIZE = 128
 BRAIDS_WAVES = numpy.fromstring(
   file('plaits/resources/waves.bin', 'rb').read(), numpy.uint8)
 
@@ -210,21 +210,15 @@ def make_family(fn, arguments):
   return map(fn, arguments)
 
 
-def make_braids_family(indices, fix=False):
+def make_braids_family(indices, fix=True):
   family = []
   for i in indices:
     start = i * 129
     end = start + 128
     s = BRAIDS_WAVES[start:end] - 128.0
+    sf = numpy.fft.rfft(s)
     if fix:
-      sf = numpy.fft.rfft(s)
-    else:
-      si = numpy.zeros((WAVETABLE_SIZE, ))
-      si = s
-      # si[::2] = s
-      # si[1::2] = s  # Ewwwwww
-      sf = numpy.fft.rfft(si)
-    sf = numpy.abs(sf) * numpy.exp(-1j * numpy.pi / 2.0)
+      sf = numpy.abs(sf) * numpy.exp(-1j * numpy.pi / 2.0)
     interpolated = numpy.fft.irfft(sf, WAVETABLE_SIZE)
     family += [interpolated]
   return family
@@ -272,7 +266,6 @@ bank_2 += make_family(sine_power, xrange(8))
 bank_3 = []
 bank_3 += make_braids_family([0, 2, 4, 6, 8, 10, 12, 14])  # Male
 bank_3 += make_braids_family([32, 34, 36, 38, 40, 42, 44, 46])  # Choir
-# bank_3 += make_braids_family([64, 66, 68, 70, 72, 74, 76, 62])  # Tampura
 bank_3 += make_braids_family([176, 189, 191, 193, 195, 197, 199, 201])  # Digi
 bank_3 += make_braids_family([203, 204, 205, 206, 207, 208, 209, 211])  # Drone
 bank_3 += make_braids_family([220, 222, 224, 226, 228, 230, 232, 234])  # Metal
@@ -288,11 +281,18 @@ all_waves = bank_1 + bank_2 + bank_3
 #
 # Here we use K = 1 (first order), N = 1 (linear interpolation).
 data = []
+i = 0
 for wave in all_waves:
   n = len(wave)
   x = numpy.array(list(wave) * 2 + wave[0] + wave[1] + wave[2] + wave[3])
   x -= x.mean()
   x /= numpy.abs(x).max()
+  
+  # pylab.figure()
+  # pylab.plot(x[:n])
+  # pylab.savefig('wave_%04d_%04d.pdf' % (i, WAVETABLE_SIZE), format='pdf')
+  # pylab.close()
+  # i = i + 1
   
   x = numpy.cumsum(x)
   x -= x.mean()
@@ -300,3 +300,10 @@ for wave in all_waves:
   data += list(x[-n-4:])
   
 wavetables.append(('integrated_waves', data))
+
+# import base64
+# s = numpy.array(data, numpy.short)
+# print ''.join([
+#   'const plaitsWaves = "',
+#   base64.b64encode(s.tostring()),
+#   '";'])

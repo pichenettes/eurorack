@@ -34,19 +34,15 @@
 // All prediction strategies are concurrently tested, and the output from the
 // best performing one is selected (à la early Scheirer/Goto beat trackers).
 
-#ifndef STAGES_RAMP_EXTRACTOR_H_
-#define STAGES_RAMP_EXTRACTOR_H_
+#ifndef TIDES_RAMP_RAMP_EXTRACTOR_H_
+#define TIDES_RAMP_RAMP_EXTRACTOR_H_
 
 #include "stmlib/stmlib.h"
-
 #include "stmlib/utils/gate_flags.h"
 
-namespace stages {
+#include "tides2/ramp/ratio.h"
 
-struct Ratio {
-  float ratio;  // Precomputed p/q
-  int q;
-};
+namespace tides2 {
 
 const int kMaxPatternPeriod = 8;
 
@@ -56,12 +52,16 @@ class RampExtractor {
   ~RampExtractor() { }
   
   void Init(float sample_rate, float max_frequency);
-  void Process(
+  void Reset();
+  
+  float Process(
+      bool smooth_audio_rate_tracking,
+      bool force_integer_period,
       Ratio r,
       const stmlib::GateFlags* gate_flags,
       float* ramp,
       size_t size);
-  
+
  private:
   struct Pulse {
     uint32_t on_duration;
@@ -75,30 +75,41 @@ class RampExtractor {
   
   float PredictNextPeriod();
 
+  template<bool smooth_audio_rate_tracking>
+  inline float ProcessInternal(
+        bool force_integer_period,
+        Ratio r,
+        const stmlib::GateFlags* gate_flags,
+        float* ramp,
+        size_t size);
+        
   size_t current_pulse_;
   Pulse history_[kHistorySize];
   
-  float lp_period_;
   float prediction_error_[kMaxPatternPeriod + 1];
   float predicted_period_[kMaxPatternPeriod + 1];
   float average_pulse_width_;
   
   float train_phase_;
+  float frequency_lp_;
   float frequency_;
+  float target_frequency_;
+  float lp_coefficient_;
+  int period_;
   
-  uint32_t reset_interval_;
   int reset_counter_;
   float max_ramp_value_;
   float f_ratio_;
   float max_train_phase_;
+  uint32_t reset_interval_;
   
   float max_frequency_;
   float min_period_;
-  float min_period_hysteresis_;
+  float sample_rate_;
   
   DISALLOW_COPY_AND_ASSIGN(RampExtractor);
 };
 
-}  // namespace stages
+}  // namespace tides2
 
-#endif  // STAGES_RAMP_EXTRACTOR_H_
+#endif  // TIDES_RAMP_RAMP_EXTRACTOR_H_

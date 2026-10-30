@@ -24,7 +24,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// A ramp that follows a mater ramp through division/multiplication.
+// A ramp that follows a master ramp through division/multiplication.
 
 #ifndef MARBLES_RAMP_SLAVE_RAMP_H_
 #define MARBLES_RAMP_SLAVE_RAMP_H_
@@ -50,6 +50,11 @@ class SlaveRamp {
     bernoulli_ = false;
     must_complete_ = false;
   }
+  
+  inline void Reset() {
+    Init();
+    phase_ = 1.0f;
+  }
 
   // Initialize with a multiplied/divided rate compared to the master.
   inline void Init(int pattern_length, Ratio ratio, float pulse_width) {
@@ -62,7 +67,7 @@ class SlaveRamp {
     target_ = 1.0f;
     pulse_length_ = 0;
   }
-
+  
   // Initialize with an adaptive slope: divide the frequency by 2 every time
   // we know we won't have to reach 1.0 at the next tick.
   inline void Init(

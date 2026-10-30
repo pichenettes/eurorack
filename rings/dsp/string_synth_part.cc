@@ -168,7 +168,7 @@ const float chords[kMaxStringSynthPolyphony][kNumChords][kMaxChordSize] = {
 // Original chord table:
 // - wider, occupies more room in the spectrum.
 // - minimum number of note changes between adjacent chords.
-// - consistant with the chord table used for the sympathetic strings model.
+// - consistent with the chord table used for the sympathetic strings model.
 const float chords[kMaxStringSynthPolyphony][kNumChords][kMaxChordSize] = {
   {
     { -24.0f, -12.0f, 0.0f, 0.01f, 0.02f, 11.99f, 12.0f, 24.0f },

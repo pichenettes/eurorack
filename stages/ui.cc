@@ -47,6 +47,8 @@ const LedColor Ui::palette_[4] = {
   LED_COLOR_OFF
 };
 
+// #define DIMMER_LEDS
+
 void Ui::Init(Settings* settings, ChainState* chain_state) {
   leds_.Init();
   switches_.Init();
@@ -80,6 +82,10 @@ void Ui::Poll() {
   if (chain_state_->ouroboros()) {
     State* s = settings_->mutable_state();
     for (int i = 0; i < kNumSwitches; ++i) {
+      // HACK: sanitize segment type in Ouroboros mode to disable alt type.
+      s->segment_configuration[i] = \
+          (s->segment_configuration[i] & 0x4) | \
+          ((s->segment_configuration[i] & 0x3) % 3);
       if (switches_.pressed(i)) {
         if (press_time_[i] != -1) {
           ++press_time_[i];
@@ -162,10 +168,28 @@ void Ui::UpdateLEDs() {
     for (size_t i = 0; i < kNumChannels; ++i) {
       uint8_t configuration = settings_->state().segment_configuration[i];
       uint8_t type = configuration & 0x3;
-      int brightness = fade_patterns[chain_state_->ouroboros()
-          ? (configuration & 0x4 ? 3 : 0)
-          : chain_state_->loop_status(i)];
-      LedColor color = palette_[type];
+      uint8_t loop_status = chain_state_->loop_status(i);
+
+      // Do not display alternating LEDs in ouroboros mode.
+      if (chain_state_->ouroboros() && (configuration & 0x4)) loop_status = 3;
+      
+      // Brightness is determined by loop_status.
+      int brightness = fade_patterns[loop_status];
+      
+      // HACK to have the rainbow LED pattern in looping alt mode.
+      LedColor color = palette_[type % 3];
+      if (loop_status == 3 && type == 3) {
+        brightness = FadePattern(5, i);
+        uint8_t rainbow = FadePattern(9, i * 2);
+        uint8_t high = (rainbow >> 2) & 0x3;
+        uint8_t low = rainbow & 0x3;
+        if ((pwm & 0x3) >= low) {
+          color = palette_[high == 3 ? 1 : high];
+        } else {
+          high = (high + 1) & 0x3;
+          color = palette_[high == 3 ? 1 : high];
+        }
+      }
       if (settings_->state().color_blind == 1) {
         if (type == 0) {
           color = LED_COLOR_GREEN;
@@ -182,11 +206,17 @@ void Ui::UpdateLEDs() {
       leds_.set(
           LED_GROUP_UI + i,
           (brightness >= pwm && brightness != 0) ? color : LED_COLOR_OFF);
-      leds_.set(
-          LED_GROUP_SLIDER + i,
-          slider_led_counter_[i] ? LED_COLOR_GREEN : LED_COLOR_OFF);
-      if (slider_led_counter_[i]) {
-        --slider_led_counter_[i];
+#ifdef DIMMER_LEDS
+      if (!(pwm & 3)) {
+#else 
+      if (1) {
+#endif  // DIMMER_LEDS
+        leds_.set(
+            LED_GROUP_SLIDER + i,
+            slider_led_counter_[i] ? LED_COLOR_GREEN : LED_COLOR_OFF);
+        if (slider_led_counter_[i]) {
+          --slider_led_counter_[i];
+        }
       }
     }
   }

@@ -24,7 +24,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Drivers for the PCM5100 DAC.
+// Drivers for the PCM5100 codec.
 
 #include "plaits/drivers/audio_dac.h"
 
@@ -47,7 +47,7 @@ void AudioDac::Init(int sample_rate, size_t block_size) {
 void AudioDac::InitializeGPIO() {
   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
 
-	GPIO_InitTypeDef gpio_init;
+  GPIO_InitTypeDef gpio_init;
   gpio_init.GPIO_Mode = GPIO_Mode_AF;
   gpio_init.GPIO_OType = GPIO_OType_PP;
   gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
@@ -94,7 +94,7 @@ void AudioDac::InitializeDMA(size_t block_size) {
   DMA_Init(DMA1_Channel5, &dma_init);
   
   // Enable the interrupts: half transfer and transfer complete.
-	DMA_ITConfig(DMA1_Channel5, DMA_IT_TC | DMA_IT_HT, ENABLE);
+  DMA_ITConfig(DMA1_Channel5, DMA_IT_TC | DMA_IT_HT, ENABLE);
   
   // Enable the IRQ.
   NVIC_EnableIRQ(DMA1_Channel5_IRQn);

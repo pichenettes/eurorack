@@ -30,7 +30,8 @@
 
 #include "stmlib/dsp/parameter_interpolator.h"
 
-#include "plaits/resources.h"
+#include "plaits/dsp/oscillator/sine_oscillator.h"
+#include "plaits/dsp/downsampler/4x_downsampler.h"
 
 namespace plaits {
 
@@ -51,51 +52,6 @@ void FMEngine::Init(BufferAllocator* allocator) {
 void FMEngine::Reset() {
   
 }
-
-inline float FMEngine::SinePM(uint32_t phase, float fm) const {
-  phase += (static_cast<uint32_t>((fm + 4.0f) * 536870912.0f)) << 3;
-  uint32_t integral = phase >> 22;
-  float fractional = static_cast<float>(phase << 10) / 4294967296.0f;
-  float a = lut_sine[integral];
-  float b = lut_sine[integral + 1];
-  return a + (b - a) * fractional;
-}
-
-const size_t kOversampling = 4;
-const size_t kFirHalfSize = 4;
-
-static const float fir_coefficient[kFirHalfSize] = {
-    0.02442415f, 0.09297315f, 0.16712938f, 0.21547332f,
-};
-
-class Downsampler {
- public:
-  Downsampler(float* state) {
-    head_ = *state;
-    tail_ = 0.0f;
-    state_ = state;
-  }
-  ~Downsampler() {
-    *state_ = head_;
-  }
-  inline void Accumulate(int i, float sample) {
-    head_ += sample * fir_coefficient[3 - (i & 3)];
-    tail_ += sample * fir_coefficient[i & 3];
-  }
-  
-  inline float Read() {
-    float value = head_;
-    head_ = tail_;
-    tail_ = 0.0f;
-    return value;
-  }
- private:
-  float head_;
-  float tail_;
-  float* state_;
-
-  DISALLOW_COPY_AND_ASSIGN(Downsampler);
-};
 
 void FMEngine::Render(
     const EngineParameters& parameters,
@@ -136,15 +92,16 @@ void FMEngine::Render(
   Downsampler sub_downsampler(&sub_fir_);
   
   while (size--) {
+    const float max_uint32 = 4294967296.0f;
     const float amount = amount_modulation.Next();
     const float feedback = feedback_modulation.Next();
     float phase_feedback = feedback < 0.0f ? 0.5f * feedback * feedback : 0.0f;
     const uint32_t carrier_increment = static_cast<uint32_t>(
-        4294967296.0f * carrier_frequency.Next());
+        max_uint32 * carrier_frequency.Next());
     float _modulator_frequency = modulator_frequency.Next();
 
     for (size_t j = 0; j < kOversampling; ++j) {
-      modulator_phase_ += static_cast<uint32_t>(4294967296.0f * \
+      modulator_phase_ += static_cast<uint32_t>(max_uint32 * \
            _modulator_frequency * (1.0f + previous_sample_ * phase_feedback));
       carrier_phase_ += carrier_increment;
       sub_phase_ += carrier_increment >> 1;

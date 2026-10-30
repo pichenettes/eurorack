@@ -55,6 +55,7 @@ Dac dac;
 FactoryTest factory_test;
 GateFlags no_gate[kBlockSize];
 GateInputs gate_inputs;
+HysteresisQuantizer2 note_quantizer[kNumChannels + kMaxNumSegments];
 SegmentGenerator segment_generator[kNumChannels];
 Oscillator oscillator[kNumChannels];
 IOBuffer io_buffer;
@@ -141,6 +142,7 @@ float ouroboros_ratios[] = {
 float this_channel[kBlockSize];
 float sum[kBlockSize];
 float channel_amplitude[kNumChannels];
+float channel_envelope[kNumChannels];
 float previous_amplitude[kNumChannels];
 
 void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
@@ -160,20 +162,23 @@ void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
         ouroboros_ratios[harmonic_integral],
         ouroboros_ratios[harmonic_integral + 1],
         harmonic_fractional);
-    const float amplitude = channel == 0
-        ? 1.0f
-        : std::max(block->cv_slider[channel], 0.0f);
+    ONE_POLE(
+        channel_amplitude[channel],
+        channel == 0 ? 1.0f : std::max(block->cv_slider[channel] - 0.01f, 0.0f),
+        0.2f);
+    const float amplitude = channel_amplitude[channel];
+    
     bool trigger = false;
     for (size_t i = 0; i < size; ++i) {
       trigger = trigger || (block->input[channel][i] & GATE_FLAG_RISING);
     }
     if (trigger || !block->input_patched[channel]) {
-      channel_amplitude[channel] = 1.0f;
+      channel_envelope[channel] = 1.0f;
     } else {
-      channel_amplitude[channel] *= 0.999f;
+      channel_envelope[channel] *= 0.999f;
     }
     ui.set_slider_led(
-        channel, channel_amplitude[channel] * amplitude > 0.00001f, 1);
+        channel, channel_envelope[channel] * amplitude > 0.02f, 1);
     const float f = f0 * ratio;
     
     uint8_t waveshape = settings.state().segment_configuration[channel];
@@ -208,7 +213,7 @@ void ProcessOuroboros(IOBuffer::Block* block, size_t size) {
     
     ParameterInterpolator am(
         &previous_amplitude[channel],
-        amplitude * amplitude * channel_amplitude[channel],
+        amplitude * amplitude * channel_envelope[channel],
         size);
     for (size_t i = 0; i < size; ++i) {
       sum[i] += this_channel[i] * am.Next();
@@ -230,8 +235,12 @@ void Init() {
   io_buffer.Init();
   
   bool freshly_baked = !settings.Init();
+  
+  for (size_t i = 0; i < kNumChannels + kMaxNumSegments; ++i) {
+    note_quantizer[i].Init(13, 0.03f, false);
+  }
   for (size_t i = 0; i < kNumChannels; ++i) {
-    segment_generator[i].Init();
+    segment_generator[i].Init(&note_quantizer[i]);
     oscillator[i].Init();
   }
   std::fill(&no_gate[0], &no_gate[kBlockSize], GATE_FLAG_LOW);
