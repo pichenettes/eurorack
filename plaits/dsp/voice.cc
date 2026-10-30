@@ -73,6 +73,7 @@ void Voice::Init(BufferAllocator* allocator) {
   engine_quantizer_.Init(engines_.size(), 0.05f, true);
   previous_engine_index_ = -1;
   reload_user_data_ = false;
+  fill(&user_data_[0], &user_data_[kMaxEngines], (const uint8_t*)(NULL));
   engine_cv_ = 0.0f;
   
   out_post_processor_.Init();
@@ -127,7 +128,9 @@ void Voice::Render(
   
   if (engine_index != previous_engine_index_ || reload_user_data_) {
     UserData user_data;
-    const uint8_t* data = user_data.ptr(engine_index);
+    const uint8_t* data = user_data_[engine_index]
+        ? user_data_[engine_index]
+        : user_data.ptr(engine_index);
     if (!data && engine_index >= 2 && engine_index <= 4) {
       data = fm_patches_table[engine_index - 2];
     }
