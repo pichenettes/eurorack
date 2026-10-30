@@ -33,6 +33,12 @@
 
 #ifdef TEST
 
+// Needed for the printf calls in the mocks below. VCV Rack builds define TEST,
+// but nothing they compile calls these mocks: they are only reached through
+// UserData::Save(), which is only called by the firmware's main loop
+// (plaits.cc). The printf calls are never executed in Rack.
+#include <cstdio>
+
 // Mock flash saving functions for debugging purposes.
 #define PAGE_SIZE 0x800
 
